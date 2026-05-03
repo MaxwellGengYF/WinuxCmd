@@ -1,0 +1,65 @@
+{
+  "repo": "lib/pq",
+  "safe_name": "lib_pq",
+  "results": [
+    {
+      "strategy": "Custom",
+      "scores": {
+        "structure": 2.0,
+        "read_order": 1.2,
+        "pitfalls_quality": 2.5,
+        "quickstart_quality": 2.0,
+        "total": 7.8
+      },
+      "details": {
+        "structure": {
+          "present": [
+            "quickstart.md",
+            "overview.md",
+            "pitfalls.md",
+            "safety.md",
+            "best-practices.md",
+            "lifecycle.md",
+            "performance.md",
+            "threading.md"
+          ],
+          "missing": []
+        },
+        "read_order": {
+          "skill_json": true,
+          "read_order": [
+            "quickstart.md",
+            "overview.md",
+            "pitfalls.md",
+            "safety.md",
+            "best-practices.md",
+            "lifecycle.md",
+            "performance.md",
+            "threading.md"
+          ],
+          "cross_references": 2,
+          "cross_ref_details": {
+            "overview.md": [
+              "performance.md"
+            ],
+            "threading.md": [
+              "safety.md"
+            ]
+          },
+          "read_order_valid": "8/8 files exist"
+        },
+        "pitfalls_reason": "Good examples but missing context\n\nThe document scores well on BAD vs GOOD code examples (1/1) with clear contrasting patterns, and clarity/correctness (1/1) with accurate technical details. However, it loses some points on real-world relevance (0.5/1) because Pitfall 8 is cut off mid-explanation, making it incomplete and less useful for practical application.",
+        "quickstart_reason": "Good examples but missing imports and main function"
+      }
+    }
+  ],
+  "manual": null,
+  "summary": {
+    "best_strategy": "Custom",
+    "best_score": 7.8,
+    "all_scores": {
+      "Custom": 7.8
+    },
+    "manual_score": null
+  }
+}

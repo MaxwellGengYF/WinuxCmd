@@ -1,196 +1,7 @@
 {
   "version": "1.0",
-  "updated_at": "2026-05-03T10:02:26Z",
+  "updated_at": "2026-05-04T03:00:00Z",
   "skills": [
-    {
-      "key": "CLIUtils_CLI11",
-      "name": "CLI11",
-      "repo": "CLIUtils/CLI11",
-      "language": "cpp",
-      "tier": "tier1",
-      "group": "main",
-      "version": "1.0.0",
-      "skill_version": "0.1.0",
-      "trust_score": 85,
-      "verified": false,
-      "official": false,
-      "tags": [
-        "cpp",
-        "cli11"
-      ],
-      "summary": "Skill for CLIUtils_CLI11",
-      "risk_level": "medium",
-      "repo_source_url": "https://github.com/CLIUtils/CLI11",
-      "source_type": "community"
-    },
-    {
-      "key": "Cameron314_concurrentqueue",
-      "name": "concurrentqueue",
-      "repo": "Cameron314/concurrentqueue",
-      "language": "cpp",
-      "tier": "tier1",
-      "group": "main",
-      "version": "1.0.0",
-      "skill_version": "0.1.0",
-      "trust_score": 85,
-      "verified": false,
-      "official": false,
-      "tags": [
-        "cpp",
-        "concurrentqueue"
-      ],
-      "summary": "Skill for Cameron314_concurrentqueue",
-      "risk_level": "medium",
-      "repo_source_url": "https://github.com/Cameron314/concurrentqueue",
-      "source_type": "community"
-    },
-    {
-      "key": "Cameron314_readerwriterqueue",
-      "name": "readerwriterqueue",
-      "repo": "Cameron314/readerwriterqueue",
-      "language": "cpp",
-      "tier": "tier1",
-      "group": "main",
-      "version": "1.0.0",
-      "skill_version": "0.1.0",
-      "trust_score": 85,
-      "verified": false,
-      "official": false,
-      "tags": [
-        "cpp",
-        "readerwriterqueue"
-      ],
-      "summary": "Skill for Cameron314_readerwriterqueue",
-      "risk_level": "medium",
-      "repo_source_url": "https://github.com/Cameron314/readerwriterqueue",
-      "source_type": "community"
-    },
-    {
-      "key": "Ewenwan_ceres-solver",
-      "name": "ceres-solver",
-      "repo": "Ewenwan/ceres-solver",
-      "language": "cpp",
-      "tier": "tier1",
-      "group": "main",
-      "version": "1.0.0",
-      "skill_version": "0.1.0",
-      "trust_score": 85,
-      "verified": false,
-      "official": false,
-      "tags": [
-        "cpp",
-        "ceres-solver"
-      ],
-      "summary": "Skill for Ewenwan_ceres-solver",
-      "risk_level": "medium",
-      "repo_source_url": "https://github.com/Ewenwan/ceres-solver",
-      "source_type": "community"
-    },
-    {
-      "key": "Neargye_nameof",
-      "name": "nameof",
-      "repo": "Neargye/nameof",
-      "language": "cpp",
-      "tier": "utility",
-      "group": "reflection",
-      "version": "1.0.0",
-      "skill_version": "0.1.0",
-      "trust_score": 85,
-      "verified": false,
-      "official": false,
-      "tags": [
-        "cpp",
-        "nameof"
-      ],
-      "summary": "Skill for Neargye_nameof",
-      "risk_level": "medium",
-      "repo_source_url": "https://github.com/Neargye/nameof",
-      "source_type": "community"
-    },
-    {
-      "key": "SFML_SFML",
-      "name": "SFML",
-      "repo": "SFML/SFML",
-      "language": "cpp",
-      "tier": "tier1",
-      "group": "main",
-      "version": "1.0.0",
-      "skill_version": "0.1.0",
-      "trust_score": 85,
-      "verified": false,
-      "official": false,
-      "tags": [
-        "cpp",
-        "sfml"
-      ],
-      "summary": "Skill for SFML_SFML",
-      "risk_level": "medium",
-      "repo_source_url": "https://github.com/SFML/SFML",
-      "source_type": "community"
-    },
-    {
-      "key": "SergiusTheBest_plog",
-      "name": "plog",
-      "repo": "SergiusTheBest/plog",
-      "language": "cpp",
-      "tier": "tier1",
-      "group": "main",
-      "version": "1.0.0",
-      "skill_version": "0.1.0",
-      "trust_score": 85,
-      "verified": false,
-      "official": false,
-      "tags": [
-        "cpp",
-        "plog"
-      ],
-      "summary": "Skill for SergiusTheBest_plog",
-      "risk_level": "medium",
-      "repo_source_url": "https://github.com/SergiusTheBest/plog",
-      "source_type": "community"
-    },
-    {
-      "key": "Tencent_rapidjson",
-      "name": "rapidjson",
-      "repo": "Tencent/rapidjson",
-      "language": "cpp",
-      "tier": "tier1",
-      "group": "main",
-      "version": "1.0.0",
-      "skill_version": "0.1.0",
-      "trust_score": 85,
-      "verified": false,
-      "official": false,
-      "tags": [
-        "cpp",
-        "rapidjson"
-      ],
-      "summary": "Skill for Tencent_rapidjson",
-      "risk_level": "medium",
-      "repo_source_url": "https://github.com/Tencent/rapidjson",
-      "source_type": "community"
-    },
-    {
-      "key": "Tessil_robin-map",
-      "name": "robin-map",
-      "repo": "Tessil/robin-map",
-      "language": "cpp",
-      "tier": "tier1",
-      "group": "main",
-      "version": "1.0.0",
-      "skill_version": "0.1.0",
-      "trust_score": 85,
-      "verified": false,
-      "official": false,
-      "tags": [
-        "cpp",
-        "robin-map"
-      ],
-      "summary": "Skill for Tessil_robin-map",
-      "risk_level": "medium",
-      "repo_source_url": "https://github.com/Tessil/robin-map",
-      "source_type": "community"
-    },
     {
       "key": "abseil_abseil-cpp",
       "name": "abseil-cpp",
@@ -216,7 +27,7 @@
     },
     {
       "key": "academic-deep-research",
-      "name": "Academic Deep Research \ud83d\udd2c",
+      "name": "Academic Deep Research 🔬",
       "repo": "academic-deep-research",
       "language": "?",
       "tier": "?",
@@ -276,7 +87,7 @@
     },
     {
       "key": "ai-daily-briefing",
-      "name": "\u2600\ufe0f AI Daily Briefing",
+      "name": "☀️ AI Daily Briefing",
       "repo": "ai-daily-briefing",
       "language": "?",
       "tier": "?",
@@ -377,7 +188,7 @@
     },
     {
       "key": "blogburst",
-      "name": "BlogBurst \u2014 Replace your freelance social media manager",
+      "name": "BlogBurst — Replace your freelance social media manager",
       "repo": "blogburst",
       "language": "?",
       "tier": "?",
@@ -514,6 +325,48 @@
       "source_type": "community"
     },
     {
+      "key": "Cameron314_concurrentqueue",
+      "name": "concurrentqueue",
+      "repo": "Cameron314/concurrentqueue",
+      "language": "cpp",
+      "tier": "tier1",
+      "group": "main",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 85,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "cpp",
+        "concurrentqueue"
+      ],
+      "summary": "Skill for Cameron314_concurrentqueue",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/Cameron314/concurrentqueue",
+      "source_type": "community"
+    },
+    {
+      "key": "Cameron314_readerwriterqueue",
+      "name": "readerwriterqueue",
+      "repo": "Cameron314/readerwriterqueue",
+      "language": "cpp",
+      "tier": "tier1",
+      "group": "main",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 85,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "cpp",
+        "readerwriterqueue"
+      ],
+      "summary": "Skill for Cameron314_readerwriterqueue",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/Cameron314/readerwriterqueue",
+      "source_type": "community"
+    },
+    {
       "key": "catchorg_Catch2",
       "name": "Catch2",
       "repo": "catchorg/Catch2",
@@ -580,7 +433,7 @@
     },
     {
       "key": "clawdchat",
-      "name": "ClawdChat.ai \u867e\u804a",
+      "name": "ClawdChat.ai 虾聊",
       "repo": "clawdchat",
       "language": "?",
       "tier": "?",
@@ -594,6 +447,27 @@
       "summary": "Skill for clawdchat",
       "risk_level": "medium",
       "repo_source_url": "https://github.com/clawdchat",
+      "source_type": "community"
+    },
+    {
+      "key": "CLIUtils_CLI11",
+      "name": "CLI11",
+      "repo": "CLIUtils/CLI11",
+      "language": "cpp",
+      "tier": "tier1",
+      "group": "main",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 85,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "cpp",
+        "cli11"
+      ],
+      "summary": "Skill for CLIUtils_CLI11",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/CLIUtils/CLI11",
       "source_type": "community"
     },
     {
@@ -615,6 +489,60 @@
       "summary": "Skill for cnjinhao_nana",
       "risk_level": "medium",
       "repo_source_url": "https://github.com/cnjinhao/nana",
+      "source_type": "community"
+    },
+    {
+      "key": "content-creator",
+      "name": "content-creator",
+      "repo": "content-creator",
+      "language": "unknown",
+      "tier": "community",
+      "group": "general",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 50,
+      "verified": false,
+      "official": false,
+      "tags": [],
+      "summary": "Skill for content-creator",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/content-creator",
+      "source_type": "community"
+    },
+    {
+      "key": "content-generation",
+      "name": "content-generation",
+      "repo": "content-generation",
+      "language": "unknown",
+      "tier": "community",
+      "group": "general",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 50,
+      "verified": false,
+      "official": false,
+      "tags": [],
+      "summary": "Skill for content-generation",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/content-generation",
+      "source_type": "community"
+    },
+    {
+      "key": "content-repurposer",
+      "name": "content-repurposer",
+      "repo": "content-repurposer",
+      "language": "unknown",
+      "tier": "community",
+      "group": "general",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 50,
+      "verified": false,
+      "official": false,
+      "tags": [],
+      "summary": "Skill for content-repurposer",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/content-repurposer",
       "source_type": "community"
     },
     {
@@ -717,6 +645,27 @@
       "source_type": "community"
     },
     {
+      "key": "Ewenwan_ceres-solver",
+      "name": "ceres-solver",
+      "repo": "Ewenwan/ceres-solver",
+      "language": "cpp",
+      "tier": "tier1",
+      "group": "main",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 85,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "cpp",
+        "ceres-solver"
+      ],
+      "summary": "Skill for Ewenwan_ceres-solver",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/Ewenwan/ceres-solver",
+      "source_type": "community"
+    },
+    {
       "key": "facebook_folly",
       "name": "folly",
       "repo": "facebook/folly",
@@ -803,7 +752,7 @@
     },
     {
       "key": "find-skills",
-      "name": "Find Skills\uff08\u6280\u80fd\u53d1\u73b0\u4e13\u5bb6\uff09",
+      "name": "Find Skills（技能发现专家）",
       "repo": "find-skills",
       "language": "?",
       "tier": "?",
@@ -1103,6 +1052,28 @@
       "source_type": "community"
     },
     {
+      "key": "lib_pq",
+      "name": "pq",
+      "repo": "lib/pq",
+      "language": "go",
+      "tier": "core",
+      "group": "database",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 85,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "go",
+        "postgresql",
+        "pq"
+      ],
+      "summary": "Skill for lib_pq",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/lib/pq",
+      "source_type": "community"
+    },
+    {
       "key": "libcurl_curl",
       "name": "curl",
       "repo": "libcurl/curl",
@@ -1270,6 +1241,27 @@
       "summary": "Skill for mitsuhiko_flask",
       "risk_level": "medium",
       "repo_source_url": "https://github.com/mitsuhiko/flask",
+      "source_type": "community"
+    },
+    {
+      "key": "Neargye_nameof",
+      "name": "nameof",
+      "repo": "Neargye/nameof",
+      "language": "cpp",
+      "tier": "utility",
+      "group": "reflection",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 85,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "cpp",
+        "nameof"
+      ],
+      "summary": "Skill for Neargye_nameof",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/Neargye/nameof",
       "source_type": "community"
     },
     {
@@ -1604,7 +1596,7 @@
     },
     {
       "key": "self-improving-agent",
-      "name": "Self-Improving Agent\uff08\u81ea\u6211\u8fdb\u5316\uff09",
+      "name": "Self-Improving Agent（自我进化）",
       "repo": "self-improving-agent",
       "language": "?",
       "tier": "?",
@@ -1618,6 +1610,48 @@
       "summary": "Skill for self-improving-agent",
       "risk_level": "medium",
       "repo_source_url": "https://github.com/self-improving-agent",
+      "source_type": "community"
+    },
+    {
+      "key": "SergiusTheBest_plog",
+      "name": "plog",
+      "repo": "SergiusTheBest/plog",
+      "language": "cpp",
+      "tier": "tier1",
+      "group": "main",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 85,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "cpp",
+        "plog"
+      ],
+      "summary": "Skill for SergiusTheBest_plog",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/SergiusTheBest/plog",
+      "source_type": "community"
+    },
+    {
+      "key": "SFML_SFML",
+      "name": "SFML",
+      "repo": "SFML/SFML",
+      "language": "cpp",
+      "tier": "tier1",
+      "group": "main",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 85,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "cpp",
+        "sfml"
+      ],
+      "summary": "Skill for SFML_SFML",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/SFML/SFML",
       "source_type": "community"
     },
     {
@@ -1664,7 +1698,7 @@
     },
     {
       "key": "skill-creator-enhanced",
-      "name": "Skill Creator Enhanced\uff08\u6280\u80fd\u521b\u9020\u5de5\u574a\u589e\u5f3a\u7248\uff09",
+      "name": "Skill Creator Enhanced（技能创造工坊增强版）",
       "repo": "skill-creator-enhanced",
       "language": "?",
       "tier": "?",
@@ -1857,6 +1891,66 @@
       "source_type": "community"
     },
     {
+      "key": "Tencent_rapidjson",
+      "name": "rapidjson",
+      "repo": "Tencent/rapidjson",
+      "language": "cpp",
+      "tier": "tier1",
+      "group": "main",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 85,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "cpp",
+        "rapidjson"
+      ],
+      "summary": "Skill for Tencent_rapidjson",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/Tencent/rapidjson",
+      "source_type": "community"
+    },
+    {
+      "key": "Tessil_robin-map",
+      "name": "robin-map",
+      "repo": "Tessil/robin-map",
+      "language": "cpp",
+      "tier": "tier1",
+      "group": "main",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 85,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "cpp",
+        "robin-map"
+      ],
+      "summary": "Skill for Tessil_robin-map",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/Tessil/robin-map",
+      "source_type": "community"
+    },
+    {
+      "key": "test-skill-template",
+      "name": "test-skill-template",
+      "repo": "test-skill-template",
+      "language": "unknown",
+      "tier": "community",
+      "group": "general",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 50,
+      "verified": false,
+      "official": false,
+      "tags": [],
+      "summary": "Skill for test-skill-template",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/test-skill-template",
+      "source_type": "community"
+    },
+    {
       "key": "usoa_msgpack-c",
       "name": "msgpack-c",
       "repo": "usoa/msgpack-c",
@@ -1921,6 +2015,78 @@
       "summary": "Skill for zeromq_cppzmq",
       "risk_level": "medium",
       "repo_source_url": "https://github.com/zeromq/cppzmq",
+      "source_type": "community"
+    },
+    {
+      "key": "草纸-写作技能",
+      "name": "草纸-写作技能",
+      "repo": "草纸-写作技能",
+      "language": "unknown",
+      "tier": "community",
+      "group": "general",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 50,
+      "verified": false,
+      "official": false,
+      "tags": [],
+      "summary": "Skill for 草纸-写作技能",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/草纸-写作技能",
+      "source_type": "community"
+    },
+    {
+      "key": "草纸-探索技能",
+      "name": "草纸-探索技能",
+      "repo": "草纸-探索技能",
+      "language": "unknown",
+      "tier": "community",
+      "group": "general",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 50,
+      "verified": false,
+      "official": false,
+      "tags": [],
+      "summary": "Skill for 草纸-探索技能",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/草纸-探索技能",
+      "source_type": "community"
+    },
+    {
+      "key": "草纸-账号注册",
+      "name": "草纸-账号注册",
+      "repo": "草纸-账号注册",
+      "language": "unknown",
+      "tier": "community",
+      "group": "general",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 50,
+      "verified": false,
+      "official": false,
+      "tags": [],
+      "summary": "Skill for 草纸-账号注册",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/草纸-账号注册",
+      "source_type": "community"
+    },
+    {
+      "key": "草纸-阅读技能",
+      "name": "草纸-阅读技能",
+      "repo": "草纸-阅读技能",
+      "language": "unknown",
+      "tier": "community",
+      "group": "general",
+      "version": "1.0.0",
+      "skill_version": "0.1.0",
+      "trust_score": 50,
+      "verified": false,
+      "official": false,
+      "tags": [],
+      "summary": "Skill for 草纸-阅读技能",
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/草纸-阅读技能",
       "source_type": "community"
     }
   ]
