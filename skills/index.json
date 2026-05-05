@@ -1,15 +1,17 @@
 {
-  "version": "1.0",
-  "updated_at": "2026-05-04T19:06:20Z",
-  "total_skills": 78,
+  "version": "2.0",
+  "updated_at": "2026-05-05T10:17:19+08:00",
+  "total": 87,
   "skills": [
     {
       "key": "CLIUtils_CLI11",
       "name": "CLI11",
+      "dir": "CLIUtils_CLI11",
       "repo": "CLIUtils/CLI11",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for CLIUtils/CLI11",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -19,18 +21,18 @@
         "cpp",
         "cli11"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/CLIUtils/CLI11",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/CLIUtils/CLI11"
     },
     {
       "key": "Cameron314_concurrentqueue",
       "name": "concurrentqueue",
+      "dir": "Cameron314_concurrentqueue",
       "repo": "Cameron314/concurrentqueue",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for Cameron314/concurrentqueue",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -40,18 +42,18 @@
         "cpp",
         "concurrentqueue"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/Cameron314/concurrentqueue",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/Cameron314/concurrentqueue"
     },
     {
       "key": "Cameron314_readerwriterqueue",
       "name": "readerwriterqueue",
+      "dir": "Cameron314_readerwriterqueue",
       "repo": "Cameron314/readerwriterqueue",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for Cameron314/readerwriterqueue",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -61,18 +63,18 @@
         "cpp",
         "readerwriterqueue"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/Cameron314/readerwriterqueue",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/Cameron314/readerwriterqueue"
     },
     {
       "key": "Ewenwan_ceres-solver",
       "name": "ceres-solver",
+      "dir": "Ewenwan_ceres-solver",
       "repo": "Ewenwan/ceres-solver",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for Ewenwan/ceres-solver",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -82,18 +84,18 @@
         "cpp",
         "ceres-solver"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/Ewenwan/ceres-solver",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/Ewenwan/ceres-solver"
     },
     {
       "key": "Neargye_nameof",
       "name": "nameof",
+      "dir": "Neargye_nameof",
       "repo": "Neargye/nameof",
       "language": "cpp",
       "tier": "utility",
       "group": "reflection",
+      "summary": "LibSkills skill for Neargye/nameof",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -103,18 +105,18 @@
         "cpp",
         "nameof"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/Neargye/nameof",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/Neargye/nameof"
     },
     {
       "key": "SFML_SFML",
       "name": "SFML",
+      "dir": "SFML_SFML",
       "repo": "SFML/SFML",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for SFML/SFML",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -124,18 +126,18 @@
         "cpp",
         "sfml"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/SFML/SFML",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/SFML/SFML"
     },
     {
       "key": "SergiusTheBest_plog",
       "name": "plog",
+      "dir": "SergiusTheBest_plog",
       "repo": "SergiusTheBest/plog",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for SergiusTheBest/plog",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -145,18 +147,18 @@
         "cpp",
         "plog"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/SergiusTheBest/plog",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/SergiusTheBest/plog"
     },
     {
       "key": "Tencent_rapidjson",
       "name": "rapidjson",
+      "dir": "Tencent_rapidjson",
       "repo": "Tencent/rapidjson",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for Tencent/rapidjson",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -166,18 +168,18 @@
         "cpp",
         "rapidjson"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/Tencent/rapidjson",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/Tencent/rapidjson"
     },
     {
       "key": "Tessil_robin-map",
       "name": "robin-map",
+      "dir": "Tessil_robin-map",
       "repo": "Tessil/robin-map",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for Tessil/robin-map",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -187,18 +189,18 @@
         "cpp",
         "robin-map"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/Tessil/robin-map",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/Tessil/robin-map"
     },
     {
       "key": "abseil_abseil-cpp",
       "name": "abseil-cpp",
+      "dir": "abseil_abseil-cpp",
       "repo": "abseil/abseil-cpp",
       "language": "cpp",
       "tier": "core",
       "group": "utility",
+      "summary": "LibSkills skill for abseil/abseil-cpp",
       "version": "1.0.0",
       "skill_version": "0.2.0",
       "trust_score": 85,
@@ -210,18 +212,18 @@
         "google",
         "utility"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/abseil/abseil-cpp",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/abseil/abseil-cpp"
     },
     {
       "key": "actix_actix-web",
       "name": "actix-web",
+      "dir": "actix_actix-web",
       "repo": "actix/actix-web",
       "language": "rust",
       "tier": "core",
       "group": "web",
+      "summary": "LibSkills skill for actix/actix-web",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -234,18 +236,18 @@
         "http",
         "async"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/actix/actix-web",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/actix/actix-web"
     },
     {
       "key": "aio-libs_aiohttp",
       "name": "aiohttp",
+      "dir": "aio-libs_aiohttp",
       "repo": "aio-libs/aiohttp",
       "language": "python",
       "tier": "core",
       "group": "networking",
+      "summary": "LibSkills skill for aio-libs/aiohttp",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -258,18 +260,18 @@
         "async",
         "http"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/aio-libs/aiohttp",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/aio-libs/aiohttp"
     },
     {
       "key": "aws_aws-sdk-go",
       "name": "aws-sdk-go",
+      "dir": "aws_aws-sdk-go",
       "repo": "aws/aws-sdk-go",
       "language": "go",
       "tier": "core",
       "group": "cloud",
+      "summary": "LibSkills skill for aws/aws-sdk-go",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -281,18 +283,18 @@
         "cloud",
         "sdk"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/aws/aws-sdk-go",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/aws/aws-sdk-go"
     },
     {
       "key": "bombela_backward-cpp",
       "name": "backward-cpp",
+      "dir": "bombela_backward-cpp",
       "repo": "bombela/backward-cpp",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for bombela/backward-cpp",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -302,18 +304,18 @@
         "cpp",
         "backward-cpp"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/bombela/backward-cpp",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/bombela/backward-cpp"
     },
     {
       "key": "boostorg_asio",
       "name": "asio",
+      "dir": "boostorg_asio",
       "repo": "boostorg/asio",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for boostorg/asio",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -323,18 +325,18 @@
         "cpp",
         "asio"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/boostorg/asio",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/boostorg/asio"
     },
     {
       "key": "boostorg_filesystem",
       "name": "filesystem",
+      "dir": "boostorg_filesystem",
       "repo": "boostorg/filesystem",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for boostorg/filesystem",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -344,18 +346,18 @@
         "cpp",
         "filesystem"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/boostorg/filesystem",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/boostorg/filesystem"
     },
     {
       "key": "boostorg_gil",
       "name": "gil",
+      "dir": "boostorg_gil",
       "repo": "boostorg/gil",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for boostorg/gil",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -365,18 +367,18 @@
         "cpp",
         "gil"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/boostorg/gil",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/boostorg/gil"
     },
     {
       "key": "catchorg_Catch2",
       "name": "Catch2",
+      "dir": "catchorg_Catch2",
       "repo": "catchorg/Catch2",
       "language": "cpp",
       "tier": "core",
       "group": "testing",
+      "summary": "LibSkills skill for catchorg/Catch2",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -386,18 +388,18 @@
         "cpp",
         "catch2"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/catchorg/Catch2",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/catchorg/Catch2"
     },
     {
       "key": "celery_celery",
       "name": "celery",
+      "dir": "celery_celery",
       "repo": "celery/celery",
       "language": "python",
       "tier": "advanced",
       "group": "task-queue",
+      "summary": "LibSkills skill for celery/celery",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -409,18 +411,18 @@
         "task-queue",
         "distributed"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/celery/celery",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/celery/celery"
     },
     {
       "key": "chriskohlhoff_websocketpp",
       "name": "websocketpp",
+      "dir": "chriskohlhoff_websocketpp",
       "repo": "chriskohlhoff/websocketpp",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for chriskohlhoff/websocketpp",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -430,18 +432,18 @@
         "cpp",
         "websocketpp"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/chriskohlhoff/websocketpp",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/chriskohlhoff/websocketpp"
     },
     {
       "key": "cnjinhao_nana",
       "name": "nana",
+      "dir": "cnjinhao_nana",
       "repo": "cnjinhao/nana",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for cnjinhao/nana",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -451,18 +453,18 @@
         "cpp",
         "nana"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/cnjinhao/nana",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/cnjinhao/nana"
     },
     {
       "key": "diesel-rs_diesel",
       "name": "diesel",
+      "dir": "diesel-rs_diesel",
       "repo": "diesel-rs/diesel",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for diesel-rs/diesel",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -472,18 +474,18 @@
         "cpp",
         "diesel"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/diesel-rs/diesel",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/diesel-rs/diesel"
     },
     {
       "key": "drogonframework_drogon",
       "name": "drogon",
+      "dir": "drogonframework_drogon",
       "repo": "drogonframework/drogon",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for drogonframework/drogon",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -493,18 +495,18 @@
         "cpp",
         "drogon"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/drogonframework/drogon",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/drogonframework/drogon"
     },
     {
       "key": "emilk_loguru",
       "name": "loguru",
+      "dir": "emilk_loguru",
       "repo": "emilk/loguru",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for emilk/loguru",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -514,18 +516,18 @@
         "cpp",
         "loguru"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/emilk/loguru",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/emilk/loguru"
     },
     {
       "key": "facebook_folly",
       "name": "folly",
+      "dir": "facebook_folly",
       "repo": "facebook/folly",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for facebook/folly",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -535,18 +537,18 @@
         "cpp",
         "folly"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/facebook/folly",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/facebook/folly"
     },
     {
       "key": "facebook_rocksdb",
       "name": "rocksdb",
+      "dir": "facebook_rocksdb",
       "repo": "facebook/rocksdb",
       "language": "cpp",
       "tier": "core",
       "group": "database",
+      "summary": "LibSkills skill for facebook/rocksdb",
       "version": "11.0.4",
       "skill_version": "1.0.0",
       "trust_score": 92,
@@ -560,18 +562,18 @@
         "lsm-tree",
         "storage-engine"
       ],
-      "summary": "",
       "risk_level": "low",
-      "repo_source_url": "https://github.com/facebook/rocksdb",
-      "source_type": "official"
+      "repo_source_url": "https://github.com/facebook/rocksdb"
     },
     {
       "key": "facebook_zstd",
       "name": "zstd",
+      "dir": "facebook_zstd",
       "repo": "facebook/zstd",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for facebook/zstd",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -581,18 +583,40 @@
         "cpp",
         "zstd"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/facebook/zstd",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/facebook/zstd"
+    },
+    {
+      "key": "fastapi_fastapi",
+      "name": "fastapi",
+      "dir": "fastapi_fastapi",
+      "repo": "fastapi/fastapi",
+      "language": "python",
+      "tier": "core",
+      "group": "library",
+      "summary": "LibSkills skill for fastapi/fastapi",
+      "version": "1.0.0",
+      "skill_version": "1.0.0",
+      "trust_score": 80,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "python",
+        "core",
+        "library"
+      ],
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/fastapi/fastapi"
     },
     {
       "key": "fltk_fltk",
       "name": "fltk",
+      "dir": "fltk_fltk",
       "repo": "fltk/fltk",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for fltk/fltk",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -602,18 +626,18 @@
         "cpp",
         "fltk"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/fltk/fltk",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/fltk/fltk"
     },
     {
       "key": "gfx-rs_wgpu",
       "name": "wgpu",
+      "dir": "gfx-rs_wgpu",
       "repo": "gfx-rs/wgpu",
       "language": "rust",
       "tier": "core",
       "group": "graphics",
+      "summary": "LibSkills skill for gfx-rs/wgpu",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -626,18 +650,40 @@
         "rust",
         "rendering"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/gfx-rs/wgpu",
-      "source_type": "official"
+      "repo_source_url": "https://github.com/gfx-rs/wgpu"
+    },
+    {
+      "key": "gin-gonic_gin",
+      "name": "gin",
+      "dir": "gin-gonic_gin",
+      "repo": "gin-gonic/gin",
+      "language": "go",
+      "tier": "core",
+      "group": "library",
+      "summary": "LibSkills skill for gin-gonic/gin",
+      "version": "1.0.0",
+      "skill_version": "1.0.0",
+      "trust_score": 80,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "go",
+        "core",
+        "library"
+      ],
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/gin-gonic/gin"
     },
     {
       "key": "go-sql-driver_mysql",
       "name": "mysql",
+      "dir": "go-sql-driver_mysql",
       "repo": "go-sql-driver/mysql",
       "language": "go",
       "tier": "core",
       "group": "database",
+      "summary": "LibSkills skill for go-sql-driver/mysql",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -648,18 +694,18 @@
         "mysql",
         "database"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/go-sql-driver/mysql",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/go-sql-driver/mysql"
     },
     {
       "key": "google_benchmark",
       "name": "benchmark",
+      "dir": "google_benchmark",
       "repo": "google/benchmark",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for google/benchmark",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -669,18 +715,18 @@
         "cpp",
         "benchmark"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/google/benchmark",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/google/benchmark"
     },
     {
       "key": "google_double-conversion",
       "name": "double-conversion",
+      "dir": "google_double-conversion",
       "repo": "google/double-conversion",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for google/double-conversion",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -690,18 +736,18 @@
         "cpp",
         "double-conversion"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/google/double-conversion",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/google/double-conversion"
     },
     {
       "key": "google_googletest",
       "name": "googletest",
+      "dir": "google_googletest",
       "repo": "google/googletest",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for google/googletest",
       "version": "1.17.0",
       "skill_version": "0.1.0",
       "trust_score": 92,
@@ -714,18 +760,18 @@
         "gtest",
         "gmock"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/google/googletest",
-      "source_type": "official"
+      "repo_source_url": "https://github.com/google/googletest"
     },
     {
       "key": "google_snappy",
       "name": "snappy",
+      "dir": "google_snappy",
       "repo": "google/snappy",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for google/snappy",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -735,18 +781,18 @@
         "cpp",
         "snappy"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/google/snappy",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/google/snappy"
     },
     {
       "key": "gorilla_mux",
       "name": "mux",
+      "dir": "gorilla_mux",
       "repo": "gorilla/mux",
       "language": "go",
       "tier": "core",
       "group": "web",
+      "summary": "LibSkills skill for gorilla/mux",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -759,18 +805,40 @@
         "web",
         "router"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/gorilla/mux",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/gorilla/mux"
+    },
+    {
+      "key": "gorilla_websocket",
+      "name": "websocket",
+      "dir": "gorilla_websocket",
+      "repo": "gorilla/websocket",
+      "language": "go",
+      "tier": "core",
+      "group": "library",
+      "summary": "LibSkills skill for gorilla/websocket",
+      "version": "1.0.0",
+      "skill_version": "1.0.0",
+      "trust_score": 80,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "go",
+        "core",
+        "library"
+      ],
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/gorilla/websocket"
     },
     {
       "key": "greg7mdp_parallel-hashmap",
       "name": "parallel-hashmap",
+      "dir": "greg7mdp_parallel-hashmap",
       "repo": "greg7mdp/parallel-hashmap",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for greg7mdp/parallel-hashmap",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -780,18 +848,18 @@
         "cpp",
         "parallel-hashmap"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/greg7mdp/parallel-hashmap",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/greg7mdp/parallel-hashmap"
     },
     {
       "key": "grpc_grpc",
       "name": "grpc",
+      "dir": "grpc_grpc",
       "repo": "grpc/grpc",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for grpc/grpc",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -801,18 +869,18 @@
         "cpp",
         "grpc"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/grpc/grpc",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/grpc/grpc"
     },
     {
       "key": "hyperium_hyper",
       "name": "hyper",
+      "dir": "hyperium_hyper",
       "repo": "hyperium/hyper",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for hyperium/hyper",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -822,18 +890,18 @@
         "cpp",
         "hyper"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/hyperium/hyper",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/hyperium/hyper"
     },
     {
       "key": "imageworks_pystring",
       "name": "pystring",
+      "dir": "imageworks_pystring",
       "repo": "imageworks/pystring",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for imageworks/pystring",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -843,18 +911,18 @@
         "cpp",
         "pystring"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/imageworks/pystring",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/imageworks/pystring"
     },
     {
       "key": "jarro2783_cxxopts",
       "name": "cxxopts",
+      "dir": "jarro2783_cxxopts",
       "repo": "jarro2783/cxxopts",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for jarro2783/cxxopts",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -864,18 +932,18 @@
         "cpp",
         "cxxopts"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/jarro2783/cxxopts",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/jarro2783/cxxopts"
     },
     {
       "key": "lib_pq",
       "name": "pq",
+      "dir": "lib_pq",
       "repo": "lib/pq",
       "language": "go",
       "tier": "core",
       "group": "database",
+      "summary": "LibSkills skill for lib/pq",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -886,18 +954,18 @@
         "postgresql",
         "pq"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/lib/pq",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/lib/pq"
     },
     {
       "key": "libcurl_curl",
       "name": "curl",
+      "dir": "libcurl_curl",
       "repo": "libcurl/curl",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for libcurl/curl",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -907,18 +975,18 @@
         "cpp",
         "curl"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/libcurl/curl",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/libcurl/curl"
     },
     {
       "key": "libigl_eigen",
       "name": "eigen",
+      "dir": "libigl_eigen",
       "repo": "libigl/eigen",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for libigl/eigen",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -928,18 +996,18 @@
         "cpp",
         "eigen"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/libigl/eigen",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/libigl/eigen"
     },
     {
       "key": "libsdl-org_SDL",
       "name": "SDL",
+      "dir": "libsdl-org_SDL",
       "repo": "libsdl-org/SDL",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for libsdl-org/SDL",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -949,18 +1017,18 @@
         "cpp",
         "sdl"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/libsdl-org/SDL",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/libsdl-org/SDL"
     },
     {
       "key": "libsdl_org_SDL",
       "name": "SDL",
+      "dir": "libsdl_org_SDL",
       "repo": "libsdl-org/SDL",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for libsdl-org/SDL",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -970,18 +1038,18 @@
         "cpp",
         "sdl"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/libsdl-org/SDL",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/libsdl-org/SDL"
     },
     {
       "key": "libuv_libuv",
       "name": "libuv",
+      "dir": "libuv_libuv",
       "repo": "libuv/libuv",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for libuv/libuv",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -991,18 +1059,18 @@
         "cpp",
         "libuv"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/libuv/libuv",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/libuv/libuv"
     },
     {
       "key": "martinmoene_filesystem",
       "name": "filesystem",
+      "dir": "martinmoene_filesystem",
       "repo": "martinmoene/filesystem",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for martinmoene/filesystem",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1012,18 +1080,18 @@
         "cpp",
         "filesystem"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/martinmoene/filesystem",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/martinmoene/filesystem"
     },
     {
       "key": "microsoft_cpprestsdk",
       "name": "cpprestsdk",
+      "dir": "microsoft_cpprestsdk",
       "repo": "microsoft/cpprestsdk",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for microsoft/cpprestsdk",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1033,18 +1101,18 @@
         "cpp",
         "cpprestsdk"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/microsoft/cpprestsdk",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/microsoft/cpprestsdk"
     },
     {
       "key": "mitsuhiko_flask",
       "name": "flask",
+      "dir": "mitsuhiko_flask",
       "repo": "mitsuhiko/flask",
       "language": "python",
       "tier": "core",
       "group": "web",
+      "summary": "LibSkills skill for mitsuhiko/flask",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1056,18 +1124,18 @@
         "web",
         "framework"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/mitsuhiko/flask",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/mitsuhiko/flask"
     },
     {
       "key": "nlohmann_json",
       "name": "json",
+      "dir": "nlohmann_json",
       "repo": "nlohmann/json",
       "language": "cpp",
       "tier": "core",
       "group": "serialization",
+      "summary": "LibSkills skill for nlohmann/json",
       "version": "1.0.0",
       "skill_version": "1.0.0",
       "trust_score": 80,
@@ -1078,18 +1146,18 @@
         "core",
         "serialization"
       ],
-      "summary": "LibSkills skill for nlohmann/json",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/nlohmann/json",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/nlohmann/json"
     },
     {
       "key": "numpy_numpy",
       "name": "numpy",
+      "dir": "numpy_numpy",
       "repo": "numpy/numpy",
       "language": "python",
       "tier": "core",
       "group": "data",
+      "summary": "LibSkills skill for numpy/numpy",
       "version": "2.2.0",
       "skill_version": "0.1.0",
       "trust_score": 90,
@@ -1102,18 +1170,18 @@
         "scientific",
         "linear-algebra"
       ],
-      "summary": "",
       "risk_level": "low",
-      "repo_source_url": "https://github.com/numpy/numpy",
-      "source_type": "official"
+      "repo_source_url": "https://github.com/numpy/numpy"
     },
     {
       "key": "ocornut_imgui",
       "name": "imgui",
+      "dir": "ocornut_imgui",
       "repo": "ocornut/imgui",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for ocornut/imgui",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1123,18 +1191,18 @@
         "cpp",
         "imgui"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/ocornut/imgui",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/ocornut/imgui"
     },
     {
       "key": "oneapi-src_oneTBB",
       "name": "oneTBB",
+      "dir": "oneapi-src_oneTBB",
       "repo": "oneapi-src/oneTBB",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for oneapi-src/oneTBB",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1144,18 +1212,18 @@
         "cpp",
         "onetbb"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/oneapi-src/oneTBB",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/oneapi-src/oneTBB"
     },
     {
       "key": "opencv_opencv",
       "name": "opencv",
+      "dir": "opencv_opencv",
       "repo": "opencv/opencv",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for opencv/opencv",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1165,18 +1233,40 @@
         "cpp",
         "opencv"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/opencv/opencv",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/opencv/opencv"
+    },
+    {
+      "key": "pallets_click",
+      "name": "click",
+      "dir": "pallets_click",
+      "repo": "pallets/click",
+      "language": "python",
+      "tier": "core",
+      "group": "library",
+      "summary": "LibSkills skill for pallets/click",
+      "version": "1.0.0",
+      "skill_version": "1.0.0",
+      "trust_score": 80,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "python",
+        "core",
+        "library"
+      ],
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/pallets/click"
     },
     {
       "key": "pallets_flask",
       "name": "flask",
+      "dir": "pallets_flask",
       "repo": "pallets/flask",
       "language": "python",
       "tier": "core",
       "group": "web",
+      "summary": "LibSkills skill for pallets/flask",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1189,18 +1279,18 @@
         "wsgi",
         "micro"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/pallets/flask",
-      "source_type": "official"
+      "repo_source_url": "https://github.com/pallets/flask"
     },
     {
       "key": "preshing_junction",
       "name": "junction",
+      "dir": "preshing_junction",
       "repo": "preshing/junction",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for preshing/junction",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1210,18 +1300,18 @@
         "cpp",
         "junction"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/preshing/junction",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/preshing/junction"
     },
     {
       "key": "protocolbuffers_protobuf",
       "name": "protobuf",
+      "dir": "protocolbuffers_protobuf",
       "repo": "protocolbuffers/protobuf",
       "language": "cpp",
       "tier": "core",
       "group": "serialization",
+      "summary": "LibSkills skill for protocolbuffers/protobuf",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1231,18 +1321,18 @@
         "cpp",
         "protobuf"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/protocolbuffers/protobuf",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/protocolbuffers/protobuf"
     },
     {
       "key": "psycopg_psycopg2",
       "name": "psycopg2",
+      "dir": "psycopg_psycopg2",
       "repo": "psycopg/psycopg2",
       "language": "python",
       "tier": "core",
       "group": "database",
+      "summary": "LibSkills skill for psycopg/psycopg2",
       "version": "2.9.10",
       "skill_version": "0.1.0",
       "trust_score": 92,
@@ -1255,18 +1345,40 @@
         "db-api",
         "connection-pooling"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/psycopg/psycopg2",
-      "source_type": "official"
+      "repo_source_url": "https://github.com/psycopg/psycopg2"
+    },
+    {
+      "key": "pytest-dev_pytest",
+      "name": "pytest",
+      "dir": "pytest-dev_pytest",
+      "repo": "pytest-dev/pytest",
+      "language": "python",
+      "tier": "core",
+      "group": "library",
+      "summary": "LibSkills skill for pytest-dev/pytest",
+      "version": "1.0.0",
+      "skill_version": "1.0.0",
+      "trust_score": 80,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "python",
+        "core",
+        "library"
+      ],
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/pytest-dev/pytest"
     },
     {
       "key": "rayon-rs_rayon",
       "name": "rayon",
+      "dir": "rayon-rs_rayon",
       "repo": "rayon-rs/rayon",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for rayon-rs/rayon",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1276,18 +1388,18 @@
         "cpp",
         "rayon"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/rayon-rs/rayon",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/rayon-rs/rayon"
     },
     {
       "key": "redis_go-redis",
       "name": "go-redis",
+      "dir": "redis_go-redis",
       "repo": "redis/go-redis",
       "language": "go",
       "tier": "core",
       "group": "database",
+      "summary": "LibSkills skill for redis/go-redis",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1298,18 +1410,18 @@
         "redis",
         "go-redis"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/redis/go-redis",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/redis/go-redis"
     },
     {
       "key": "redis_redis-py",
       "name": "redis-py",
+      "dir": "redis_redis-py",
       "repo": "redis/redis-py",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for redis/redis-py",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1319,18 +1431,18 @@
         "cpp",
         "redis-py"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/redis/redis-py",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/redis/redis-py"
     },
     {
       "key": "requests_requests",
       "name": "requests",
+      "dir": "requests_requests",
       "repo": "requests/requests",
       "language": "python",
       "tier": "core",
       "group": "networking",
+      "summary": "LibSkills skill for requests/requests \u2014 Python HTTP library for humans",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1343,18 +1455,18 @@
         "http",
         "web"
       ],
-      "summary": "LibSkills skill for requests/requests — Python HTTP library for humans",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/requests/requests",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/requests/requests"
     },
     {
       "key": "rust-lang_reqwest",
       "name": "reqwest",
+      "dir": "rust-lang_reqwest",
       "repo": "rust-lang/reqwest",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for rust-lang/reqwest",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1364,18 +1476,18 @@
         "cpp",
         "reqwest"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/rust-lang/reqwest",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/rust-lang/reqwest"
     },
     {
       "key": "rust-lang_rust-clippy",
       "name": "rust-clippy",
+      "dir": "rust-lang_rust-clippy",
       "repo": "rust-lang/rust-clippy",
       "language": "rust",
       "tier": "utility",
       "group": "tooling",
+      "summary": "LibSkills skill for rust-lang/rust-clippy",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1387,18 +1499,18 @@
         "lint",
         "tooling"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/rust-lang/rust-clippy",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/rust-lang/rust-clippy"
     },
     {
       "key": "rustls_rustls",
       "name": "rustls",
+      "dir": "rustls_rustls",
       "repo": "rustls/rustls",
       "language": "rust",
       "tier": "core",
       "group": "security",
+      "summary": "LibSkills skill for rustls/rustls",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1410,18 +1522,40 @@
         "tls",
         "security"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/rustls/rustls",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/rustls/rustls"
+    },
+    {
+      "key": "seanmonstar_warp",
+      "name": "warp",
+      "dir": "seanmonstar_warp",
+      "repo": "seanmonstar/warp",
+      "language": "rust",
+      "tier": "core",
+      "group": "library",
+      "summary": "LibSkills skill for seanmonstar/warp",
+      "version": "1.0.0",
+      "skill_version": "1.0.0",
+      "trust_score": 80,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "rust",
+        "core",
+        "library"
+      ],
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/seanmonstar/warp"
     },
     {
       "key": "serde-rs_serde",
       "name": "serde",
+      "dir": "serde-rs_serde",
       "repo": "serde-rs/serde",
       "language": "rust",
       "tier": "core",
       "group": "serialization",
+      "summary": "LibSkills skill for serde-rs/serde \u2014 Rust serialization framework",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1434,18 +1568,18 @@
         "json",
         "serde"
       ],
-      "summary": "LibSkills skill for serde-rs/serde — Rust serialization framework",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/serde-rs/serde",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/serde-rs/serde"
     },
     {
       "key": "simdjson_simdjson",
       "name": "simdjson",
+      "dir": "simdjson_simdjson",
       "repo": "simdjson/simdjson",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for simdjson/simdjson",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1455,18 +1589,18 @@
         "cpp",
         "simdjson"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/simdjson/simdjson",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/simdjson/simdjson"
     },
     {
       "key": "skarupke_flat_hash_map",
       "name": "flat_hash_map",
+      "dir": "skarupke_flat_hash_map",
       "repo": "skarupke/flat_hash_map",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for skarupke/flat_hash_map",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1476,18 +1610,18 @@
         "cpp",
         "flat_hash_map"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/skarupke/flat_hash_map",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/skarupke/flat_hash_map"
     },
     {
       "key": "smol-rs_smol",
       "name": "smol",
+      "dir": "smol-rs_smol",
       "repo": "smol-rs/smol",
       "language": "rust",
       "tier": "core",
       "group": "async",
+      "summary": "LibSkills skill for smol-rs/smol",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1499,18 +1633,18 @@
         "async",
         "runtime"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/smol-rs/smol",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/smol-rs/smol"
     },
     {
       "key": "spf13_cobra",
       "name": "cobra",
+      "dir": "spf13_cobra",
       "repo": "spf13/cobra",
       "language": "go",
       "tier": "core",
       "group": "cli",
+      "summary": "LibSkills skill for spf13/cobra",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1522,18 +1656,18 @@
         "cli",
         "command-line"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/spf13/cobra",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/spf13/cobra"
     },
     {
       "key": "spf13_viper",
       "name": "viper",
+      "dir": "spf13_viper",
       "repo": "spf13/viper",
       "language": "go",
       "tier": "core",
       "group": "config",
+      "summary": "LibSkills skill for spf13/viper",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1545,18 +1679,18 @@
         "config",
         "configuration"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/spf13/viper",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/spf13/viper"
     },
     {
       "key": "sqlite_sqlite",
       "name": "sqlite",
+      "dir": "sqlite_sqlite",
       "repo": "sqlite/sqlite",
       "language": "cpp",
       "tier": "core",
       "group": "database",
+      "summary": "LibSkills skill for sqlite/sqlite",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1569,18 +1703,18 @@
         "embedded-database",
         "sql"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/sqlite/sqlite",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/sqlite/sqlite"
     },
     {
       "key": "stduuid_f410",
       "name": "f410",
+      "dir": "stduuid_f410",
       "repo": "stduuid/f410",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for stduuid/f410",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1590,18 +1724,18 @@
         "cpp",
         "f410"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/stduuid/f410",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/stduuid/f410"
     },
     {
       "key": "stepancheg_grpc-rust",
       "name": "grpc-rust",
+      "dir": "stepancheg_grpc-rust",
       "repo": "stepancheg/grpc-rust",
       "language": "rust",
       "tier": "core",
       "group": "networking",
+      "summary": "LibSkills skill for stepancheg/grpc-rust",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1613,18 +1747,18 @@
         "networking",
         "rpc"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/stepancheg/grpc-rust",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/stepancheg/grpc-rust"
     },
     {
       "key": "taskflow_taskflow",
       "name": "taskflow",
+      "dir": "taskflow_taskflow",
       "repo": "taskflow/taskflow",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for taskflow/taskflow",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1634,18 +1768,84 @@
         "cpp",
         "taskflow"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/taskflow/taskflow",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/taskflow/taskflow"
+    },
+    {
+      "key": "tokio-rs_prost",
+      "name": "prost",
+      "dir": "tokio-rs_prost",
+      "repo": "tokio-rs/prost",
+      "language": "rust",
+      "tier": "core",
+      "group": "library",
+      "summary": "LibSkills skill for tokio-rs/prost",
+      "version": "1.0.0",
+      "skill_version": "1.0.0",
+      "trust_score": 80,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "rust",
+        "core",
+        "library"
+      ],
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/tokio-rs/prost"
+    },
+    {
+      "key": "tokio-rs_tokio",
+      "name": "tokio",
+      "dir": "tokio-rs_tokio",
+      "repo": "tokio-rs/tokio",
+      "language": "rust",
+      "tier": "core",
+      "group": "library",
+      "summary": "LibSkills skill for tokio-rs/tokio",
+      "version": "1.0.0",
+      "skill_version": "1.0.0",
+      "trust_score": 80,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "rust",
+        "core",
+        "library"
+      ],
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/tokio-rs/tokio"
+    },
+    {
+      "key": "uber-go_zap",
+      "name": "zap",
+      "dir": "uber-go_zap",
+      "repo": "uber-go/zap",
+      "language": "go",
+      "tier": "core",
+      "group": "library",
+      "summary": "LibSkills skill for uber-go/zap",
+      "version": "1.0.0",
+      "skill_version": "1.0.0",
+      "trust_score": 80,
+      "verified": false,
+      "official": false,
+      "tags": [
+        "go",
+        "core",
+        "library"
+      ],
+      "risk_level": "medium",
+      "repo_source_url": "https://github.com/uber-go/zap"
     },
     {
       "key": "usoa_msgpack-c",
       "name": "msgpack-c",
+      "dir": "usoa_msgpack-c",
       "repo": "usoa/msgpack-c",
       "language": "cpp",
       "tier": "tier1",
       "group": "main",
+      "summary": "LibSkills skill for usoa/msgpack-c",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1655,18 +1855,18 @@
         "cpp",
         "msgpack-c"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/usoa/msgpack-c",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/usoa/msgpack-c"
     },
     {
       "key": "yhirose_cpp-httplib",
       "name": "cpp-httplib",
+      "dir": "yhirose_cpp-httplib",
       "repo": "yhirose/cpp-httplib",
       "language": "cpp",
       "tier": "core",
       "group": "networking",
+      "summary": "LibSkills skill for yhirose/cpp-httplib",
       "version": "0.43.1",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1680,18 +1880,18 @@
         "networking",
         "header-only"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/yhirose/cpp-httplib",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/yhirose/cpp-httplib"
     },
     {
       "key": "zeromq_cppzmq",
       "name": "cppzmq",
+      "dir": "zeromq_cppzmq",
       "repo": "zeromq/cppzmq",
       "language": "cpp",
       "tier": "advanced",
       "group": "networking",
+      "summary": "LibSkills skill for zeromq/cppzmq",
       "version": "1.0.0",
       "skill_version": "0.1.0",
       "trust_score": 85,
@@ -1701,10 +1901,8 @@
         "cpp",
         "cppzmq"
       ],
-      "summary": "",
       "risk_level": "medium",
-      "repo_source_url": "https://github.com/zeromq/cppzmq",
-      "source_type": "community"
+      "repo_source_url": "https://github.com/zeromq/cppzmq"
     }
   ]
 }
