@@ -92,6 +92,7 @@
         std::string_view(cmd_desc), options, std::string_view(examples),       \
         std::string_view(see_also), std::string_view(author),                  \
         std::string_view(copyright), std::string_view(cmd_synopsis));          \
+    volatile int force_link = 0;                                                          \
   }                                                                            \
                                                                                \
   template <size_t N>                                                          \

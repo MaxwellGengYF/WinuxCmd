@@ -585,7 +585,12 @@ static void runReplMode() noexcept {
  * @param argv Array of command-line arguments
  * @return Exit code from the executed command (0 = success, non-zero = error)
  */
+int get_command_refs_sum();
+
 int main(int argc, char *argv[]) noexcept {
+  // Force linker to include all command object files
+  (void)get_command_refs_sum();
+
   if (argc < 1) {
     return printHelp();
   }

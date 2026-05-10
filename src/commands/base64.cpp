@@ -131,7 +131,7 @@ auto run(const Config& cfg) -> int {
       return 1;
     }
 
-    std::string_view content = *content_result;
+    std::string content = *content_result;
     std::string output;
 
     if (cfg.decode) {

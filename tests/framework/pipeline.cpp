@@ -233,6 +233,24 @@ CommandResult Pipeline::run() {
   // Set default executable directory if not specified
   if (!exe_dir_) {
     exe_dir_ = WINUXCMD_BIN_DIR;
+    // If winuxcmd.exe doesn't exist in WINUXCMD_BIN_DIR, fall back to
+    // the current module's directory (e.g. build/windows/x64/debug).
+    std::error_code ec;
+    std::wstring winuxcmd = *exe_dir_ + L"\\winuxcmd.exe";
+    if (!std::filesystem::exists(winuxcmd, ec)) {
+      wchar_t module_path[MAX_PATH];
+      if (GetModuleFileNameW(nullptr, module_path, MAX_PATH) > 0) {
+        std::wstring module_dir(module_path);
+        size_t last_slash = module_dir.find_last_of(L"\\/");
+        if (last_slash != std::wstring::npos) {
+          module_dir = module_dir.substr(0, last_slash);
+          std::wstring alt_winuxcmd = module_dir + L"\\winuxcmd.exe";
+          if (std::filesystem::exists(alt_winuxcmd, ec)) {
+            exe_dir_ = module_dir;
+          }
+        }
+      }
+    }
   }
 
   // Security attributes for inheritable handles

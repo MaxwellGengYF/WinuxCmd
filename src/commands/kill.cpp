@@ -173,7 +173,7 @@ auto parse_signal(const std::string& signal_arg) -> cp::Result<int> {
     // Try to parse as signal name
     auto signal_num = kill_constants::get_signal_by_name(signal_arg);
     if (!signal_num) {
-      return core::pipeline::unexpected("unknown signal: " + signal_arg);
+      return core::pipeline::unexpected("unknown signal");
     }
     return *signal_num;
   }
@@ -287,11 +287,11 @@ auto parse_pids(const std::vector<std::string>& pid_args)
     try {
       long long pid_value = std::stoll(pid_str);
       if (pid_value <= 0 || pid_value > UINT32_MAX) {
-        return core::pipeline::unexpected("invalid PID: " + pid_str);
+        return core::pipeline::unexpected("invalid PID");
       }
       pids.push_back(static_cast<DWORD>(pid_value));
     } catch (...) {
-      return core::pipeline::unexpected("invalid PID: " + pid_str);
+      return core::pipeline::unexpected("invalid PID");
     }
   }
 
