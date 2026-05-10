@@ -5,13 +5,11 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
 
@@ -83,7 +81,7 @@ auto parse_subst(std::string_view expr,
                  std::regex_constants::syntax_option_type syntax)
     -> cp::Result<Script> {
   if (expr.size() < 4 || expr[0] != 's')
-    return std::unexpected("unsupported script (only s///)");
+    return core::pipeline::unexpected("unsupported script (only s///)");
   char delim = expr[1];
   size_t i = 2;
   std::string pat, repl;
@@ -112,13 +110,13 @@ auto parse_subst(std::string_view expr,
       }
       out.push_back(c);
     }
-    return std::unexpected("unterminated s command");
+    return core::pipeline::unexpected("unterminated s command");
   };
 
   auto p1 = read_part(pat);
-  if (!p1) return std::unexpected(p1.error());
+  if (!p1) return core::pipeline::unexpected(p1.error());
   auto p2 = read_part(repl);
-  if (!p2) return std::unexpected(p2.error());
+  if (!p2) return core::pipeline::unexpected(p2.error());
 
   bool g = false, pflag = false;
   for (; i < expr.size(); ++i) {
@@ -130,7 +128,7 @@ auto parse_subst(std::string_view expr,
     else if (f == ' ')
       continue;
     else
-      return std::unexpected("unknown flag in s command");
+      return core::pipeline::unexpected("unknown flag in s command");
   }
 
   try {
@@ -143,12 +141,12 @@ auto parse_subst(std::string_view expr,
     s.ecma_repl = (syntax == std::regex_constants::ECMAScript);
     return s;
   } catch (const std::regex_error&) {
-    return std::unexpected("invalid regular expression");
+    return core::pipeline::unexpected("invalid regular expression");
   }
 }
 
 auto parse_simple_cmd(std::string_view line) -> cp::Result<Script> {
-  if (line.empty()) return std::unexpected("empty script line");
+  if (line.empty()) return core::pipeline::unexpected("empty script line");
   char c = line[0];
   std::string_view rest = line.substr(1);
   auto trim_space = [](std::string_view v) {
@@ -183,12 +181,12 @@ auto parse_simple_cmd(std::string_view line) -> cp::Result<Script> {
     s.text = std::string(rest);
     return s;
   }
-  return std::unexpected("unsupported script command");
+  return core::pipeline::unexpected("unsupported script command");
 }
 
 auto parse_y_cmd(std::string_view line) -> cp::Result<Script> {
   if (line.size() < 4 || line[0] != 'y')
-    return std::unexpected("unsupported script (only y///)");
+    return core::pipeline::unexpected("unsupported script (only y///)");
   char delim = line[1];
   size_t i = 2;
   std::string src, dst;
@@ -216,14 +214,14 @@ auto parse_y_cmd(std::string_view line) -> cp::Result<Script> {
       }
       out.push_back(c);
     }
-    return std::unexpected("unterminated y command");
+    return core::pipeline::unexpected("unterminated y command");
   };
   auto p1 = read_part(src);
-  if (!p1) return std::unexpected(p1.error());
+  if (!p1) return core::pipeline::unexpected(p1.error());
   auto p2 = read_part(dst);
-  if (!p2) return std::unexpected(p2.error());
+  if (!p2) return core::pipeline::unexpected(p2.error());
   if (src.size() != dst.size())
-    return std::unexpected("y command requires equal length strings");
+    return core::pipeline::unexpected("y command requires equal length strings");
   Script s;
   s.kind = Script::Kind::Subst;  // reused placeholder
   s.has_ymap = true;
@@ -276,12 +274,12 @@ auto parse_address(std::string_view line, size_t& i,
           addr.regex = std::regex(pat, syntax);
           return addr;
         } catch (const std::regex_error&) {
-          return std::unexpected("invalid address regex");
+          return core::pipeline::unexpected("invalid address regex");
         }
       }
       pat.push_back(c);
     }
-    return std::unexpected("unterminated address regex");
+    return core::pipeline::unexpected("unterminated address regex");
   }
   return addr;
 }
@@ -290,7 +288,7 @@ auto parse_script_line(std::string_view line,
                        std::regex_constants::syntax_option_type syntax)
     -> cp::Result<std::vector<Script>> {
   if (!line.empty() && (line.back() == '\r')) line.remove_suffix(1);
-  if (line.empty()) return std::unexpected("empty script line");
+  if (line.empty()) return core::pipeline::unexpected("empty script line");
   auto split_commands = [](std::string_view text) {
     std::vector<std::string> parts;
     std::string cur;
@@ -366,12 +364,12 @@ auto parse_script_line(std::string_view line,
       ++i;
     Script::Address a1, a2;
     auto addr1 = parse_address(part, i, syntax);
-    if (!addr1) return std::unexpected(addr1.error());
+    if (!addr1) return core::pipeline::unexpected(addr1.error());
     a1 = *addr1;
     if (i < part.size() && part[i] == ',') {
       ++i;
       auto addr2 = parse_address(part, i, syntax);
-      if (!addr2) return std::unexpected(addr2.error());
+      if (!addr2) return core::pipeline::unexpected(addr2.error());
       a2 = *addr2;
     }
     while (i < part.size() && std::isspace(static_cast<unsigned char>(part[i])))
@@ -384,7 +382,7 @@ auto parse_script_line(std::string_view line,
       s = parse_y_cmd(cmd);
     else
       s = parse_simple_cmd(cmd);
-    if (!s) return std::unexpected(s.error());
+    if (!s) return core::pipeline::unexpected(s.error());
     s->addr1 = a1;
     s->addr2 = a2;
     out.push_back(*s);
@@ -397,13 +395,13 @@ auto read_script_file(const std::string& path,
     -> cp::Result<std::vector<Script>> {
   std::ifstream in(path, std::ios::binary);
   if (!in.is_open())
-    return std::unexpected("cannot open script file '" + path + "'");
+    return core::pipeline::unexpected("cannot open script file '" + path + "'");
   std::vector<Script> out;
   std::string line;
   while (std::getline(in, line)) {
     if (line.empty()) continue;
     auto s = parse_script_line(line, syntax);
-    if (!s) return std::unexpected(s.error());
+    if (!s) return core::pipeline::unexpected(s.error());
     out.insert(out.end(), s->begin(), s->end());
   }
   return out;
@@ -432,7 +430,7 @@ auto build_config(const CommandContext<SED_OPTIONS.size()>& ctx)
     for (auto& e : lines) {
       if (e.empty()) continue;
       auto s = parse_script_line(e, cfg.regex_syntax);
-      if (!s) return std::unexpected(s.error());
+      if (!s) return core::pipeline::unexpected(s.error());
       scripts.insert(scripts.end(), s->begin(), s->end());
     }
   }
@@ -441,18 +439,18 @@ auto build_config(const CommandContext<SED_OPTIONS.size()>& ctx)
   if (file_opt.empty()) file_opt = ctx.get<std::string>("-f", "");
   if (!file_opt.empty()) {
     auto fscripts = read_script_file(file_opt, cfg.regex_syntax);
-    if (!fscripts) return std::unexpected(fscripts.error());
+    if (!fscripts) return core::pipeline::unexpected(fscripts.error());
     scripts.insert(scripts.end(), fscripts->begin(), fscripts->end());
   }
 
   size_t consumed_positional = 0;
   if (scripts.empty()) {
-    if (ctx.positionals.empty()) return std::unexpected("script required");
+    if (ctx.positionals.empty()) return core::pipeline::unexpected("script required");
     size_t script_end =
         ctx.positionals.size() >= 2 ? ctx.positionals.size() - 1 : 1;
     for (size_t i = 0; i < script_end; ++i) {
       auto s = parse_script_line(ctx.positionals[i], cfg.regex_syntax);
-      if (!s) return std::unexpected(s.error());
+      if (!s) return core::pipeline::unexpected(s.error());
       scripts.insert(scripts.end(), s->begin(), s->end());
     }
     consumed_positional = script_end;

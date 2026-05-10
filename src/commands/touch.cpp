@@ -23,14 +23,11 @@
  *  - Username: Administrator
  *  - CopyrightYear: 2026
  */
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -293,7 +290,7 @@ auto apply_touch_one(const std::string& path,
 
 auto process_command(const CommandContext<TOUCH_OPTIONS.size()>& ctx)
     -> cp::Result<bool> {
-  if (ctx.positionals.empty()) return std::unexpected("missing file operand");
+  if (ctx.positionals.empty()) return core::pipeline::unexpected("missing file operand");
 
   bool flag_a = ctx.get<bool>("-a", false);
   bool flag_m = ctx.get<bool>("-m", false);
@@ -329,7 +326,7 @@ auto process_command(const CommandContext<TOUCH_OPTIONS.size()>& ctx)
       safeErrorPrint("touch: invalid date format '");
       safeErrorPrint(date_str);
       safeErrorPrint("'\n");
-      return std::unexpected("invalid date format");
+      return core::pipeline::unexpected("invalid date format");
     }
     date_times = TimePair{*ft, *ft};
   }
@@ -347,7 +344,7 @@ auto process_command(const CommandContext<TOUCH_OPTIONS.size()>& ctx)
       safeErrorPrint("touch: failed to get attributes of '");
       safeErrorPrint(ref_path);
       safeErrorPrint("'\n");
-      return std::unexpected("reference file error");
+      return core::pipeline::unexpected("reference file error");
     }
   }
 

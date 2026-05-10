@@ -25,36 +25,17 @@
  */
 // src/main.cpp
 // Main entry point for WinuxCmd
-import std;
-import core;
-import utils;
-import readline;
-import native_completion;
-import version;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "readline.h"
+#include "native_completion.h"
+#include "../version/version.h"
 
 namespace {
 static std::string g_repl_executable_path;
 enum class FallbackShell { Cmd, PowerShell };
 static FallbackShell g_repl_fallback_shell = FallbackShell::Cmd;
 static std::wstring g_repl_powershell_exe = L"powershell.exe";
-
-static std::string toLowerAscii(std::string s) {
-  std::ranges::transform(s, s.begin(), [](unsigned char c) {
-    return static_cast<char>(std::tolower(c));
-  });
-  return s;
-}
-
-static bool startsWithCaseInsensitive(std::string_view text,
-                                      std::string_view prefix) {
-  if (prefix.size() > text.size()) return false;
-  for (size_t i = 0; i < prefix.size(); ++i) {
-    unsigned char a = static_cast<unsigned char>(text[i]);
-    unsigned char b = static_cast<unsigned char>(prefix[i]);
-    if (std::tolower(a) != std::tolower(b)) return false;
-  }
-  return true;
-}
 
 static std::vector<CompletionItem> getCommandCompletions(
     std::string_view prefix) {
@@ -307,17 +288,6 @@ static int runNativeFallback(const std::string &line) noexcept {
   CloseHandle(pi.hThread);
   CloseHandle(pi.hProcess);
   return static_cast<int>(exit_code);
-}
-
-static std::string trimAscii(std::string s) {
-  auto is_ws = [](unsigned char c) {
-    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
-  };
-  while (!s.empty() && is_ws(static_cast<unsigned char>(s.front())))
-    s.erase(s.begin());
-  while (!s.empty() && is_ws(static_cast<unsigned char>(s.back())))
-    s.pop_back();
-  return s;
 }
 
 static bool hasShellMeta(std::string_view line) {

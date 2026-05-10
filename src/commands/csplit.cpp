@@ -30,15 +30,12 @@
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
 // *** SIMPLIFIED IMPLEMENTATION - Some features may not be fully supported ***
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -98,7 +95,7 @@ auto build_config(const CommandContext<CSPLIT_OPTIONS.size()>& ctx)
     try {
       cfg.digits = std::stoi(digits_opt);
     } catch (...) {
-      return std::unexpected("invalid digits value");
+      return core::pipeline::unexpected("invalid digits value");
     }
   }
 
@@ -128,11 +125,11 @@ auto build_config(const CommandContext<CSPLIT_OPTIONS.size()>& ctx)
   }
 
   if (cfg.input_file.empty()) {
-    return std::unexpected("missing input file");
+    return core::pipeline::unexpected("missing input file");
   }
 
   if (cfg.patterns.empty()) {
-    return std::unexpected("missing pattern");
+    return core::pipeline::unexpected("missing pattern");
   }
 
   return cfg;
@@ -150,7 +147,7 @@ auto read_lines(const std::string& filename)
   } else {
     std::ifstream f(filename, std::ios::binary);
     if (!f) {
-      return std::unexpected(std::string("cannot open '") + filename +
+      return core::pipeline::unexpected(std::string("cannot open '") + filename +
                              "' for reading");
     }
 
@@ -167,7 +164,7 @@ auto read_lines(const std::string& filename)
     }
 
     if (f.fail() && !f.eof()) {
-      return std::unexpected("error reading from file");
+      return core::pipeline::unexpected("error reading from file");
     }
   }
 
@@ -230,7 +227,7 @@ auto run(const Config& cfg) -> int {
       // Pattern not found (not last one)
       if (!cfg.quiet) {
         auto err = std::string("pattern '") + pattern + "' not found";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"csplit");
       }
       return 1;
@@ -258,7 +255,7 @@ auto run(const Config& cfg) -> int {
     std::ofstream out(filename, std::ios::binary);
     if (!out) {
       auto err = std::string("cannot create '") + filename + "'";
-      cp::Result<int> result = std::unexpected(std::string_view(err));
+      cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
       cp::report_error(result, L"csplit");
       return 1;
     }

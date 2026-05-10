@@ -4,13 +4,10 @@
 #include <wincrypt.h>
 
 #include "core/command_macros.h"
-#include "pch/pch.h"
-
 #pragma comment(lib, "advapi32.lib")
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 auto constexpr SHRED_OPTIONS = std::array{
     OPTION("-f", "--force", "ignore write-protection"),

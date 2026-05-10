@@ -29,16 +29,13 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;

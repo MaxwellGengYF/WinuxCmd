@@ -32,16 +32,13 @@
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
 // *** SIMPLIFIED IMPLEMENTATION - Some features may not be fully supported ***
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
 #pragma comment(lib, "advapi32.lib")
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -970,7 +967,7 @@ auto list_directory(const std::string &path,
     HANDLE hFind = FindFirstFileW(wpath.c_str(), &dir_data);
 
     if (hFind == INVALID_HANDLE_VALUE) {
-      return std::unexpected("cannot access '" + path +
+      return core::pipeline::unexpected("cannot access '" + path +
                              "': No such file or directory");
     }
 
@@ -987,7 +984,7 @@ auto list_directory(const std::string &path,
   HANDLE hFind = FindFirstFileW(search_path.c_str(), &find_data);
 
   if (hFind == INVALID_HANDLE_VALUE) {
-    return std::unexpected("cannot access '" + path +
+    return core::pipeline::unexpected("cannot access '" + path +
                            "': No such file or directory");
   }
 
@@ -1230,7 +1227,7 @@ auto list_file(const std::string &path,
   HANDLE hFind = FindFirstFileW(wpath.c_str(), &find_data);
 
   if (hFind == INVALID_HANDLE_VALUE) {
-    return std::unexpected("cannot access '" + path +
+    return core::pipeline::unexpected("cannot access '" + path +
                            "': No such file or directory");
   }
 

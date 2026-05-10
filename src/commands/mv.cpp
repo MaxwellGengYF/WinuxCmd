@@ -71,15 +71,12 @@
  * - @a --verbose: Explain what is being done [IMPLEMENTED]
  * - @a --context: Set SELinux security context of destination file to default
  */
-
-#include "pch/pch.h"
 #pragma comment(lib, "shlwapi.lib")
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -149,7 +146,7 @@ auto parse_arguments(const CommandContext<MV_OPTIONS.size()>& ctx)
   } else {
     // Regular case: last argument is destination
     if (ctx.positionals.size() < 2) {
-      return std::unexpected("missing file operand");
+      return core::pipeline::unexpected("missing file operand");
     }
 
     for (size_t i = 0; i < ctx.positionals.size() - 1; ++i) {
@@ -161,7 +158,7 @@ auto parse_arguments(const CommandContext<MV_OPTIONS.size()>& ctx)
   }
 
   if (move_ctx.source_paths.empty()) {
-    return std::unexpected("missing file operand");
+    return core::pipeline::unexpected("missing file operand");
   }
 
   return move_ctx;
@@ -177,7 +174,7 @@ auto check_is_directory(const std::string& path) -> cp::Result<bool> {
   std::wstring wpath = utf8_to_wstring(path);
   DWORD attr = GetFileAttributesW(wpath.c_str());
   if (attr == INVALID_FILE_ATTRIBUTES) {
-    return std::unexpected("cannot access '" + path +
+    return core::pipeline::unexpected("cannot access '" + path +
                            "': No such file or directory");
   }
   return (attr & FILE_ATTRIBUTE_DIRECTORY) != 0;
@@ -252,7 +249,7 @@ auto backup_existing_destination(const std::wstring& dest_path,
   std::wstring backup_path = dest_path + utf8_to_wstring(suffix);
   if (!MoveFileExW(dest_path.c_str(), backup_path.c_str(),
                    MOVEFILE_REPLACE_EXISTING)) {
-    return std::unexpected("cannot create backup for destination");
+    return core::pipeline::unexpected("cannot create backup for destination");
   }
   return true;
 }
@@ -281,12 +278,12 @@ auto move_single_path(const std::string& src_path, const std::string& dest_path,
   if (interactive) {
     auto dest_exists = check_path_exists(dest_path);
     if (!dest_exists) {
-      return std::unexpected(dest_exists.error());
+      return core::pipeline::unexpected(dest_exists.error());
     }
     if (*dest_exists) {
       auto confirmed = confirm_overwrite(dest_path);
       if (!confirmed) {
-        return std::unexpected(confirmed.error());
+        return core::pipeline::unexpected(confirmed.error());
       }
       if (!*confirmed) {
         return true;
@@ -304,23 +301,23 @@ auto move_single_path(const std::string& src_path, const std::string& dest_path,
     // First, check if source is a file
     DWORD src_attr = GetFileAttributesW(wsrc_path.c_str());
     if (src_attr == INVALID_FILE_ATTRIBUTES) {
-      return std::unexpected("cannot access '" + src_path +
+      return core::pipeline::unexpected("cannot access '" + src_path +
                              "': No such file or directory");
     }
 
     if (!(src_attr & FILE_ATTRIBUTE_DIRECTORY)) {
       // It's a file, try to copy
       if (!CopyFileW(wsrc_path.c_str(), wdest_path.c_str(), FALSE)) {
-        return std::unexpected("cannot copy '" + src_path + "' to '" +
+        return core::pipeline::unexpected("cannot copy '" + src_path + "' to '" +
                                dest_path + "'");
       }
       // If copy succeeds, delete the source
       if (!DeleteFileW(wsrc_path.c_str())) {
-        return std::unexpected("cannot delete source file '" + src_path + "'");
+        return core::pipeline::unexpected("cannot delete source file '" + src_path + "'");
       }
     } else {
       // It's a directory, rename failed (maybe cross-volume)
-      return std::unexpected("cannot move directory '" + src_path + "' to '" +
+      return core::pipeline::unexpected("cannot move directory '" + src_path + "' to '" +
                              dest_path + "': cross-volume move not supported");
     }
   }
@@ -345,16 +342,16 @@ auto process_single_source(const std::string& src_path,
     -> cp::Result<bool> {
   auto src_exists = check_path_exists(src_path);
   if (!src_exists) {
-    return std::unexpected(src_exists.error());
+    return core::pipeline::unexpected(src_exists.error());
   }
   if (!*src_exists) {
-    return std::unexpected("cannot stat '" + src_path +
+    return core::pipeline::unexpected("cannot stat '" + src_path +
                            "': No such file or directory");
   }
 
   auto final_dest = build_dest_path(src_path, move_ctx.dest_path, dest_is_dir);
   if (!final_dest) {
-    return std::unexpected(final_dest.error());
+    return core::pipeline::unexpected(final_dest.error());
   }
 
   return move_single_path(src_path, *final_dest, ctx);
@@ -366,13 +363,13 @@ auto process_command(const CommandContext<N>& ctx) -> cp::Result<bool> {
       [&](MoveContext move_ctx) -> cp::Result<bool> {
         auto dest_exists = check_path_exists(move_ctx.dest_path);
         if (!dest_exists) {
-          return std::unexpected(dest_exists.error());
+          return core::pipeline::unexpected(dest_exists.error());
         }
         bool dest_is_dir = false;
         if (*dest_exists) {
           auto is_dir = check_is_directory(move_ctx.dest_path);
           if (!is_dir) {
-            return std::unexpected(is_dir.error());
+            return core::pipeline::unexpected(is_dir.error());
           }
           dest_is_dir = *is_dir;
         }
@@ -381,7 +378,7 @@ auto process_command(const CommandContext<N>& ctx) -> cp::Result<bool> {
           auto result =
               process_single_source(src_path, move_ctx, dest_is_dir, ctx);
           if (!result) {
-            return std::unexpected(result.error());
+            return core::pipeline::unexpected(result.error());
           }
           if (!*result) {
             success = false;

@@ -32,13 +32,11 @@
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
 /// @TODO:1.Stream reading. 2.Replace filesystem.
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -312,7 +310,7 @@ auto compile_pattern(PatternMode mode, bool ignore_case, std::string_view raw)
     if (ignore_case) flags |= std::regex::icase;
     p.regex.emplace(p.raw, flags);
   } catch (const std::regex_error&) {
-    return std::unexpected("invalid regular expression: " + std::string(raw));
+    return core::pipeline::unexpected("invalid regular expression: " + std::string(raw));
   }
 
   return p;
@@ -322,7 +320,7 @@ auto load_patterns_from_file(const std::string& path)
     -> cp::Result<std::vector<std::string>> {
   std::ifstream in(path, std::ios::binary);
   if (!in.is_open()) {
-    return std::unexpected("cannot open pattern file '" + path + "'");
+    return core::pipeline::unexpected("cannot open pattern file '" + path + "'");
   }
 
   std::string buf((std::istreambuf_iterator<char>(in)),
@@ -351,7 +349,7 @@ auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
   Config cfg;
 
   if (auto unsupported = is_unsupported_used(ctx); unsupported.has_value()) {
-    return std::unexpected(*unsupported);
+    return core::pipeline::unexpected(*unsupported);
   }
 
   cfg.mode = PatternMode::BasicRegex;
@@ -444,7 +442,7 @@ auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
   if (p_file.empty()) p_file = ctx.get<std::string>("-f", "");
   if (!p_file.empty()) {
     auto file_patterns = load_patterns_from_file(p_file);
-    if (!file_patterns) return std::unexpected(file_patterns.error());
+    if (!file_patterns) return core::pipeline::unexpected(file_patterns.error());
     for (const auto& p : *file_patterns) raw_patterns.push_back(p);
   }
 
@@ -453,7 +451,7 @@ auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
 
   if (raw_patterns.empty()) {
     if (positionals.empty()) {
-      return std::unexpected("missing PATTERNS");
+      return core::pipeline::unexpected("missing PATTERNS");
     }
     auto split = split_lines(positionals.front());
     for (const auto& p : split) raw_patterns.push_back(p);
@@ -462,12 +460,12 @@ auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
   }
 
   if (raw_patterns.empty()) {
-    return std::unexpected("missing PATTERNS");
+    return core::pipeline::unexpected("missing PATTERNS");
   }
 
   for (const auto& rp : raw_patterns) {
     auto c = compile_pattern(cfg.mode, cfg.ignore_case, rp);
-    if (!c) return std::unexpected(c.error());
+    if (!c) return core::pipeline::unexpected(c.error());
     cfg.patterns.push_back(*c);
   }
 
@@ -862,7 +860,7 @@ auto scan_stream(std::istream& in, std::string_view display_name,
 auto read_file_binary(const std::string& path) -> cp::Result<std::string> {
   std::ifstream in(path, std::ios::binary);
   if (!in.is_open()) {
-    return std::unexpected("cannot open '" + path + "'");
+    return core::pipeline::unexpected("cannot open '" + path + "'");
   }
   return std::string((std::istreambuf_iterator<char>(in)),
                      std::istreambuf_iterator<char>());
@@ -947,7 +945,7 @@ auto gather_files_for_input(const Config& cfg, std::vector<std::string>& out)
       continue;
     }
 
-    return std::unexpected("'" + f + "' is a directory");
+    return core::pipeline::unexpected("'" + f + "' is a directory");
   }
   return {};
 }

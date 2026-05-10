@@ -30,15 +30,12 @@
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
 // *** SIMPLIFIED IMPLEMENTATION - Some features may not be fully supported ***
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -133,7 +130,7 @@ auto build_config(const CommandContext<JOIN_OPTIONS.size()>& ctx)
     try {
       cfg.field1 = std::stoi(field1_opt);
     } catch (...) {
-      return std::unexpected("invalid field number for -1");
+      return core::pipeline::unexpected("invalid field number for -1");
     }
   }
 
@@ -142,7 +139,7 @@ auto build_config(const CommandContext<JOIN_OPTIONS.size()>& ctx)
     try {
       cfg.field2 = std::stoi(field2_opt);
     } catch (...) {
-      return std::unexpected("invalid field number for -2");
+      return core::pipeline::unexpected("invalid field number for -2");
     }
   }
 
@@ -152,14 +149,14 @@ auto build_config(const CommandContext<JOIN_OPTIONS.size()>& ctx)
       cfg.field1 = std::stoi(j_opt);
       cfg.field2 = cfg.field1;
     } catch (...) {
-      return std::unexpected("invalid field number for -j");
+      return core::pipeline::unexpected("invalid field number for -j");
     }
   }
 
   auto sep_opt = ctx.get<std::string>("-t", "");
   if (!sep_opt.empty()) {
     if (sep_opt.size() != 1) {
-      return std::unexpected("separator must be a single character");
+      return core::pipeline::unexpected("separator must be a single character");
     }
     cfg.separator = sep_opt[0];
   }
@@ -191,12 +188,12 @@ auto build_config(const CommandContext<JOIN_OPTIONS.size()>& ctx)
   }
 
   if (cfg.files.size() < 2) {
-    return std::unexpected("missing operand after '" +
+    return core::pipeline::unexpected("missing operand after '" +
                            (cfg.files.empty() ? std::string() : cfg.files[0]) +
                            "'");
   }
   if (cfg.files.size() > 2) {
-    return std::unexpected("extra operand '" + cfg.files[2] + "'");
+    return core::pipeline::unexpected("extra operand '" + cfg.files[2] + "'");
   }
 
   return cfg;
@@ -214,7 +211,7 @@ auto read_lines(const std::string& filename)
   } else {
     std::ifstream f(filename, std::ios::binary);
     if (!f) {
-      return std::unexpected(std::string("cannot open '") + filename +
+      return core::pipeline::unexpected(std::string("cannot open '") + filename +
                              "' for reading");
     }
 
@@ -231,7 +228,7 @@ auto read_lines(const std::string& filename)
     }
 
     if (f.fail() && !f.eof()) {
-      return std::unexpected("error reading from file");
+      return core::pipeline::unexpected("error reading from file");
     }
   }
 

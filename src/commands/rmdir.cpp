@@ -23,14 +23,11 @@
  *  - Username: Administrator
  *  - CopyrightYear: 2026
  */
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -94,7 +91,7 @@ auto remove_one(const std::string& utf8_path, bool ignore_non_empty,
 
 auto process_command(const CommandContext<RMDIR_OPTIONS.size()>& ctx)
     -> cp::Result<bool> {
-  if (ctx.positionals.empty()) return std::unexpected("missing operand");
+  if (ctx.positionals.empty()) return core::pipeline::unexpected("missing operand");
 
   bool parents =
       ctx.get<bool>("--parents", false) || ctx.get<bool>("-p", false);

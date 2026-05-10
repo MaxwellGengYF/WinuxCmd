@@ -1,4 +1,4 @@
-﻿/*
+/*
  *  Copyright ? 2026 [caomengxuan666]
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,16 +32,14 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright ©  2026 WinuxCmd
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
 #pragma comment(lib, "psapi.lib")
 #pragma comment(lib, "advapi32.lib")
 
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -225,7 +223,7 @@ auto enumerate_processes() -> cp::Result<std::vector<ProcessInfo>> {
 
   HANDLE h_snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   if (h_snap == INVALID_HANDLE_VALUE) {
-    return std::unexpected("Failed to create process snapshot");
+    return core::pipeline::unexpected("Failed to create process snapshot");
   }
 
   PROCESSENTRY32W pe = {};
@@ -233,7 +231,7 @@ auto enumerate_processes() -> cp::Result<std::vector<ProcessInfo>> {
 
   if (!Process32FirstW(h_snap, &pe)) {
     CloseHandle(h_snap);
-    return std::unexpected("Failed to get first process");
+    return core::pipeline::unexpected("Failed to get first process");
   }
 
   do {

@@ -28,11 +28,8 @@
 /// @Copyright: Copyright © 2026 WinuxCmd
 
 #include "core/command_macros.h"
-#include "pch/pch.h"
-
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -62,7 +59,7 @@ auto build_config(const CommandContext<CHOWN_OPTIONS.size()>& ctx)
   cfg.verbose = ctx.get<bool>("-v", false);
 
   if (ctx.positionals.empty()) {
-    return std::unexpected("missing operand");
+    return core::pipeline::unexpected("missing operand");
   }
 
   std::string owner_group(ctx.positionals[0]);
@@ -90,7 +87,7 @@ auto build_config(const CommandContext<CHOWN_OPTIONS.size()>& ctx)
   }
 
   if (cfg.files.empty()) {
-    return std::unexpected("missing operand after '" + owner_group + "'");
+    return core::pipeline::unexpected("missing operand after '" + owner_group + "'");
   }
 
   return cfg;

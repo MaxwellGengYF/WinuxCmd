@@ -30,12 +30,9 @@
 /// @Copyright: Copyright © 2026 WinuxCmd
 
 #include "core/command_macros.h"
-#include "pch/pch.h"
-
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -135,7 +132,7 @@ auto build_config(const CommandContext<CYGPATH_OPTIONS.size()>& ctx)
   cfg.is_path = ctx.get<bool>("-p", false) || ctx.get<bool>("--path", false);
 
   if (ctx.positionals.empty()) {
-    return std::unexpected("missing operand");
+    return core::pipeline::unexpected("missing operand");
   }
 
   for (const auto& path : ctx.positionals) {

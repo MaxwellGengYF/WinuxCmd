@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -142,7 +139,7 @@ auto run(const Config& cfg) -> int {
   if (temp_file.empty()) {
     if (!cfg.quiet) {
       cp::Result<int> result2 =
-          std::unexpected("failed to create unique filename");
+          core::pipeline::unexpected("failed to create unique filename");
       cp::report_error(result2, L"mktemp");
     }
     return 1;
@@ -154,7 +151,7 @@ auto run(const Config& cfg) -> int {
       if (!CreateDirectoryA(temp_file.c_str(), NULL)) {
         if (!cfg.quiet) {
           cp::Result<int> result2 =
-              std::unexpected("failed to create temporary directory");
+              core::pipeline::unexpected("failed to create temporary directory");
           cp::report_error(result2, L"mktemp");
         }
         return 1;
@@ -165,7 +162,7 @@ auto run(const Config& cfg) -> int {
       if (!f) {
         if (!cfg.quiet) {
           cp::Result<int> result2 =
-              std::unexpected("failed to create temporary file");
+              core::pipeline::unexpected("failed to create temporary file");
           cp::report_error(result2, L"mktemp");
         }
         return 1;

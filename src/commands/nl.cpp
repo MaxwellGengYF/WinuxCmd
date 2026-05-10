@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -83,7 +80,7 @@ auto build_config(const CommandContext<NL_OPTIONS.size()>& ctx)
     cfg.body_numbering = body_opt;
     if (cfg.body_numbering != "t" && cfg.body_numbering != "a" &&
         cfg.body_numbering != "n") {
-      return std::unexpected("invalid body numbering style");
+      return core::pipeline::unexpected("invalid body numbering style");
     }
   }
 
@@ -95,10 +92,10 @@ auto build_config(const CommandContext<NL_OPTIONS.size()>& ctx)
     try {
       cfg.line_increment = std::stoi(increment_opt);
       if (cfg.line_increment <= 0) {
-        return std::unexpected("line increment must be positive");
+        return core::pipeline::unexpected("line increment must be positive");
       }
     } catch (...) {
-      return std::unexpected("invalid line increment");
+      return core::pipeline::unexpected("invalid line increment");
     }
   }
 
@@ -118,10 +115,10 @@ auto build_config(const CommandContext<NL_OPTIONS.size()>& ctx)
     try {
       cfg.starting_number = std::stoi(start_opt);
       if (cfg.starting_number < 0) {
-        return std::unexpected("starting line number cannot be negative");
+        return core::pipeline::unexpected("starting line number cannot be negative");
       }
     } catch (...) {
-      return std::unexpected("invalid starting line number");
+      return core::pipeline::unexpected("invalid starting line number");
     }
   }
 
@@ -133,10 +130,10 @@ auto build_config(const CommandContext<NL_OPTIONS.size()>& ctx)
     try {
       cfg.number_width = std::stoi(width_opt);
       if (cfg.number_width <= 0) {
-        return std::unexpected("line number width must be positive");
+        return core::pipeline::unexpected("line number width must be positive");
       }
     } catch (...) {
-      return std::unexpected("invalid line number width");
+      return core::pipeline::unexpected("invalid line number width");
     }
   }
 
@@ -198,7 +195,7 @@ auto run(const Config& cfg) -> int {
       std::ifstream f(file, std::ios::binary);
       if (!f) {
         auto err = std::string("cannot open '") + file + "' for reading";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"nl");
         return 1;
       }
@@ -237,7 +234,7 @@ auto run(const Config& cfg) -> int {
       }
 
       if (f.fail() && !f.eof()) {
-        cp::Result<int> result = std::unexpected("error reading from file");
+        cp::Result<int> result = core::pipeline::unexpected("error reading from file");
         cp::report_error(result, L"nl");
         return 1;
       }

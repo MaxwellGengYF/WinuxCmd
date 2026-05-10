@@ -32,15 +32,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #pragma comment(lib, "shlwapi.lib")
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 /**
  * @brief CP command options definition
  *
@@ -146,7 +143,7 @@ auto validate_arguments(const CommandContext<CP_OPTIONS.size()>& ctx)
   } else {
     // Regular case: last argument is destination
     if (ctx.positionals.size() < 2) {
-      return std::unexpected("missing file operand");
+      return core::pipeline::unexpected("missing file operand");
     }
 
     for (size_t i = 0; i < ctx.positionals.size() - 1; ++i) {
@@ -156,7 +153,7 @@ auto validate_arguments(const CommandContext<CP_OPTIONS.size()>& ctx)
   }
 
   if (sourcePaths.empty()) {
-    return std::unexpected("missing file operand");
+    return core::pipeline::unexpected("missing file operand");
   }
 
   return std::pair{sourcePaths, destPath};
@@ -177,7 +174,7 @@ auto check_destination(
                    (attr & FILE_ATTRIBUTE_DIRECTORY);
 
   if (sourcePaths.size() > 1 && !destIsDir) {
-    return std::unexpected("target is not a directory");
+    return core::pipeline::unexpected("target is not a directory");
   }
 
   return std::tuple{sourcePaths, destPath, destIsDir};
@@ -196,7 +193,7 @@ auto create_directory_recursive(const std::string& path) -> cp::Result<bool> {
   // If parent directory doesn't exist, create it first
   size_t lastSlash = path.find_last_of('\\');
   if (lastSlash == std::string::npos) {
-    return std::unexpected("cannot create directory");
+    return core::pipeline::unexpected("cannot create directory");
   }
 
   std::string parentPath = path.substr(0, lastSlash);
@@ -207,7 +204,7 @@ auto create_directory_recursive(const std::string& path) -> cp::Result<bool> {
 
   // Now create the current directory
   if (CreateDirectoryW(wpath.c_str(), NULL) == 0) {
-    return std::unexpected("cannot create directory");
+    return core::pipeline::unexpected("cannot create directory");
   }
 
   return true;
@@ -279,7 +276,7 @@ auto copy_file(const std::string& srcPath, const std::string& destPath,
   // Check if source file exists and is readable
   std::ifstream src(srcPath, std::ios::binary);
   if (!src) {
-    return std::unexpected("cannot open for reading");
+    return core::pipeline::unexpected("cannot open for reading");
   }
 
   // Create destination directory if it doesn't exist
@@ -295,13 +292,13 @@ auto copy_file(const std::string& srcPath, const std::string& destPath,
   // Open destination file
   std::ofstream dest(destPath, std::ios::binary);
   if (!dest) {
-    return std::unexpected("cannot open for writing");
+    return core::pipeline::unexpected("cannot open for writing");
   }
 
   // Copy file content
   dest << src.rdbuf();
   if (!dest) {
-    return std::unexpected("error writing");
+    return core::pipeline::unexpected("error writing");
   }
 
   // Flush and close the files
@@ -331,7 +328,7 @@ auto copy_directory_helper(const std::string& srcPath,
                            int depth) -> cp::Result<bool> {
   // Prevent deep recursion
   if (depth > 100) {
-    return std::unexpected("maximum recursion depth exceeded");
+    return core::pipeline::unexpected("maximum recursion depth exceeded");
   }
 
   // Prevent copying directory into itself
@@ -348,7 +345,7 @@ auto copy_directory_helper(const std::string& srcPath,
     safeErrorPrint("' into itself '");
     safeErrorPrint(destPath);
     safeErrorPrint("'\n");
-    return std::unexpected("cannot copy directory into itself");
+    return core::pipeline::unexpected("cannot copy directory into itself");
   }
 
   // Create destination directory if it doesn't exist
@@ -363,7 +360,7 @@ auto copy_directory_helper(const std::string& srcPath,
   WIN32_FIND_DATAW findData;
   HANDLE hFind = FindFirstFileW(searchPath.c_str(), &findData);
   if (hFind == INVALID_HANDLE_VALUE) {
-    return std::unexpected("cannot open directory");
+    return core::pipeline::unexpected("cannot open directory");
   }
 
   bool success = true;

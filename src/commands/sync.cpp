@@ -29,14 +29,11 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -99,7 +96,7 @@ REGISTER_COMMAND(
 
       if (hFile == INVALID_HANDLE_VALUE) {
         auto err = std::string("sync: failed to open '") + exp + "'";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"sync");
         return 1;
       }
@@ -107,7 +104,7 @@ REGISTER_COMMAND(
       if (!FlushFileBuffers(hFile)) {
         CloseHandle(hFile);
         auto err = std::string("sync: failed to flush '") + exp + "'";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"sync");
         return 1;
       }

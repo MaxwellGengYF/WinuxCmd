@@ -1,4 +1,4 @@
-﻿/*
+/*
  *  Copyright  2026 [caomengxuan666]
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,14 +32,11 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright  2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 /**
  * @brief PWD command options definition
@@ -83,13 +80,13 @@ auto get_current_directory(const CommandContext<PWD_OPTIONS.size()>& ctx)
   // Get current directory using Windows API
   DWORD bufferSize = GetCurrentDirectoryW(0, NULL);
   if (bufferSize == 0) {
-    return std::unexpected("cannot get current directory");
+    return core::pipeline::unexpected("cannot get current directory");
   }
 
   std::wstring wCurrentDir(bufferSize, L'\0');
   DWORD result = GetCurrentDirectoryW(bufferSize, &wCurrentDir[0]);
   if (result == 0 || result >= bufferSize) {
-    return std::unexpected("cannot get current directory");
+    return core::pipeline::unexpected("cannot get current directory");
   }
 
   // Remove null terminator

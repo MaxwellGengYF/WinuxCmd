@@ -36,12 +36,10 @@
 #include <iphlpapi.h>
 
 #include "core/command_macros.h"
-#include "pch/pch.h"
 #pragma comment(lib, "iphlpapi.lib")
 
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -180,7 +178,7 @@ auto enable_debug_privilege() -> bool {
 
   TOKEN_PRIVILEGES tp{};
   LUID luid{};
-  if (!LookupPrivilegeValueW(nullptr, SE_DEBUG_NAME, &luid)) {
+  if (!LookupPrivilegeValueW(nullptr, L"SeDebugPrivilege", &luid)) {
     return false;
   }
 

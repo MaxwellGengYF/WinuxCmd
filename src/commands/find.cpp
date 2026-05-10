@@ -28,15 +28,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -156,7 +153,7 @@ auto build_config(const CommandContext<FIND_OPTIONS.size()>& ctx)
   Config cfg;
 
   if (auto u = is_unsupported_used(ctx); u.has_value()) {
-    return std::unexpected(*u);
+    return core::pipeline::unexpected(*u);
   }
 
   cfg.name_pattern = ctx.get<std::string>("-name", "");
@@ -170,16 +167,16 @@ auto build_config(const CommandContext<FIND_OPTIONS.size()>& ctx)
   cfg.quit = ctx.get<bool>("-quit", false);
 
   if (!cfg.name_pattern.empty() && !cfg.iname_pattern.empty()) {
-    return std::unexpected("cannot use both -name and -iname");
+    return core::pipeline::unexpected("cannot use both -name and -iname");
   }
 
   if (!cfg.type_filter.empty() && cfg.type_filter != "f" &&
       cfg.type_filter != "d" && cfg.type_filter != "l") {
-    return std::unexpected("-type currently supports only f,d,l");
+    return core::pipeline::unexpected("-type currently supports only f,d,l");
   }
 
   if (cfg.mindepth < 0 || cfg.maxdepth < 0 || cfg.mindepth > cfg.maxdepth) {
-    return std::unexpected("invalid depth range");
+    return core::pipeline::unexpected("invalid depth range");
   }
 
   for (auto p : ctx.positionals) cfg.roots.emplace_back(p);

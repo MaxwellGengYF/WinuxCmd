@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -96,10 +93,10 @@ auto build_config(const CommandContext<FMT_OPTIONS.size()>& ctx)
     try {
       cfg.width = std::stoi(width_opt);
       if (cfg.width < 10) {
-        return std::unexpected("width must be at least 10");
+        return core::pipeline::unexpected("width must be at least 10");
       }
     } catch (...) {
-      return std::unexpected("invalid width value");
+      return core::pipeline::unexpected("invalid width value");
     }
   }
 
@@ -111,7 +108,7 @@ auto build_config(const CommandContext<FMT_OPTIONS.size()>& ctx)
     try {
       cfg.goal = std::stoi(goal_opt);
     } catch (...) {
-      return std::unexpected("invalid goal value");
+      return core::pipeline::unexpected("invalid goal value");
     }
   }
 
@@ -149,14 +146,14 @@ auto read_input(const std::string& filename) -> cp::Result<std::string> {
     // Read from file
     std::ifstream f(filename, std::ios::binary);
     if (!f) {
-      return std::unexpected(std::string("cannot open '") + filename +
+      return core::pipeline::unexpected(std::string("cannot open '") + filename +
                              "' for reading");
     }
     // Read file content
     content.assign(std::istreambuf_iterator<char>(f),
                    std::istreambuf_iterator<char>());
     if (f.fail() && !f.eof()) {
-      return std::unexpected("error reading from file");
+      return core::pipeline::unexpected("error reading from file");
     }
     // Skip UTF-8 BOM if present at the beginning
     if (content.size() >= 3 && static_cast<unsigned char>(content[0]) == 0xEF &&

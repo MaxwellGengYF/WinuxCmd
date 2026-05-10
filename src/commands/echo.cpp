@@ -28,13 +28,10 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -93,7 +90,7 @@ namespace cp = core::pipeline;
  */
 auto build_text(std::span<const std::string_view> args)
     -> cp::Result<std::string> {
-  if (args.empty()) return std::unexpected("no arguments provided");
+  if (args.empty()) return core::pipeline::unexpected("no arguments provided");
   std::string text;
   for (auto arg : args) {
     if (!text.empty()) text += ' ';
@@ -268,7 +265,7 @@ auto process_escapes(std::string text, bool enabled)
  */
 auto validate_repeat(int count) -> cp::Result<int> {
   if (count < echo_constants::MIN_REPEAT || count > echo_constants::MAX_REPEAT)
-    return std::unexpected("repeat count out of range");
+    return core::pipeline::unexpected("repeat count out of range");
   return count;
 }
 

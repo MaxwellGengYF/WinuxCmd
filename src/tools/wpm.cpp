@@ -37,8 +37,7 @@
 #include <winhttp.h>
 #pragma comment(lib, "winhttp.lib")
 
-import std;
-import utils;
+#include "../utils/utils.h"
 
 namespace fs = std::filesystem;
 

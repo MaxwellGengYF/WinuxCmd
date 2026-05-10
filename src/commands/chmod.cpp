@@ -33,12 +33,9 @@
 /// @Copyright: Copyright © 2026 WinuxCmd
 
 #include "core/command_macros.h"
-#include "pch/pch.h"
-
 #pragma comment(lib, "advapi32.lib")
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -100,7 +97,7 @@ auto parse_symbolic_mode(std::string_view mode_str)
   // Parse operator (+/-/=)
   if (i >= mode_str.size() ||
       (mode_str[i] != '+' && mode_str[i] != '-' && mode_str[i] != '=')) {
-    return std::unexpected("Invalid mode operator");
+    return core::pipeline::unexpected("Invalid mode operator");
   }
   op = mode_str[i];
   i++;
@@ -161,7 +158,7 @@ auto apply_symbolic_mode(const std::string &path, const std::string &who,
 
   WIN32_FILE_ATTRIBUTE_DATA attr_data;
   if (!GetFileAttributesExW(wpath.c_str(), GetFileExInfoStandard, &attr_data)) {
-    return std::unexpected("cannot access '" + path + "'");
+    return core::pipeline::unexpected("cannot access '" + path + "'");
   }
 
   DWORD attrs = attr_data.dwFileAttributes;
@@ -199,7 +196,7 @@ auto apply_symbolic_mode(const std::string &path, const std::string &who,
   bool changed = (attrs != new_attrs);
 
   if (changed && !SetFileAttributesW(wpath.c_str(), new_attrs)) {
-    return std::unexpected("failed to set attributes for '" + path + "'");
+    return core::pipeline::unexpected("failed to set attributes for '" + path + "'");
   }
 
   return changed;
@@ -216,7 +213,7 @@ auto apply_numeric_mode(const std::string &path, int mode) -> cp::Result<bool> {
 
   WIN32_FILE_ATTRIBUTE_DATA attr_data;
   if (!GetFileAttributesExW(wpath.c_str(), GetFileExInfoStandard, &attr_data)) {
-    return std::unexpected("cannot access '" + path + "'");
+    return core::pipeline::unexpected("cannot access '" + path + "'");
   }
 
   DWORD attrs = attr_data.dwFileAttributes;
@@ -239,7 +236,7 @@ auto apply_numeric_mode(const std::string &path, int mode) -> cp::Result<bool> {
   bool changed = (attrs != new_attrs);
 
   if (changed && !SetFileAttributesW(wpath.c_str(), new_attrs)) {
-    return std::unexpected("failed to set attributes for '" + path + "'");
+    return core::pipeline::unexpected("failed to set attributes for '" + path + "'");
   }
 
   return changed;
@@ -264,14 +261,14 @@ auto parse_mode(std::string_view mode_str)
 
     if (all_digits) {
       int mode = std::stoi(std::string(mode_str), nullptr, 8);
-      return std::make_tuple(true, mode, "", '\0', "");
+      return std::make_tuple(true, mode, std::string(), '\0', std::string());
     }
   }
 
   // Otherwise, parse as symbolic mode
   auto result = parse_symbolic_mode(mode_str);
   if (!result) {
-    return std::unexpected(result.error());
+    return core::pipeline::unexpected(result.error());
   }
 
   auto [who, op, perms] = result.value();
@@ -303,7 +300,7 @@ auto process_file(const std::string &path, std::string_view mode_str,
       safeErrorPrint(mode_result.error());
       safeErrorPrint("\n");
     }
-    return std::unexpected(mode_result.error());
+    return core::pipeline::unexpected(mode_result.error());
   }
 
   auto [is_numeric, numeric_mode, who, op, perms] = mode_result.value();
@@ -366,7 +363,7 @@ auto process_recursive(const std::string &path, std::string_view mode_str,
       safeErrorPrint(path);
       safeErrorPrint("'\n");
     }
-    return std::unexpected("cannot access path");
+    return core::pipeline::unexpected("cannot access path");
   }
 
   bool is_directory =

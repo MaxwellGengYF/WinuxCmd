@@ -23,20 +23,16 @@
  *  - Username: Administrator
  *  - CopyrightYear: 2026
  */
-
-#include "pch/pch.h"
-
 // include other header after pch.h
 
 #include "core/command_macros.h"
 
-import std;
 
-import core;
+#include "../core/core.h"
 
-import utils;
+#include "../utils/utils.h"
 
-import container;
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -225,7 +221,7 @@ auto parse_numeric_with_suffix(std::string_view text)
 auto parse_count_spec(std::string spec_text, std::string_view opt_name)
     -> cp::Result<CountSpec> {
   if (spec_text.empty()) {
-    return std::unexpected("invalid number of " + std::string(opt_name));
+    return core::pipeline::unexpected("invalid number of " + std::string(opt_name));
   }
 
   CountSpec spec;
@@ -236,7 +232,7 @@ auto parse_count_spec(std::string spec_text, std::string_view opt_name)
 
   auto parsed = parse_numeric_with_suffix(spec_text);
   if (!parsed.has_value()) {
-    return std::unexpected("invalid number of " + std::string(opt_name));
+    return core::pipeline::unexpected("invalid number of " + std::string(opt_name));
   }
 
   spec.value = *parsed;
@@ -343,16 +339,16 @@ auto output_tail(std::istream& in, const TailConfig& config) -> void {
 template <size_t N>
 auto check_unsupported(const CommandContext<N>& ctx) -> cp::Result<void> {
   if (ctx.get<bool>("-F", false)) {
-    return std::unexpected("-F is [NOT SUPPORT] on this platform");
+    return core::pipeline::unexpected("-F is [NOT SUPPORT] on this platform");
   }
   if (ctx.get<int>("--max-unchanged-stats", -1) >= 0) {
-    return std::unexpected("--max-unchanged-stats is [NOT SUPPORT]");
+    return core::pipeline::unexpected("--max-unchanged-stats is [NOT SUPPORT]");
   }
   if (ctx.get<int>("--pid", -1) >= 0) {
-    return std::unexpected("--pid is [NOT SUPPORT]");
+    return core::pipeline::unexpected("--pid is [NOT SUPPORT]");
   }
   if (ctx.get<bool>("--retry", false)) {
-    return std::unexpected("--retry is [NOT SUPPORT]");
+    return core::pipeline::unexpected("--retry is [NOT SUPPORT]");
   }
   return {};
 }
@@ -372,13 +368,13 @@ auto build_config(const CommandContext<N>& ctx) -> cp::Result<TailConfig> {
   if (!sleep_arg.empty()) {
     auto parsed_sleep = parse_sleep_interval(sleep_arg);
     if (!parsed_sleep) {
-      return std::unexpected("invalid sleep interval");
+      return core::pipeline::unexpected("invalid sleep interval");
     }
     config.sleep_interval = *parsed_sleep;
   }
 
   auto unsupported = check_unsupported(ctx);
-  if (!unsupported) return std::unexpected(unsupported.error());
+  if (!unsupported) return core::pipeline::unexpected(unsupported.error());
 
   const std::string bytes_arg = ctx.get<std::string>("--bytes", "");
   const std::string bytes_short = ctx.get<std::string>("-c", "");
@@ -390,7 +386,7 @@ auto build_config(const CommandContext<N>& ctx) -> cp::Result<TailConfig> {
 
   if (!bytes_spec.empty()) {
     auto spec = parse_count_spec(bytes_spec, "bytes");
-    if (!spec) return std::unexpected(spec.error());
+    if (!spec) return core::pipeline::unexpected(spec.error());
     config.by_bytes = true;
     config.spec = *spec;
     return config;
@@ -398,7 +394,7 @@ auto build_config(const CommandContext<N>& ctx) -> cp::Result<TailConfig> {
 
   if (!lines_spec.empty()) {
     auto spec = parse_count_spec(lines_spec, "lines");
-    if (!spec) return std::unexpected(spec.error());
+    if (!spec) return core::pipeline::unexpected(spec.error());
     config.spec = *spec;
   }
 

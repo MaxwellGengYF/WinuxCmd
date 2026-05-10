@@ -5,10 +5,9 @@
 #include <ctime>
 
 #include "core/command_macros.h"
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 auto constexpr CAL_OPTIONS =
     std::array{OPTION("", "", "display calendar", STRING_TYPE)};

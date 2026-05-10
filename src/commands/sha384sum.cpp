@@ -30,8 +30,6 @@
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
 // *** SIMPLIFIED IMPLEMENTATION - Some features may not be fully supported ***
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include <wincrypt.h>
 
@@ -39,10 +37,9 @@
 
 #pragma comment(lib, "advapi32.lib")
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -125,13 +122,13 @@ auto calculate_sha384(const std::string& filename) -> cp::Result<std::string> {
   // Note: SHA512 requires PROV_RSA_AES or a SHA512-capable provider
   if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES,
                            CRYPT_VERIFYCONTEXT)) {
-    return std::unexpected("failed to acquire cryptographic context");
+    return core::pipeline::unexpected("failed to acquire cryptographic context");
   }
 
   // Create hash object using SHA512 (we'll truncate to SHA384)
   if (!CryptCreateHash(hProv, CALG_SHA_512, 0, 0, &hHash)) {
     CryptReleaseContext(hProv, 0);
-    return std::unexpected("failed to create hash object");
+    return core::pipeline::unexpected("failed to create hash object");
   }
 
   bool success = false;
@@ -145,7 +142,7 @@ auto calculate_sha384(const std::string& filename) -> cp::Result<std::string> {
                          static_cast<DWORD>(bytes_read), 0)) {
         CryptDestroyHash(hHash);
         CryptReleaseContext(hProv, 0);
-        return std::unexpected("failed to hash data");
+        return core::pipeline::unexpected("failed to hash data");
       }
     }
     success = true;
@@ -155,7 +152,7 @@ auto calculate_sha384(const std::string& filename) -> cp::Result<std::string> {
     if (!file) {
       CryptDestroyHash(hHash);
       CryptReleaseContext(hProv, 0);
-      return std::unexpected(std::string("cannot open '") + filename +
+      return core::pipeline::unexpected(std::string("cannot open '") + filename +
                              "' for reading");
     }
 
@@ -168,7 +165,7 @@ auto calculate_sha384(const std::string& filename) -> cp::Result<std::string> {
                            static_cast<DWORD>(bytes_read), 0)) {
           CryptDestroyHash(hHash);
           CryptReleaseContext(hProv, 0);
-          return std::unexpected("failed to hash data");
+          return core::pipeline::unexpected("failed to hash data");
         }
       }
     }
@@ -182,7 +179,7 @@ auto calculate_sha384(const std::string& filename) -> cp::Result<std::string> {
   if (!CryptGetHashParam(hHash, HP_HASHVAL, hash_value.data(), &hash_len, 0)) {
     CryptDestroyHash(hHash);
     CryptReleaseContext(hProv, 0);
-    return std::unexpected("failed to get hash value");
+    return core::pipeline::unexpected("failed to get hash value");
   }
 
   CryptDestroyHash(hHash);

@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -143,13 +140,13 @@ auto read_input(const std::string& filename) -> cp::Result<std::string> {
       content += '\n';
     }
     if (std::cin.bad() && !std::cin.eof()) {
-      return std::unexpected("error reading from standard input");
+      return core::pipeline::unexpected("error reading from standard input");
     }
   } else {
     // Read from file
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) {
-      return std::unexpected(std::string("cannot open '") + filename +
+      return core::pipeline::unexpected(std::string("cannot open '") + filename +
                              "' for reading");
     }
 
@@ -161,12 +158,12 @@ auto read_input(const std::string& filename) -> cp::Result<std::string> {
     if (file_size > 0) {
       content.resize(file_size);
       if (!file.read(&content[0], file_size)) {
-        return std::unexpected("error reading from file");
+        return core::pipeline::unexpected("error reading from file");
       }
     }
 
     if (file.bad() && !file.eof()) {
-      return std::unexpected("error reading from file");
+      return core::pipeline::unexpected("error reading from file");
     }
   }
 

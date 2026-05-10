@@ -1,4 +1,4 @@
-﻿/*
+/*
  *  Copyright  2026 [caomengxuan666]
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,14 +32,11 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright  2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 /**
  * @brief KILL command options definition
@@ -169,14 +166,14 @@ auto parse_signal(const std::string& signal_arg) -> cp::Result<int> {
   try {
     int signal_num = std::stoi(signal_arg);
     if (signal_num < 0 || signal_num > 64) {
-      return std::unexpected("invalid signal number");
+      return core::pipeline::unexpected("invalid signal number");
     }
     return signal_num;
   } catch (...) {
     // Try to parse as signal name
     auto signal_num = kill_constants::get_signal_by_name(signal_arg);
     if (!signal_num) {
-      return std::unexpected("unknown signal: " + signal_arg);
+      return core::pipeline::unexpected("unknown signal: " + signal_arg);
     }
     return *signal_num;
   }
@@ -194,11 +191,11 @@ auto terminate_process(DWORD pid, int signal, bool verbose)
   if (hProcess == NULL) {
     DWORD error = GetLastError();
     if (error == ERROR_ACCESS_DENIED) {
-      return std::unexpected("permission denied");
+      return core::pipeline::unexpected("permission denied");
     } else if (error == ERROR_INVALID_PARAMETER) {
-      return std::unexpected("no such process");
+      return core::pipeline::unexpected("no such process");
     } else {
-      return std::unexpected("cannot open process");
+      return core::pipeline::unexpected("cannot open process");
     }
   }
 
@@ -207,7 +204,7 @@ auto terminate_process(DWORD pid, int signal, bool verbose)
   if (GetExitCodeProcess(hProcess, &exitCode)) {
     if (exitCode != STILL_ACTIVE) {
       CloseHandle(hProcess);
-      return std::unexpected("process already terminated");
+      return core::pipeline::unexpected("process already terminated");
     }
   }
 
@@ -267,7 +264,7 @@ auto terminate_process(DWORD pid, int signal, bool verbose)
   CloseHandle(hProcess);
 
   if (!success) {
-    return std::unexpected("failed to terminate process");
+    return core::pipeline::unexpected("failed to terminate process");
   }
 
   if (verbose) {
@@ -290,16 +287,16 @@ auto parse_pids(const std::vector<std::string>& pid_args)
     try {
       long long pid_value = std::stoll(pid_str);
       if (pid_value <= 0 || pid_value > UINT32_MAX) {
-        return std::unexpected("invalid PID: " + pid_str);
+        return core::pipeline::unexpected("invalid PID: " + pid_str);
       }
       pids.push_back(static_cast<DWORD>(pid_value));
     } catch (...) {
-      return std::unexpected("invalid PID: " + pid_str);
+      return core::pipeline::unexpected("invalid PID: " + pid_str);
     }
   }
 
   if (pids.empty()) {
-    return std::unexpected("no process ID specified");
+    return core::pipeline::unexpected("no process ID specified");
   }
 
   return pids;
@@ -336,7 +333,7 @@ auto process_command(const CommandContext<N>& ctx) -> cp::Result<bool> {
     if (!signal_str.empty()) {
       auto signal_result = parse_signal(signal_str);
       if (!signal_result) {
-        return std::unexpected(signal_result.error());
+        return core::pipeline::unexpected(signal_result.error());
       }
       signal = *signal_result;
     }
@@ -350,7 +347,7 @@ auto process_command(const CommandContext<N>& ctx) -> cp::Result<bool> {
 
   auto pids_result = parse_pids(pid_args);
   if (!pids_result) {
-    return std::unexpected(pids_result.error());
+    return core::pipeline::unexpected(pids_result.error());
   }
 
   auto pids = *pids_result;

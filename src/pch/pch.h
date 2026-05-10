@@ -30,6 +30,7 @@
  */
 
 #ifndef PCH_H
+#define PCH_H
 #pragma warning(disable : 4530)
 #pragma warning(disable : 4541)  // Disable typeid warning with /GR-
 #pragma warning(disable : 4129)
@@ -53,11 +54,87 @@
 #include <tlhelp32.h>    // For CreateToolhelp32Snapshot, Process32First
 #include <winternl.h>    // For PROCESS_BASIC_INFORMATION
 
+// C standard headers
 #include <cctype>   // For isspace
 #include <cstdint>  // For uint64_t
-// #include <cstdio>   // For printf, fflush
+#include <cstdio>   // For printf, fflush
 #include <cstdlib>  // For basic functions
 #include <cstring>  // For strlen
 #include <cwchar>   // For wprintf, fwprintf
+#include <cassert>
+#include <cerrno>
+#include <cfloat>
+#include <charconv>
+#include <climits>
+#include <cmath>
+#include <codecvt>
+#include <compare>
+#include <cstdarg>
+#include <cstddef>
+#include <ctime>
+#include <cwctype>
+
+// C++ standard library headers
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <barrier>
+#include <bitset>
+#include <chrono>
+#include <concepts>
+#include <condition_variable>
+#include <deque>
+#include <exception>
+#include <execution>
+#include <filesystem>
+#include <format>
+#include <forward_list>
+#include <fstream>
+#include <functional>
+#include <future>
+#include <initializer_list>
+#include <iomanip>
+#include <ios>
+#include <iostream>
+#include <istream>
+#include <iterator>
+#include <latch>
+#include <limits>
+#include <list>
+#include <locale>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <new>
+#include <numeric>
+#include <optional>
+#include <ostream>
+#include <queue>
+#include <random>
+#include <ranges>
+#include <regex>
+#include <semaphore>
+#include <set>
+#include <shared_mutex>
+#include <source_location>
+#include <span>
+#include <sstream>
+#include <stack>
+#include <stdexcept>
+#include <stop_token>
+#include <string>
+#include <string_view>
+#include <syncstream>
+#include <system_error>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <typeinfo>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <variant>
+#include <vector>
+#include <version>
 
 #endif  // PCH_H

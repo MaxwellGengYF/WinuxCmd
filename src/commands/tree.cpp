@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -476,7 +473,7 @@ auto execute_tree(const CommandContext<TREE_OPTIONS.size()> &ctx)
   // Build configuration
   auto cfg_result = build_config(ctx);
   if (!cfg_result) {
-    return std::unexpected(cfg_result.error());
+    return core::pipeline::unexpected(cfg_result.error());
   }
   Config cfg = std::move(cfg_result.value());
 
@@ -488,7 +485,7 @@ auto execute_tree(const CommandContext<TREE_OPTIONS.size()> &ctx)
     std::wstring woutput_file = utf8_to_wstring(cfg.output_file);
     file_output.open(woutput_file);
     if (!file_output.is_open()) {
-      return std::unexpected("cannot open output file: " + cfg.output_file);
+      return core::pipeline::unexpected("cannot open output file: " + cfg.output_file);
     }
   }
 

@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -71,7 +68,7 @@ auto parse_size(const std::string& size_str) -> cp::Result<int64_t> {
     std::string s = size_str;
 
     if (s.empty()) {
-      return std::unexpected("invalid size");
+      return core::pipeline::unexpected("invalid size");
     }
 
     int64_t multiplier = 1;
@@ -128,7 +125,7 @@ auto parse_size(const std::string& size_str) -> cp::Result<int64_t> {
 
     return value;
   } catch (...) {
-    return std::unexpected("invalid size format");
+    return core::pipeline::unexpected("invalid size format");
   }
 }
 
@@ -143,7 +140,7 @@ auto build_config(const CommandContext<SPLIT_OPTIONS.size()>& ctx)
   if (!bytes_opt.empty()) {
     auto size_result = parse_size(bytes_opt);
     if (!size_result) {
-      return std::unexpected(size_result.error());
+      return core::pipeline::unexpected(size_result.error());
     }
     cfg.chunk_size = *size_result;
   }
@@ -156,10 +153,10 @@ auto build_config(const CommandContext<SPLIT_OPTIONS.size()>& ctx)
     try {
       cfg.chunk_lines = std::stoi(lines_opt);
       if (cfg.chunk_lines <= 0) {
-        return std::unexpected("line count must be positive");
+        return core::pipeline::unexpected("line count must be positive");
       }
     } catch (...) {
-      return std::unexpected("invalid line count");
+      return core::pipeline::unexpected("invalid line count");
     }
   }
 
@@ -174,10 +171,10 @@ auto build_config(const CommandContext<SPLIT_OPTIONS.size()>& ctx)
     try {
       cfg.suffix_length = std::stoi(suffix_opt);
       if (cfg.suffix_length < 1 || cfg.suffix_length > 10) {
-        return std::unexpected("suffix length must be between 1 and 10");
+        return core::pipeline::unexpected("suffix length must be between 1 and 10");
       }
     } catch (...) {
-      return std::unexpected("invalid suffix length");
+      return core::pipeline::unexpected("invalid suffix length");
     }
   }
 
@@ -235,7 +232,7 @@ auto run(const Config& cfg) -> int {
     input.assign(std::istreambuf_iterator<char>(std::cin),
                  std::istreambuf_iterator<char>());
     if (std::cin.fail() && !std::cin.eof()) {
-      cp::Result<int> result = std::unexpected("error reading from file");
+      cp::Result<int> result = core::pipeline::unexpected("error reading from file");
       cp::report_error(result, L"split");
       return 1;
     }
@@ -245,14 +242,14 @@ auto run(const Config& cfg) -> int {
     if (!f) {
       auto err =
           std::string("cannot open '") + cfg.input_file + "' for reading";
-      cp::Result<int> result = std::unexpected(std::string_view(err));
+      cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
       cp::report_error(result, L"split");
       return 1;
     }
     input.assign(std::istreambuf_iterator<char>(f),
                  std::istreambuf_iterator<char>());
     if (f.fail() && !f.eof()) {
-      cp::Result<int> result = std::unexpected("error reading from file");
+      cp::Result<int> result = core::pipeline::unexpected("error reading from file");
       cp::report_error(result, L"split");
       return 1;
     }
@@ -289,7 +286,7 @@ auto run(const Config& cfg) -> int {
       std::ofstream out(filename, std::ios::binary);
       if (!out) {
         auto err = std::string("cannot create '") + filename + "'";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"split");
         return 1;
       }
@@ -310,7 +307,7 @@ auto run(const Config& cfg) -> int {
       std::ofstream out(filename, std::ios::binary);
       if (!out) {
         auto err = std::string("cannot create '") + filename + "'";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"split");
         return 1;
       }

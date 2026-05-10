@@ -102,7 +102,7 @@ std::string generateCommandModule(const std::string &cmdName) {
       "  auto validate_arguments(std::span<const std::string_view> args) -> "
       "cp::Result<std::vector<std::string>> {\n";
   moduleContent +=
-      "    if (args.empty()) return std::unexpected(\"no arguments "
+      "    if (args.empty()) return core::pipeline::unexpected(\"no arguments "
       "provided\");\n";
   moduleContent += "    std::vector<std::string> paths;\n";
   moduleContent += "    for (auto arg : args) {\n";

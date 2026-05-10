@@ -31,13 +31,11 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -103,7 +101,7 @@ auto read_source(std::string_view path) -> cp::Result<std::string> {
 
   std::ifstream in(std::string(path), std::ios::binary);
   if (!in.is_open()) {
-    return std::unexpected("cannot open '" + std::string(path) + "'");
+    return core::pipeline::unexpected("cannot open '" + std::string(path) + "'");
   }
   return read_all(in);
 }
@@ -201,11 +199,11 @@ auto build_config(const CommandContext<UNIQ_OPTIONS.size()>& ctx)
           : '\n';
 
   if (cfg.skip_fields < 0 || cfg.skip_chars < 0 || cfg.check_chars < -1) {
-    return std::unexpected("negative counts are not allowed");
+    return core::pipeline::unexpected("negative counts are not allowed");
   }
 
   if (ctx.positionals.size() > 2) {
-    return std::unexpected("extra operand '" + std::string(ctx.positionals[2]) +
+    return core::pipeline::unexpected("extra operand '" + std::string(ctx.positionals[2]) +
                            "'");
   }
   if (ctx.positionals.size() >= 1) cfg.input = std::string(ctx.positionals[0]);

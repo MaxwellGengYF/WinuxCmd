@@ -30,8 +30,6 @@
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
 // *** SIMPLIFIED IMPLEMENTATION - Some features may not be fully supported ***
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include <bcrypt.h>  // For CNG API (BLAKE2 support)
 #include <wincrypt.h>
@@ -41,10 +39,9 @@
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "bcrypt.lib")  // For CNG API
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -93,11 +90,11 @@ auto build_config(const CommandContext<B2SUM_OPTIONS.size()>& ctx)
       cfg.digest_bits = std::stoi(length_opt);
       if (cfg.digest_bits != 128 && cfg.digest_bits != 256 &&
           cfg.digest_bits != 384 && cfg.digest_bits != 512) {
-        return std::unexpected(
+        return core::pipeline::unexpected(
             "digest length must be 128, 256, 384, or 512 bits");
       }
     } catch (...) {
-      return std::unexpected("invalid digest length");
+      return core::pipeline::unexpected("invalid digest length");
     }
   }
 
@@ -145,7 +142,7 @@ auto calculate_hash(const std::string& filename) -> cp::Result<std::string> {
   // Open SHA512 algorithm provider (using CNG API)
   status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA512_ALGORITHM, NULL, 0);
   if (!BCRYPT_SUCCESS(status)) {
-    return std::unexpected("failed to open SHA512 algorithm provider");
+    return core::pipeline::unexpected("failed to open SHA512 algorithm provider");
   }
 
   // Get hash object size
@@ -156,7 +153,7 @@ auto calculate_hash(const std::string& filename) -> cp::Result<std::string> {
                         sizeof(DWORD), &data_size, 0);
   if (!BCRYPT_SUCCESS(status)) {
     BCryptCloseAlgorithmProvider(hAlg, 0);
-    return std::unexpected("failed to get hash object size");
+    return core::pipeline::unexpected("failed to get hash object size");
   }
 
   // Allocate hash object
@@ -167,7 +164,7 @@ auto calculate_hash(const std::string& filename) -> cp::Result<std::string> {
                             NULL, 0, 0);
   if (!BCRYPT_SUCCESS(status)) {
     BCryptCloseAlgorithmProvider(hAlg, 0);
-    return std::unexpected("failed to create hash handle");
+    return core::pipeline::unexpected("failed to create hash handle");
   }
 
   // Hash the data
@@ -181,7 +178,7 @@ auto calculate_hash(const std::string& filename) -> cp::Result<std::string> {
       if (!BCRYPT_SUCCESS(status)) {
         BCryptDestroyHash(hHash);
         BCryptCloseAlgorithmProvider(hAlg, 0);
-        return std::unexpected("failed to hash data");
+        return core::pipeline::unexpected("failed to hash data");
       }
     }
   } else {
@@ -190,7 +187,7 @@ auto calculate_hash(const std::string& filename) -> cp::Result<std::string> {
     if (!file) {
       BCryptDestroyHash(hHash);
       BCryptCloseAlgorithmProvider(hAlg, 0);
-      return std::unexpected(std::string("cannot open '") + filename +
+      return core::pipeline::unexpected(std::string("cannot open '") + filename +
                              "' for reading");
     }
 
@@ -204,14 +201,14 @@ auto calculate_hash(const std::string& filename) -> cp::Result<std::string> {
         if (!BCRYPT_SUCCESS(status)) {
           BCryptDestroyHash(hHash);
           BCryptCloseAlgorithmProvider(hAlg, 0);
-          return std::unexpected("failed to hash data");
+          return core::pipeline::unexpected("failed to hash data");
         }
       }
     }
     if (file.fail() && !file.eof()) {
       BCryptDestroyHash(hHash);
       BCryptCloseAlgorithmProvider(hAlg, 0);
-      return std::unexpected("error reading from file");
+      return core::pipeline::unexpected("error reading from file");
     }
   }
 
@@ -222,7 +219,7 @@ auto calculate_hash(const std::string& filename) -> cp::Result<std::string> {
   if (!BCRYPT_SUCCESS(status)) {
     BCryptDestroyHash(hHash);
     BCryptCloseAlgorithmProvider(hAlg, 0);
-    return std::unexpected("failed to get hash length");
+    return core::pipeline::unexpected("failed to get hash length");
   }
 
   // Get hash value
@@ -231,7 +228,7 @@ auto calculate_hash(const std::string& filename) -> cp::Result<std::string> {
   if (!BCRYPT_SUCCESS(status)) {
     BCryptDestroyHash(hHash);
     BCryptCloseAlgorithmProvider(hAlg, 0);
-    return std::unexpected("failed to finish hash");
+    return core::pipeline::unexpected("failed to finish hash");
   }
 
   // Cleanup

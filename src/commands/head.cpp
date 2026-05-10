@@ -23,15 +23,12 @@
  *  - Username: Administrator
  *  - CopyrightYear: 2026
  */
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -193,7 +190,7 @@ auto parse_numeric_with_suffix(std::string_view text)
 auto parse_count_spec(std::string spec_text, std::string_view opt_name)
     -> cp::Result<CountSpec> {
   if (spec_text.empty()) {
-    return std::unexpected("invalid number of " + std::string(opt_name));
+    return core::pipeline::unexpected("invalid number of " + std::string(opt_name));
   }
 
   CountSpec spec;
@@ -201,13 +198,13 @@ auto parse_count_spec(std::string spec_text, std::string_view opt_name)
     spec.all_but_last = true;
     spec_text = spec_text.substr(1);  // Avoid modifying original string
     if (spec_text.empty()) {
-      return std::unexpected("invalid number of " + std::string(opt_name));
+      return core::pipeline::unexpected("invalid number of " + std::string(opt_name));
     }
   }
 
   auto parsed = parse_numeric_with_suffix(spec_text);
   if (!parsed.has_value()) {
-    return std::unexpected("invalid number of " + std::string(opt_name));
+    return core::pipeline::unexpected("invalid number of " + std::string(opt_name));
   }
   spec.value = *parsed;
   return spec;
@@ -324,7 +321,7 @@ auto build_config(const CommandContext<N>& ctx) -> cp::Result<HeadConfig> {
 
   if (!bytes_spec.empty()) {
     auto spec = parse_count_spec(bytes_spec, "bytes");
-    if (!spec) return std::unexpected(spec.error());
+    if (!spec) return core::pipeline::unexpected(spec.error());
     config.by_bytes = true;
     config.spec = *spec;
     return config;
@@ -332,7 +329,7 @@ auto build_config(const CommandContext<N>& ctx) -> cp::Result<HeadConfig> {
 
   if (!lines_spec.empty()) {
     auto spec = parse_count_spec(lines_spec, "lines");
-    if (!spec) return std::unexpected(spec.error());
+    if (!spec) return core::pipeline::unexpected(spec.error());
     config.spec = *spec;
   }
 

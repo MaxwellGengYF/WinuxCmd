@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -79,7 +76,7 @@ auto build_config(const CommandContext<CMP_OPTIONS.size()>& ctx)
     try {
       cfg.skip_bytes = static_cast<size_t>(std::stoull(skip_opt));
     } catch (...) {
-      return std::unexpected("invalid skip count");
+      return core::pipeline::unexpected("invalid skip count");
     }
   }
 
@@ -91,7 +88,7 @@ auto build_config(const CommandContext<CMP_OPTIONS.size()>& ctx)
     try {
       cfg.max_bytes = static_cast<size_t>(std::stoull(bytes_opt));
     } catch (...) {
-      return std::unexpected("invalid byte count");
+      return core::pipeline::unexpected("invalid byte count");
     }
   }
 
@@ -110,12 +107,12 @@ auto build_config(const CommandContext<CMP_OPTIONS.size()>& ctx)
   }
 
   if (cfg.files.size() < 2) {
-    return std::unexpected("missing operand after '" +
+    return core::pipeline::unexpected("missing operand after '" +
                            (cfg.files.empty() ? std::string() : cfg.files[0]) +
                            "'");
   }
   if (cfg.files.size() > 2) {
-    return std::unexpected("extra operand '" + cfg.files[2] + "'");
+    return core::pipeline::unexpected("extra operand '" + cfg.files[2] + "'");
   }
 
   return cfg;
@@ -135,7 +132,7 @@ auto run(const Config& cfg) -> int {
     if (!f1) {
       if (!cfg.quiet) {
         auto err = std::string("cmp: ") + file1 + ": No such file";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"cmp");
       }
       return 2;
@@ -160,7 +157,7 @@ auto run(const Config& cfg) -> int {
     if (!f2) {
       if (!cfg.quiet) {
         auto err = std::string("cmp: ") + file2 + ": No such file";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"cmp");
       }
       return 2;

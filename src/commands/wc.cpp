@@ -23,14 +23,11 @@
  *  - Username: Administrator
  *  - CopyrightYear: 2026
  */
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -148,7 +145,7 @@ auto count_file(const std::string& path) -> cp::Result<CountResult> {
 
   std::ifstream file(path, std::ios::binary);
   if (!file) {
-    return std::unexpected("cannot open file '" + path + "'");
+    return core::pipeline::unexpected("cannot open file '" + path + "'");
   }
 
   std::string line;
@@ -269,7 +266,7 @@ auto process_command(const CommandContext<N>& ctx)
           // Read from stdin
           auto stdin_result = count_stdin();
           if (!stdin_result) {
-            return std::unexpected(stdin_result.error());
+            return core::pipeline::unexpected(stdin_result.error());
           }
           results.push_back(*stdin_result);
         } else {
@@ -277,7 +274,7 @@ auto process_command(const CommandContext<N>& ctx)
           for (const auto& path : paths) {
             auto file_result = count_file(path);
             if (!file_result) {
-              return std::unexpected(file_result.error());
+              return core::pipeline::unexpected(file_result.error());
             }
             results.push_back(*file_result);
           }

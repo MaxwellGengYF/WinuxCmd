@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -96,7 +93,7 @@ auto build_config(const CommandContext<PR_OPTIONS.size()>& ctx)
       try {
         cfg.start_page = std::stoi(arg_str.substr(1));
       } catch (...) {
-        return std::unexpected("invalid page number");
+        return core::pipeline::unexpected("invalid page number");
       }
     } else {
       if (contains_wildcard(arg_str)) {
@@ -142,7 +139,7 @@ auto build_config(const CommandContext<PR_OPTIONS.size()>& ctx)
     try {
       cfg.page_length = std::stoi(length_opt);
     } catch (...) {
-      return std::unexpected("invalid page length");
+      return core::pipeline::unexpected("invalid page length");
     }
   }
 
@@ -160,7 +157,7 @@ auto build_config(const CommandContext<PR_OPTIONS.size()>& ctx)
     try {
       cfg.indent = std::stoi(indent_opt);
     } catch (...) {
-      return std::unexpected("invalid indent value");
+      return core::pipeline::unexpected("invalid indent value");
     }
   }
 
@@ -180,7 +177,7 @@ auto build_config(const CommandContext<PR_OPTIONS.size()>& ctx)
     try {
       cfg.page_width = std::stoi(width_opt);
     } catch (...) {
-      return std::unexpected("invalid page width");
+      return core::pipeline::unexpected("invalid page width");
     }
   }
 
@@ -189,7 +186,7 @@ auto build_config(const CommandContext<PR_OPTIONS.size()>& ctx)
     try {
       cfg.columns = std::stoi(col_opt);
     } catch (...) {
-      return std::unexpected("invalid column count");
+      return core::pipeline::unexpected("invalid column count");
     }
   }
 
@@ -198,7 +195,7 @@ auto build_config(const CommandContext<PR_OPTIONS.size()>& ctx)
     try {
       cfg.page_width = std::stoi(pwidth_opt);
     } catch (...) {
-      return std::unexpected("invalid page width");
+      return core::pipeline::unexpected("invalid page width");
     }
   }
 
@@ -217,7 +214,7 @@ auto read_lines(const std::string& filename)
   } else {
     std::ifstream f(filename, std::ios::binary);
     if (!f) {
-      return std::unexpected(std::string("cannot open '") + filename +
+      return core::pipeline::unexpected(std::string("cannot open '") + filename +
                              "' for reading");
     }
 
@@ -234,7 +231,7 @@ auto read_lines(const std::string& filename)
     }
 
     if (f.fail() && !f.eof()) {
-      return std::unexpected("error reading from file");
+      return core::pipeline::unexpected("error reading from file");
     }
   }
 

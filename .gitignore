@@ -1,5 +1,6 @@
 build**/
-
+.kimix_cache/
+.xmake/
 cmake-build-*/
 
 out/

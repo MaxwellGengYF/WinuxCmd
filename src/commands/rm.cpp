@@ -32,14 +32,11 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 #pragma comment(lib, "shlwapi.lib")
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -156,7 +153,7 @@ auto to_extended_path(const std::wstring& path) -> std::wstring {
 auto check_paths(const std::vector<std::string>& paths)
     -> cp::Result<std::vector<std::string>> {
   if (paths.empty()) {
-    return std::unexpected("missing file operand");
+    return core::pipeline::unexpected("missing file operand");
   }
   return paths;
 }

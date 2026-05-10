@@ -30,10 +30,9 @@
 
 #include <windows.h>
 
-import std;
-import core;
-import version;
-import utils;
+#include "../core/core.h"
+#include "../version/version.h"
+#include "../utils/utils.h"
 
 namespace {
 

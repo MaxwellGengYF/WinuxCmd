@@ -33,12 +33,9 @@
 /// @Copyright: Copyright © 2026 WinuxCmd
 
 #include "core/command_macros.h"
-#include "pch/pch.h"
-
 #pragma comment(lib, "advapi32.lib")
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -208,7 +205,7 @@ auto read_file_lines_result(const std::string &path)
     -> cp::Result<std::vector<std::string>> {
   std::ifstream file(path, std::ios::binary);
   if (!file.is_open()) {
-    return std::unexpected("cannot open '" + path + "' for reading");
+    return core::pipeline::unexpected("cannot open '" + path + "' for reading");
   }
 
   std::vector<std::string> lines;
@@ -235,12 +232,12 @@ auto compare_files(const std::string &path1, const std::string &path2,
                    bool brief) -> cp::Result<bool> {
   auto lines1_result = read_file_lines_result(path1);
   if (!lines1_result) {
-    return std::unexpected(lines1_result.error());
+    return core::pipeline::unexpected(lines1_result.error());
   }
 
   auto lines2_result = read_file_lines_result(path2);
   if (!lines2_result) {
-    return std::unexpected(lines2_result.error());
+    return core::pipeline::unexpected(lines2_result.error());
   }
 
   auto &lines1 = lines1_result.value();

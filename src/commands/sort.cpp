@@ -31,14 +31,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -106,7 +104,7 @@ auto read_source(std::string_view path) -> cp::Result<std::string> {
 
   std::ifstream in(std::string(path), std::ios::binary);
   if (!in.is_open()) {
-    return std::unexpected("cannot open '" + std::string(path) + "'");
+    return core::pipeline::unexpected("cannot open '" + std::string(path) + "'");
   }
   return read_all(in);
 }
@@ -157,14 +155,14 @@ auto parse_key_spec(std::string_view text) -> cp::Result<KeySpec> {
   }
 
   if (first.empty()) {
-    return std::unexpected("invalid key spec");
+    return core::pipeline::unexpected("invalid key spec");
   }
 
   size_t value = 0;
   auto [ptr, ec] =
       std::from_chars(first.data(), first.data() + first.size(), value);
   if (ec != std::errc() || ptr != first.data() + first.size() || value == 0) {
-    return std::unexpected("invalid key spec");
+    return core::pipeline::unexpected("invalid key spec");
   }
 
   key.enabled = true;
@@ -443,7 +441,7 @@ auto build_config(const CommandContext<SORT_OPTIONS.size()>& ctx)
   if (sep.empty()) sep = ctx.get<std::string>("-t", "");
   if (!sep.empty()) {
     if (sep.size() != 1) {
-      return std::unexpected("field separator must be a single character");
+      return core::pipeline::unexpected("field separator must be a single character");
     }
     cfg.field_separator = sep[0];
   }
@@ -451,7 +449,7 @@ auto build_config(const CommandContext<SORT_OPTIONS.size()>& ctx)
   std::string key_text = ctx.get<std::string>("--key", "");
   if (key_text.empty()) key_text = ctx.get<std::string>("-k", "");
   auto key = parse_key_spec(key_text);
-  if (!key) return std::unexpected(key.error());
+  if (!key) return core::pipeline::unexpected(key.error());
   cfg.key = *key;
 
   std::string sort_mode = ctx.get<std::string>("--sort", "");

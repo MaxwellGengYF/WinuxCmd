@@ -29,8 +29,6 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include <winsock.h>
 #include <winsock2.h>
@@ -39,10 +37,9 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -87,7 +84,7 @@ auto run(const Config& cfg) -> int {
   // Initialize Winsock
   WSADATA wsa_data;
   if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
-    cp::Result<int> result = std::unexpected("failed to initialize Winsock");
+    cp::Result<int> result = core::pipeline::unexpected("failed to initialize Winsock");
     cp::report_error(result, L"hostname");
     return 1;
   }
@@ -96,7 +93,7 @@ auto run(const Config& cfg) -> int {
   char hostname[256];
   if (gethostname(hostname, sizeof(hostname)) != 0) {
     WSACleanup();
-    cp::Result<int> result = std::unexpected("failed to get hostname");
+    cp::Result<int> result = core::pipeline::unexpected("failed to get hostname");
     cp::report_error(result, L"hostname");
     return 1;
   }
@@ -106,7 +103,7 @@ auto run(const Config& cfg) -> int {
     hostent* host_info = gethostbyname(hostname);
     if (!host_info) {
       WSACleanup();
-      cp::Result<int> result = std::unexpected("failed to get host info");
+      cp::Result<int> result = core::pipeline::unexpected("failed to get host info");
       cp::report_error(result, L"hostname");
       return 1;
     }

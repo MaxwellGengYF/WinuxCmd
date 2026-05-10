@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -77,7 +74,7 @@ auto parse_size(const std::string& size_str) -> cp::Result<int64_t> {
     }
 
     if (s.empty()) {
-      return std::unexpected("invalid size");
+      return core::pipeline::unexpected("invalid size");
     }
 
     int64_t multiplier = 1;
@@ -137,7 +134,7 @@ auto parse_size(const std::string& size_str) -> cp::Result<int64_t> {
 
     return value;
   } catch (...) {
-    return std::unexpected("invalid size format");
+    return core::pipeline::unexpected("invalid size format");
   }
 }
 
@@ -161,12 +158,12 @@ auto build_config(const CommandContext<TRUNCATE_OPTIONS.size()>& ctx)
     if (!ref_opt.empty()) {
       cfg.reference_file = ref_opt;
     } else {
-      return std::unexpected("specify --size or --reference");
+      return core::pipeline::unexpected("specify --size or --reference");
     }
   } else {
     auto size_result = parse_size(size_opt);
     if (!size_result) {
-      return std::unexpected(size_result.error());
+      return core::pipeline::unexpected(size_result.error());
     }
     cfg.size = *size_result;
   }
@@ -186,7 +183,7 @@ auto build_config(const CommandContext<TRUNCATE_OPTIONS.size()>& ctx)
   }
 
   if (cfg.files.empty()) {
-    return std::unexpected("missing file operand");
+    return core::pipeline::unexpected("missing file operand");
   }
 
   return cfg;
@@ -205,7 +202,7 @@ auto run(const Config& cfg) -> int {
       if (!ref_file) {
         auto err = std::string("cannot open reference file '") +
                    cfg.reference_file + "'";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"truncate");
         all_ok = false;
         continue;
@@ -226,7 +223,7 @@ auto run(const Config& cfg) -> int {
       std::ofstream new_file(file, std::ios::binary);
       if (!new_file) {
         auto err = std::string("cannot create '") + file + "'";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"truncate");
         all_ok = false;
         continue;
@@ -245,7 +242,7 @@ auto run(const Config& cfg) -> int {
       std::ifstream in_file(file, std::ios::binary | std::ios::ate);
       if (!in_file) {
         auto err = std::string("cannot open '") + file + "' for reading";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"truncate");
         all_ok = false;
         continue;
@@ -268,7 +265,7 @@ auto run(const Config& cfg) -> int {
       std::ofstream out_file(file, std::ios::binary | std::ios::trunc);
       if (!out_file) {
         auto err = std::string("cannot open '") + file + "' for writing";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"truncate");
         all_ok = false;
         continue;

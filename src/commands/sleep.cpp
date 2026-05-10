@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -58,7 +55,7 @@ auto parse_duration(const std::string& duration) -> cp::Result<int64_t> {
     std::string s = duration;
 
     if (s.empty()) {
-      return std::unexpected("invalid duration");
+      return core::pipeline::unexpected("invalid duration");
     }
 
     int64_t multiplier = 1;
@@ -93,7 +90,7 @@ auto parse_duration(const std::string& duration) -> cp::Result<int64_t> {
     return static_cast<int64_t>(value * multiplier *
                                 1000);  // Convert to milliseconds
   } catch (...) {
-    return std::unexpected("invalid duration format");
+    return core::pipeline::unexpected("invalid duration format");
   }
 }
 
@@ -106,7 +103,7 @@ auto build_config(const CommandContext<SLEEP_OPTIONS.size()>& ctx)
   }
 
   if (cfg.durations.empty()) {
-    return std::unexpected("missing operand");
+    return core::pipeline::unexpected("missing operand");
   }
 
   return cfg;

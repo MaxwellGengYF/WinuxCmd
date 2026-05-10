@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -75,7 +72,7 @@ auto build_config(const CommandContext<SEQ_OPTIONS.size()>& ctx)
   size_t num_args = ctx.positionals.size();
 
   if (num_args == 0) {
-    return std::unexpected("missing operand");
+    return core::pipeline::unexpected("missing operand");
   }
 
   if (num_args == 1) {
@@ -94,7 +91,7 @@ auto build_config(const CommandContext<SEQ_OPTIONS.size()>& ctx)
     cfg.has_first = true;
     cfg.has_increment = true;
   } else {
-    return std::unexpected("extra operand");
+    return core::pipeline::unexpected("extra operand");
   }
 
   return cfg;

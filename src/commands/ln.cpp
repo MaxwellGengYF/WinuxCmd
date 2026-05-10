@@ -33,12 +33,9 @@
 /// @Copyright: Copyright © 2026 WinuxCmd
 
 #include "core/command_macros.h"
-#include "pch/pch.h"
-
 #pragma comment(lib, "advapi32.lib")
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -93,7 +90,7 @@ auto create_hardlink(const std::string &source, const std::string &target,
   }
 
   DWORD error = GetLastError();
-  return std::unexpected("failed to create hard link '" + target +
+  return core::pipeline::unexpected("failed to create hard link '" + target +
                          "': " + std::to_string(error));
 }
 
@@ -112,7 +109,7 @@ auto create_symlink(const std::string &source, const std::string &target,
   // Check if source is a directory
   DWORD attrs = GetFileAttributesW(wsource.c_str());
   if (attrs == INVALID_FILE_ATTRIBUTES) {
-    return std::unexpected("failed to access '" + source + "'");
+    return core::pipeline::unexpected("failed to access '" + source + "'");
   }
 
   bool is_directory = (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0;
@@ -130,7 +127,7 @@ auto create_symlink(const std::string &source, const std::string &target,
   }
 
   DWORD error = GetLastError();
-  return std::unexpected("failed to create symbolic link '" + target +
+  return core::pipeline::unexpected("failed to create symbolic link '" + target +
                          "': " + std::to_string(error));
 }
 
@@ -169,7 +166,7 @@ auto remove_existing(const std::string &path) -> cp::Result<void> {
   }
 
   DWORD error = GetLastError();
-  return std::unexpected("failed to remove '" + path +
+  return core::pipeline::unexpected("failed to remove '" + path +
                          "': " + std::to_string(error));
 }
 

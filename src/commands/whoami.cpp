@@ -29,18 +29,15 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include <lmcons.h>
 #include <windows.h>
 
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -78,7 +75,7 @@ auto run(const Config& cfg) -> int {
   DWORD username_size = UNLEN + 1;
 
   if (!GetUserNameA(username, &username_size)) {
-    cp::Result<int> result = std::unexpected("failed to get username");
+    cp::Result<int> result = core::pipeline::unexpected("failed to get username");
     cp::report_error(result, L"whoami");
     return 1;
   }

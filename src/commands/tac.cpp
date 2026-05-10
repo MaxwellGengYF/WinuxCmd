@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -99,7 +96,7 @@ auto run(const Config& cfg) -> int {
       std::ifstream f(file, std::ios::binary);
       if (!f) {
         auto err = std::string("cannot open '") + file + "' for reading";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"tac");
         return 1;
       }
@@ -117,7 +114,7 @@ auto run(const Config& cfg) -> int {
       }
 
       if (f.fail() && !f.eof()) {
-        cp::Result<int> result = std::unexpected("error reading from file");
+        cp::Result<int> result = core::pipeline::unexpected("error reading from file");
         cp::report_error(result, L"tac");
         return 1;
       }

@@ -1,0 +1,203 @@
+-- set_policy("build.c++.modules", true)
+-- set_policy("build.c++.modules.std", true)
+
+-- -- Options
+-- option("enable_tests")
+--     set_default(true)
+--     set_showmenu(true)
+--     set_description("Enable tests")
+-- option_end()
+
+-- option("build_ffi")
+--     set_default(false)
+--     set_showmenu(true)
+--     set_description("Build FFI library")
+-- option_end()
+
+-- option("build_standalone")
+--     set_default(false)
+--     set_showmenu(true)
+--     set_description("Build standalone command executables")
+-- option_end()
+
+-- option("enable_unity")
+--     set_default(false)
+--     set_showmenu(true)
+--     set_description("Enable unity build for commands")
+-- option_end()
+
+-- option("generate_map")
+--     set_default(true)
+--     set_showmenu(true)
+--     set_description("Generate map file for main executable")
+-- option_end()
+
+-- -- Common defines for all targets
+-- add_defines("_UNICODE", "UNICODE", "_CRT_DISABLE_PERFCRIT_LOCKS", "_HAS_RTTI=0")
+-- add_cxflags("/GR-", {force = true})
+-- add_includedirs("src", "$(builddir)/generated")
+
+-- if is_plat("windows") then
+--     add_syslinks("kernel32", "user32", "advapi32", "shlwapi", "psapi", "ws2_32")
+-- end
+
+
+-- -- Scaffold tool
+-- target("scaffold")
+--     add_rules("lc_basic_settings", {project_kind = "binary"})
+--     add_files("src/tools/scaffold.cpp")
+--     if is_plat("windows") then
+--         add_cxflags("/std:c++latest", {force = true})
+--     end
+--     add_includedirs("src")
+-- target_end()
+
+-- -- WPM tool
+-- target("wpm")
+--     add_rules("lc_basic_settings", {project_kind = "binary"})
+--     add_files("src/tools/wpm.cpp")
+--     add_files("src/utils/utils.cppm", "src/utils/console.cppm", "src/utils/json.cppm",
+--               "src/utils/cppbar.cppm", "src/utils/utf8.cppm", "src/utils/path.cppm",
+--               "src/utils/wildcard.cppm", "src/utils/text_io.cppm", "src/utils/file_io.cppm",
+--               "src/utils/encoding.cppm")
+--     if is_plat("windows") then
+--         add_cxflags("/std:c++latest", "/experimental:module", "/interface", "/EHsc", "/GR-", {force = true})
+--     end
+--     add_includedirs("src")
+-- target_end()
+
+-- -- FFI library (optional)
+-- if has_config("build_ffi") then
+--     target("winuxcore")
+--         add_rules("lc_basic_settings", {project_kind = "shared"})
+--         add_files("src/ffi/ffi.cpp")
+--         set_pcxxheader("src/pch/pch.h")
+--         add_deps("winuxcmd-commands")
+--         add_defines("WINUX_FFI_EXPORTS")
+--         if is_plat("windows") then
+--             add_cxflags("/std:c++latest", "/experimental:module", "/interface", {force = true})
+--         end
+--         if is_mode("release") then
+--             add_cxflags("/O2", "/Os", {force = true})
+--             add_ldflags("/LTCG", "/OPT:REF", "/OPT:ICF", {force = true})
+--         end
+--         add_includedirs("src", "$(builddir)/generated")
+--         add_ldflags("/WHOLEARCHIVE:winuxcmd-commands.lib", {force = true})
+--     target_end()
+-- end
+
+-- -- Tests (optional)
+-- if has_config("enable_tests") then
+--     target("test_main")
+--         add_rules("lc_basic_settings", {project_kind = "static"})
+--         add_files("tests/framework/test_main.cpp")
+--         add_includedirs("tests", "tests/framework")
+--         if is_plat("windows") then
+--             add_cxflags("/std:c++latest", {force = true})
+--         end
+--     target_end()
+
+--     target("winux-test")
+--         add_rules("lc_basic_settings", {project_kind = "static"})
+--         add_files("tests/framework/*.cpp")
+--         remove_files("tests/framework/test_main.cpp")
+--         add_includedirs("tests", "tests/framework")
+--         if is_plat("windows") then
+--             add_cxflags("/std:c++latest", {force = true})
+--         end
+--     target_end()
+
+--     target("winuxcmd-tests")
+--         add_rules("lc_basic_settings", {project_kind = "binary"})
+--         add_files("tests/unit/**/*.cpp")
+--         add_deps("winux-test", "test_main")
+--         add_includedirs("tests", "tests/framework", "$(builddir)/generated")
+--         add_defines("WINUXCMD_BIN_DIR=L\"" .. path.absolute("$(builddir)") .. "\"")
+--         if is_plat("windows") then
+--             add_cxflags("/std:c++latest", {force = true})
+--         end
+--     target_end()
+-- end
+
+-- -- Benchmarks (only in debug mode by project convention, but we make it optional via mode)
+-- if is_mode("debug") and has_config("enable_tests") then
+--     add_requires("benchmark")
+--     target("winuxcmd_benchmarks")
+--         add_rules("lc_basic_settings", {project_kind = "binary"})
+--         add_files("benchmark/benchmark_main.cpp", "benchmark/cmd_benchmarks/*.cpp")
+--         add_packages("benchmark")
+--         add_includedirs("src", "$(builddir)/generated")
+--         if is_plat("windows") then
+--             add_cxflags("/std:c++latest", "/experimental:module", {force = true})
+--         end
+--     target_end()
+-- end
+
+-- -- Examples
+-- target("container_module")
+--     add_rules("lc_basic_settings", {project_kind = "static"})
+--     add_files("src/container/constexpr_map.cppm", "src/container/container.cppm", "src/container/small_vector.cppm")
+--     add_includedirs("src")
+--     if is_plat("windows") then
+--         add_cxflags("/std:c++latest", "/experimental:module", {force = true})
+--     end
+-- target_end()
+
+-- for _, example in ipairs({"constexpr_map_example", "small_vector_example"}) do
+--     local src = "examples/container/" .. example .. ".cpp"
+--     if os.isfile(src) then
+--         target(example)
+--             add_rules("lc_basic_settings", {project_kind = "binary"})
+--             add_files(src)
+--             add_deps("container_module")
+--             add_includedirs("src", "$(builddir)/generated")
+--             if is_plat("windows") then
+--                 add_cxflags("/std:c++latest", "/experimental:module", {force = true})
+--             end
+--         target_end()
+--     end
+-- end
+
+-- if has_config("build_ffi") then
+--     target("ffi_example")
+--         add_rules("lc_basic_settings", {project_kind = "binary"})
+--         add_files("examples/ffi/ffi_example.c")
+--         add_deps("winuxcore")
+--         add_includedirs("src/ffi")
+--         if is_plat("windows") then
+--             add_cflags("/std:c11", {force = true})
+--         end
+--     target_end()
+-- end
+
+-- -- Standalone command executables (optional)
+-- if has_config("build_standalone") then
+--     local commands = {}
+--     for _, file in ipairs(os.files("src/commands/*.cpp")) do
+--         local name = path.basename(file)
+--         table.insert(commands, name)
+--     end
+
+--     for _, cmd in ipairs(commands) do
+--         target(cmd)
+--             add_rules("lc_basic_settings", {project_kind = "binary"})
+--             add_files("src/Main/main.cpp", "src/commands/" .. cmd .. ".cpp")
+--             add_files("src/core/core.cppm", "src/core/cmd_meta.cppm", "src/core/command_context.cppm",
+--                       "src/core/dispatcher.cppm", "src/core/opt.cppm", "src/core/pipeline.cppm",
+--                       "src/utils/utils.cppm", "src/utils/console.cppm", "src/utils/text_io.cppm",
+--                       "src/utils/path.cppm", "src/utils/utf8.cppm", "src/utils/wildcard.cppm",
+--                       "src/utils/json.cppm", "src/utils/encoding.cppm",
+--                       "src/container/container.cppm", "src/container/small_vector.cppm", "src/container/constexpr_map.cppm",
+--                       "src/Main/readline.cppm", "src/Main/native_completion.cppm")
+--             set_pcxxheader("src/pch/pch.h")
+--             add_includedirs("src", "$(builddir)/generated")
+--             if is_plat("windows") then
+--                 add_cxflags("/std:c++latest", "/experimental:module", "/interface", {force = true})
+--             end
+--             if is_mode("release") then
+--                 add_cxflags("/O2", "/Os", {force = true})
+--                 add_ldflags("/LTCG", "/OPT:REF", "/OPT:ICF", {force = true})
+--             end
+--         target_end()
+--     end
+-- end

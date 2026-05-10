@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -76,10 +73,10 @@ auto build_config(const CommandContext<UNEXPAND_OPTIONS.size()>& ctx)
     try {
       cfg.tab_width = std::stoi(tabs_opt);
       if (cfg.tab_width <= 0) {
-        return std::unexpected("tab width must be positive");
+        return core::pipeline::unexpected("tab width must be positive");
       }
     } catch (...) {
-      return std::unexpected("invalid tab width");
+      return core::pipeline::unexpected("invalid tab width");
     }
   }
 
@@ -170,7 +167,7 @@ auto run(const Config& cfg) -> int {
       std::ifstream f(file, std::ios::binary);
       if (!f) {
         auto err = std::string("cannot open '") + file + "' for reading";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"unexpand");
         all_ok = false;
         continue;
@@ -178,7 +175,7 @@ auto run(const Config& cfg) -> int {
       content.assign(std::istreambuf_iterator<char>(f),
                      std::istreambuf_iterator<char>());
       if (f.fail() && !f.eof()) {
-        cp::Result<int> result = std::unexpected("error reading from file");
+        cp::Result<int> result = core::pipeline::unexpected("error reading from file");
         cp::report_error(result, L"unexpand");
         all_ok = false;
         continue;

@@ -29,15 +29,12 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -136,19 +133,19 @@ auto read_file_content(const std::string& filename) -> cp::Result<std::string> {
     content.assign(std::istreambuf_iterator<char>(std::cin),
                    std::istreambuf_iterator<char>());
     if (std::cin.fail() && !std::cin.eof()) {
-      return std::unexpected("error reading from standard input");
+      return core::pipeline::unexpected("error reading from standard input");
     }
   } else {
     // Read from file
     std::ifstream file(filename, std::ios::binary);
     if (!file) {
-      return std::unexpected(std::string("cannot open '") + filename +
+      return core::pipeline::unexpected(std::string("cannot open '") + filename +
                              "' for reading");
     }
     content.assign(std::istreambuf_iterator<char>(file),
                    std::istreambuf_iterator<char>());
     if (file.fail() && !file.eof()) {
-      return std::unexpected("error reading from file");
+      return core::pipeline::unexpected("error reading from file");
     }
   }
 

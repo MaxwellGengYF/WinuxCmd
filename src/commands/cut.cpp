@@ -5,13 +5,11 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -50,7 +48,7 @@ auto parse_range_token(std::string_view tok) -> cp::Result<Range> {
     int v = 0;
     auto [ptr, ec] = std::from_chars(tok.data(), tok.data() + tok.size(), v);
     if (ec != std::errc() || ptr != tok.data() + tok.size() || v <= 0) {
-      return std::unexpected("invalid range");
+      return core::pipeline::unexpected("invalid range");
     }
     return Range{v, v};
   }
@@ -65,7 +63,7 @@ auto parse_range_token(std::string_view tok) -> cp::Result<Range> {
     auto [ptr, ec] =
         std::from_chars(left.data(), left.data() + left.size(), start);
     if (ec != std::errc() || ptr != left.data() + left.size() || start <= 0) {
-      return std::unexpected("invalid range");
+      return core::pipeline::unexpected("invalid range");
     }
   }
 
@@ -73,16 +71,16 @@ auto parse_range_token(std::string_view tok) -> cp::Result<Range> {
     auto [ptr, ec] =
         std::from_chars(right.data(), right.data() + right.size(), end);
     if (ec != std::errc() || ptr != right.data() + right.size() || end <= 0) {
-      return std::unexpected("invalid range");
+      return core::pipeline::unexpected("invalid range");
     }
   }
 
-  if (start > end) return std::unexpected("invalid range");
+  if (start > end) return core::pipeline::unexpected("invalid range");
   return Range{start, end};
 }
 
 auto parse_fields(std::string_view list) -> cp::Result<std::vector<Range>> {
-  if (list.empty()) return std::unexpected("missing fields list");
+  if (list.empty()) return core::pipeline::unexpected("missing fields list");
 
   std::vector<Range> ranges;
   size_t start = 0;
@@ -92,7 +90,7 @@ auto parse_fields(std::string_view list) -> cp::Result<std::vector<Range>> {
                                ? list.substr(start)
                                : list.substr(start, pos - start);
     auto r = parse_range_token(tok);
-    if (!r) return std::unexpected(r.error());
+    if (!r) return core::pipeline::unexpected(r.error());
     ranges.push_back(*r);
     if (pos == std::string_view::npos) break;
     start = pos + 1;
@@ -128,7 +126,7 @@ auto read_source(std::string_view path) -> cp::Result<std::string> {
   }
   std::ifstream in(std::string(path), std::ios::binary);
   if (!in.is_open()) {
-    return std::unexpected("cannot open '" + std::string(path) + "'");
+    return core::pipeline::unexpected("cannot open '" + std::string(path) + "'");
   }
   return std::string(std::istreambuf_iterator<char>(in),
                      std::istreambuf_iterator<char>());
@@ -149,7 +147,7 @@ auto build_config(const CommandContext<CUT_OPTIONS.size()>& ctx)
   std::string delim = ctx.get<std::string>("--delimiter", "");
   if (delim.empty()) delim = ctx.get<std::string>("-d", "");
   if (!delim.empty()) {
-    if (delim.size() != 1) return std::unexpected("delimiter must be one char");
+    if (delim.size() != 1) return core::pipeline::unexpected("delimiter must be one char");
     cfg.delimiter = delim[0];
   }
 
@@ -161,7 +159,7 @@ auto build_config(const CommandContext<CUT_OPTIONS.size()>& ctx)
   std::string fields = ctx.get<std::string>("--fields", "");
   if (fields.empty()) fields = ctx.get<std::string>("-f", "");
   auto ranges = parse_fields(fields);
-  if (!ranges) return std::unexpected(ranges.error());
+  if (!ranges) return core::pipeline::unexpected(ranges.error());
   cfg.ranges = *ranges;
 
   for (auto p : ctx.positionals) {

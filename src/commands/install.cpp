@@ -31,12 +31,9 @@
 /// @Copyright: Copyright ? 2026 WinuxCmd
 
 #include "core/command_macros.h"
-#include "pch/pch.h"
-
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionType;
 
@@ -160,7 +157,7 @@ auto build_config(const CommandContext<INSTALL_OPTIONS.size()>& ctx)
   }
 
   if (cfg.sources.empty()) {
-    return std::unexpected("missing file operand");
+    return core::pipeline::unexpected("missing file operand");
   }
 
   if (!cfg.target_dir.empty()) {

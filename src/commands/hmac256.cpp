@@ -2,12 +2,9 @@
  *  Copyright © 2026 WinuxCmd
  */
 #include "core/command_macros.h"
-#include "pch/pch.h"
-
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -31,7 +28,7 @@ auto build_config(const CommandContext<HMAC256_OPTIONS.size()>& ctx)
   Config cfg;
 
   if (ctx.positionals.empty()) {
-    return std::unexpected("missing arguments");
+    return core::pipeline::unexpected("missing arguments");
   }
 
   cfg.key = std::string(ctx.positionals[0]);

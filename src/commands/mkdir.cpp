@@ -32,13 +32,10 @@
 /// @Version: 0.1.0
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
-import std;
-import core;
-import utils;
+#include "../core/core.h"
+#include "../utils/utils.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -83,7 +80,7 @@ namespace cp = core::pipeline;
 auto check_paths(const std::vector<std::string>& paths)
     -> cp::Result<std::vector<std::string>> {
   if (paths.empty()) {
-    return std::unexpected("missing operand");
+    return core::pipeline::unexpected("missing operand");
   }
   return paths;
 }

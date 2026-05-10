@@ -30,15 +30,12 @@
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
 // *** SIMPLIFIED IMPLEMENTATION - Some features may not be fully supported ***
-
-#include "pch/pch.h"
 // include other header after pch.h
 #include "core/command_macros.h"
 
-import std;
-import core;
-import utils;
-import container;
+#include "../core/core.h"
+#include "../utils/utils.h"
+#include "../container/container.h"
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -76,10 +73,10 @@ auto build_config(const CommandContext<FOLD_OPTIONS.size()>& ctx)
     try {
       cfg.width = std::stoi(width_opt);
       if (cfg.width <= 0) {
-        return std::unexpected("width must be positive");
+        return core::pipeline::unexpected("width must be positive");
       }
     } catch (...) {
-      return std::unexpected("invalid width");
+      return core::pipeline::unexpected("invalid width");
     }
   }
 
@@ -186,7 +183,7 @@ auto run(const Config& cfg) -> int {
       std::ifstream f(file, std::ios::binary);
       if (!f) {
         auto err = std::string("cannot open '") + file + "' for reading";
-        cp::Result<int> result = std::unexpected(std::string_view(err));
+        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
         cp::report_error(result, L"fold");
         all_ok = false;
         continue;
@@ -210,7 +207,7 @@ auto run(const Config& cfg) -> int {
       }
 
       if (f.fail() && !f.eof()) {
-        cp::Result<int> result = std::unexpected("error reading from file");
+        cp::Result<int> result = core::pipeline::unexpected("error reading from file");
         cp::report_error(result, L"fold");
         all_ok = false;
         continue;
