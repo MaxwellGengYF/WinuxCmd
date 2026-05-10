@@ -31,7 +31,95 @@
 #include <windows.h>
 #pragma comment(lib, "shlwapi.lib")
 
+#include <filesystem>
+#include <string>
+#include <vector>
+
 namespace path {
+
+/**
+ * @brief Quote a single argument for Windows command line parsing.
+ */
+inline std::wstring quote_arg_for_cmdline(const std::wstring &arg) {
+  if (arg.empty()) return L"\"\"";
+  if (arg.find_first_of(L" \t\"") == std::wstring::npos) return arg;
+  std::wstring out = L"\"";
+  size_t backslashes = 0;
+  for (wchar_t c : arg) {
+    if (c == L'\\') {
+      backslashes++;
+    } else if (c == L'"') {
+      out.append(backslashes * 2 + 1, L'\\');
+      out.push_back(L'"');
+      backslashes = 0;
+    } else {
+      out.append(backslashes, L'\\');
+      backslashes = 0;
+      out.push_back(c);
+    }
+  }
+  out.append(backslashes * 2, L'\\');
+  out.push_back(L'"');
+  return out;
+}
+
+/**
+ * @brief Build a command line for CreateProcessW, falling back to winuxcmd.exe
+ *        when the target executable does not exist in the same directory.
+ *
+ * @param args Range of arguments where args[0] is the command to execute.
+ * @return std::wstring Full command line string suitable for CreateProcessW.
+ */
+template <typename Range>
+inline std::wstring build_fallback_cmdline(const Range &args) {
+  if (args.empty()) return L"";
+
+  std::string first_cmd(args[0]);
+  std::wstring wfirst = utf8_to_wstring(first_cmd);
+
+  bool has_path = first_cmd.find('\\') != std::string::npos ||
+                  first_cmd.find('/') != std::string::npos;
+
+  std::wstring exe_path;
+  if (!has_path) {
+    wchar_t self_path[MAX_PATH];
+    if (GetModuleFileNameW(nullptr, self_path, MAX_PATH) > 0) {
+      std::wstring self_dir = self_path;
+      size_t last_sep = self_dir.find_last_of(L"\\/");
+      if (last_sep != std::wstring::npos) {
+        self_dir = self_dir.substr(0, last_sep);
+      }
+      std::error_code ec;
+      std::wstring candidate = self_dir + L"\\" + wfirst;
+      if (!std::filesystem::exists(candidate, ec)) {
+        if (!wfirst.ends_with(L".exe")) {
+          candidate += L".exe";
+        }
+      }
+      if (std::filesystem::exists(candidate, ec)) {
+        exe_path = candidate;
+      } else {
+        std::wstring winuxcmd = self_dir + L"\\winuxcmd.exe";
+        if (std::filesystem::exists(winuxcmd, ec)) {
+          exe_path = winuxcmd;
+        }
+      }
+    }
+  }
+
+  if (exe_path.empty()) {
+    exe_path = wfirst;
+  }
+
+  std::wstring cmdline = quote_arg_for_cmdline(exe_path);
+  if (exe_path != wfirst) {
+    cmdline += L" " + quote_arg_for_cmdline(wfirst);
+  }
+  for (size_t i = 1; i < args.size(); ++i) {
+    cmdline += L" " + quote_arg_for_cmdline(utf8_to_wstring(std::string(args[i])));
+  }
+  return cmdline;
+}
 
 /**
  * @brief Normalize path separators to backslashes

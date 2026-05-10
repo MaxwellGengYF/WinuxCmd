@@ -16,8 +16,13 @@
  * @copyright Copyright © 2026 WinuxCmd
  */
 
-import std;
-import container;
+#include <print>
+#include <iostream>
+#include <string>
+#include <string_view>
+#include <vector>
+#include <initializer_list>
+#include "container/small_vector.h"
 
 // A non-trivially copyable type to demonstrate the difference
 class Person {

@@ -61,58 +61,116 @@ target("winuxcmd")
     add_includedirs("src", "$(builddir)/generated")
     if is_plat("windows") then
         add_syslinks("user32", "shell32", "advapi32", "ole32", "oleaut32")
+        local tc = get_config("toolchain")
+        if not tc or tc == "msvc" or tc == "clang-cl" then
+            add_ldflags("/WHOLEARCHIVE:winuxcmd-commands.lib", {force = true})
+        elseif tc == "llvm" then
+            add_ldflags("-Wl,/WHOLEARCHIVE:winuxcmd-commands.lib", {force = true})
+        end
     end
 target_end()
 
 -- FFI library (optional)
 if has_config("build_ffi") then
     target("winuxcore")
-        add_rules("lc_basic_settings", {project_kind = "shared"})
+        add_rules("lc_basic_settings", {project_kind = "shared", enable_exception = true})
         add_files("src/ffi/ffi.cpp")
         set_pcxxheader("src/pch/pch.h")
         add_deps("winuxcmd-commands")
         add_defines("WINUX_FFI_EXPORTS")
         if is_plat("windows") then
-            add_cxflags("/std:c++latest", "/experimental:module", "/interface", {force = true})
+            local tc = get_config("toolchain")
+            if not tc or tc == "msvc" or tc == "clang-cl" then
+                add_cxflags("/std:c++latest", {force = true})
+            else
+                add_cxflags("-std=c++23", {force = true})
+            end
+            if not tc or tc == "msvc" then
+                add_cxflags("/experimental:module", "/interface", {force = true})
+            end
         end
         if is_mode("release") then
-            add_cxflags("/O2", "/Os", {force = true})
-            add_ldflags("/LTCG", "/OPT:REF", "/OPT:ICF", {force = true})
+            local tc = get_config("toolchain")
+            if not tc or tc == "msvc" or tc == "clang-cl" then
+                add_cxflags("/O2", "/Os", {force = true})
+                add_ldflags("/LTCG", "/OPT:REF", "/OPT:ICF", {force = true})
+            else
+                add_cxflags("-O2", {force = true})
+            end
         end
         add_includedirs("src", "$(builddir)/generated")
-        add_ldflags("/WHOLEARCHIVE:winuxcmd-commands.lib", {force = true})
+        local tc = get_config("toolchain")
+        if not tc or tc == "msvc" or tc == "clang-cl" then
+            add_ldflags("/WHOLEARCHIVE:winuxcmd-commands.lib", {force = true})
+        elseif tc == "llvm" then
+            add_ldflags("-Wl,/WHOLEARCHIVE:winuxcmd-commands.lib", {force = true})
+        end
     target_end()
 end
 
 -- Tests (optional)
 if has_config("enable_tests") then
     target("test_main")
-        add_rules("lc_basic_settings", {project_kind = "static"})
+        add_rules("lc_basic_settings", {project_kind = "static", enable_exception = true})
         add_files("tests/framework/test_main.cpp")
         add_includedirs("tests", "tests/framework")
         if is_plat("windows") then
-            add_cxflags("/std:c++latest", {force = true})
+            local tc = get_config("toolchain")
+            if not tc or tc == "msvc" or tc == "clang-cl" then
+                add_cxflags("/std:c++latest", {force = true})
+            else
+                add_cxflags("-std=c++23", {force = true})
+            end
         end
     target_end()
 
-    target("winux-test")
-        add_rules("lc_basic_settings", {project_kind = "static"})
+    target("winux-test-lib")
+        add_rules("lc_basic_settings", {project_kind = "static", enable_exception = true})
         add_files("tests/framework/*.cpp")
         remove_files("tests/framework/test_main.cpp")
         add_includedirs("tests", "tests/framework")
         if is_plat("windows") then
-            add_cxflags("/std:c++latest", {force = true})
+            local tc = get_config("toolchain")
+            if not tc or tc == "msvc" or tc == "clang-cl" then
+                add_cxflags("/std:c++latest", {force = true})
+            else
+                add_cxflags("-std=c++23", {force = true})
+            end
+        end
+    target_end()
+
+    target("winux-test")
+        add_rules("lc_basic_settings", {project_kind = "binary", enable_exception = true})
+        add_files("tests/framework/test_main.cpp")
+        add_deps("winux-test-lib")
+        add_includedirs("tests", "tests/framework")
+        if is_plat("windows") then
+            local tc = get_config("toolchain")
+            if not tc or tc == "msvc" or tc == "clang-cl" then
+                add_cxflags("/std:c++latest", {force = true})
+            else
+                add_cxflags("-std=c++23", {force = true})
+            end
         end
     target_end()
 
     target("winuxcmd-tests")
-        add_rules("lc_basic_settings", {project_kind = "binary"})
+        add_rules("lc_basic_settings", {project_kind = "binary", enable_exception = true})
         add_files("tests/unit/**/*.cpp")
-        add_deps("winux-test", "test_main")
+        add_deps("winux-test-lib", "test_main")
         add_includedirs("tests", "tests/framework", "$(builddir)/generated")
         add_defines("WINUXCMD_BIN_DIR=L\"" .. path.absolute("$(builddir)") .. "\"")
         if is_plat("windows") then
-            add_cxflags("/std:c++latest", {force = true})
+            local tc = get_config("toolchain")
+            if not tc or tc == "msvc" or tc == "clang-cl" then
+                add_cxflags("/std:c++latest", {force = true})
+            else
+                add_cxflags("-std=c++23", {force = true})
+            end
+            local tc = get_config("toolchain")
+            if not tc or tc == "msvc" or tc == "clang-cl" then
+                add_ldflags("/WHOLEARCHIVE:test_main.lib", {force = true})
+            end
         end
     target_end()
 end
@@ -124,7 +182,12 @@ target("container_module")
     add_files("src/container/constexpr_map.cpp", "src/container/container.cpp", "src/container/small_vector.cpp")
     add_includedirs("src")
     if is_plat("windows") then
-        add_cxflags("/std:c++latest", "/experimental:module", {force = true})
+        local tc = get_config("toolchain")
+        if not tc or tc == "msvc" or tc == "clang-cl" then
+            add_cxflags("/std:c++latest", {force = true})
+        else
+            add_cxflags("-std=c++23", {force = true})
+        end
     end
 target_end()
 
@@ -137,7 +200,12 @@ for _, example in ipairs({"constexpr_map_example", "small_vector_example"}) do
             add_deps("container_module")
             add_includedirs("src", "$(builddir)/generated")
             if is_plat("windows") then
-                add_cxflags("/std:c++latest", "/experimental:module", {force = true})
+                local tc = get_config("toolchain")
+                if not tc or tc == "msvc" or tc == "clang-cl" then
+                    add_cxflags("/std:c++latest", {force = true})
+                else
+                    add_cxflags("-std=c++23", {force = true})
+                end
             end
         target_end()
     end
@@ -150,7 +218,12 @@ if has_config("build_ffi") then
         add_deps("winuxcore")
         add_includedirs("src/ffi")
         if is_plat("windows") then
-            add_cflags("/std:c11", {force = true})
+            local tc = get_config("toolchain")
+            if not tc or tc == "msvc" then
+                add_cflags("/std:c11", {force = true})
+            else
+                add_cflags("-std=c11", {force = true})
+            end
         end
     target_end()
 end

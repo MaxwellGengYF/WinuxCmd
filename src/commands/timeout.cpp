@@ -163,14 +163,13 @@ auto build_config(const CommandContext<TIMEOUT_OPTIONS.size()>& ctx)
 
 auto run(const Config& cfg) -> int {
   if (!cfg.command.empty()) {
-    // Build command line
-    std::string cmd_line = cfg.command;
+    // Build command line with fallback to winuxcmd.exe
+    std::vector<std::string> all_args;
+    all_args.push_back(cfg.command);
     for (const auto& arg : cfg.args) {
-      cmd_line += " " + arg;
+      all_args.push_back(arg);
     }
-
-    // Convert to wide string for Windows API
-    std::wstring wcmd_line(cmd_line.begin(), cmd_line.end());
+    std::wstring wcmd_line = path::build_fallback_cmdline(all_args);
 
     // Create process
     STARTUPINFOW si = {sizeof(si)};

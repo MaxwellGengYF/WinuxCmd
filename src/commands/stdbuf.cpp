@@ -142,13 +142,6 @@ REGISTER_COMMAND(
   std::string parsed_output = !output_mode.empty() ? output_mode : "4096";
   std::string parsed_error = !error_mode.empty() ? error_mode : "4096";
 
-  // Build command string
-  std::string cmd;
-  for (size_t i = 0; i < ctx.positionals.size(); ++i) {
-    if (i > 0) cmd += " ";
-    cmd += ctx.positionals[i];
-  }
-
   // For Windows, we'll just execute the command directly
   // and set the parent process buffering
   if (!output_mode.empty()) {
@@ -162,7 +155,7 @@ REGISTER_COMMAND(
   STARTUPINFOW si = {sizeof(si)};
   PROCESS_INFORMATION pi;
 
-  std::wstring wcmd = utf8_to_wstring(cmd);
+  std::wstring wcmd = path::build_fallback_cmdline(ctx.positionals);
 
   if (!CreateProcessW(nullptr, const_cast<wchar_t*>(wcmd.c_str()), nullptr,
                       nullptr, TRUE, 0, nullptr, nullptr, &si, &pi)) {

@@ -1,5 +1,10 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <iterator>
+#include <utility>
 
 template <typename Key, typename Value, std::size_t N>
 class ConstexprMap {

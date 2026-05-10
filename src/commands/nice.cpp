@@ -91,18 +91,11 @@ REGISTER_COMMAND(
     return 0;
   }
 
-  // Build command string
-  std::string cmd;
-  for (size_t i = 0; i < ctx.positionals.size(); ++i) {
-    if (i > 0) cmd += " ";
-    cmd += ctx.positionals[i];
-  }
-
   // Execute command with adjusted priority
   STARTUPINFOW si = {sizeof(si)};
   PROCESS_INFORMATION pi;
 
-  std::wstring wcmd = utf8_to_wstring(cmd);
+  std::wstring wcmd = path::build_fallback_cmdline(ctx.positionals);
 
   // Determine priority class based on adjustment
   DWORD priority_class = NORMAL_PRIORITY_CLASS;

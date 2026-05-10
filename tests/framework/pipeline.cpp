@@ -31,6 +31,7 @@
 
 #include <windows.h>
 
+#include <filesystem>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -142,6 +143,74 @@ static std::wstring build_cmd(const std::wstring &exe,
   return cmd;
 }
 
+// Spawn a child process with a restricted handle inheritance list.
+// Only the handles required for stdio are inherited; this prevents
+// earlier processes from keeping the read end of a pipe open so the
+// pipe breaks correctly when the actual reader exits.
+static bool spawn_with_handle_list(
+    const wchar_t *cmdline, const wchar_t *cwd, LPVOID env_ptr,
+    DWORD creation_flags, HANDLE stdin_h, HANDLE stdout_h, HANDLE stderr_h,
+    PROCESS_INFORMATION &pi) {
+  std::vector<HANDLE> handles;
+  auto add_handle = [&](HANDLE h) {
+    if (h && h != INVALID_HANDLE_VALUE &&
+        h != GetStdHandle(STD_INPUT_HANDLE) &&
+        h != GetStdHandle(STD_OUTPUT_HANDLE) &&
+        h != GetStdHandle(STD_ERROR_HANDLE)) {
+      handles.push_back(h);
+    }
+  };
+  add_handle(stdin_h);
+  add_handle(stdout_h);
+  add_handle(stderr_h);
+
+  STARTUPINFOEXW siex{};
+  siex.StartupInfo.cb = sizeof(siex);
+  siex.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+  siex.StartupInfo.hStdInput = stdin_h ? stdin_h : GetStdHandle(STD_INPUT_HANDLE);
+  siex.StartupInfo.hStdOutput = stdout_h ? stdout_h : GetStdHandle(STD_OUTPUT_HANDLE);
+  siex.StartupInfo.hStdError = stderr_h ? stderr_h : GetStdHandle(STD_ERROR_HANDLE);
+
+  if (handles.empty()) {
+    return CreateProcessW(nullptr, const_cast<wchar_t *>(cmdline), nullptr,
+                          nullptr, FALSE, creation_flags, env_ptr, cwd,
+                          &siex.StartupInfo, &pi) != 0;
+  }
+
+  SIZE_T attr_size = 0;
+  InitializeProcThreadAttributeList(nullptr, 1, 0, &attr_size);
+  auto attr_buf = static_cast<char *>(
+      HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, attr_size));
+  if (!attr_buf) return false;
+
+  LPPROC_THREAD_ATTRIBUTE_LIST attr_list =
+      reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attr_buf);
+
+  if (!InitializeProcThreadAttributeList(attr_list, 1, 0, &attr_size)) {
+    HeapFree(GetProcessHeap(), 0, attr_buf);
+    return false;
+  }
+
+  if (!UpdateProcThreadAttribute(
+          attr_list, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles.data(),
+          handles.size() * sizeof(HANDLE), nullptr, nullptr)) {
+    DeleteProcThreadAttributeList(attr_list);
+    HeapFree(GetProcessHeap(), 0, attr_buf);
+    return false;
+  }
+
+  siex.lpAttributeList = attr_list;
+
+  BOOL ok =
+      CreateProcessW(nullptr, const_cast<wchar_t *>(cmdline), nullptr, nullptr,
+                     TRUE, creation_flags | EXTENDED_STARTUPINFO_PRESENT,
+                     env_ptr, cwd, &siex.StartupInfo, &pi);
+
+  DeleteProcThreadAttributeList(attr_list);
+  HeapFree(GetProcessHeap(), 0, attr_buf);
+  return ok != 0;
+}
+
 // ---------------- Pipeline Execution Implementation ----------------
 
 /**
@@ -241,6 +310,78 @@ CommandResult Pipeline::run() {
         exe.find(L'/') == std::wstring::npos) {
       exe = *exe_dir_ + L"\\" + exe;
     }
+    std::error_code ec;
+    if (!std::filesystem::exists(exe, ec)) {
+      std::wstring winuxcmd = *exe_dir_ + L"\\winuxcmd.exe";
+      if (std::filesystem::exists(winuxcmd, ec)) {
+        std::wstring cmd_name = cmds_[i].exe;
+        size_t dot = cmd_name.rfind(L'.');
+        if (dot != std::wstring::npos) cmd_name = cmd_name.substr(0, dot);
+        std::vector<std::wstring> fallback_args = {cmd_name};
+        fallback_args.insert(fallback_args.end(), cmds_[i].args.begin(),
+                             cmds_[i].args.end());
+        exe = std::move(winuxcmd);
+        auto cmdline = build_cmd(exe, fallback_args);
+        const wchar_t *cwd = cwd_ ? cwd_->c_str() : nullptr;
+        auto build_env_block = [this]() -> std::vector<wchar_t> {
+          struct ci_less {
+            bool operator()(const std::wstring &a,
+                            const std::wstring &b) const {
+              return _wcsicmp(a.c_str(), b.c_str()) < 0;
+            }
+          };
+
+          std::map<std::wstring, std::wstring, ci_less> vars;
+          if (LPWCH raw = GetEnvironmentStringsW()) {
+            const wchar_t *p = raw;
+            while (*p != L'\0') {
+              std::wstring entry = p;
+              p += entry.size() + 1;
+              if (entry.empty() || entry[0] == L'=') continue;
+              auto pos = entry.find(L'=');
+              if (pos == std::wstring::npos) continue;
+              vars[entry.substr(0, pos)] = entry.substr(pos + 1);
+            }
+            FreeEnvironmentStringsW(raw);
+          }
+
+          for (auto &[k, v] : this->env_) {
+            vars[k] = v;
+          }
+
+          std::vector<wchar_t> block;
+          for (auto &[k, v] : vars) {
+            std::wstring entry = k + L"=" + v;
+            block.insert(block.end(), entry.begin(), entry.end());
+            block.push_back(L'\0');
+          }
+          block.push_back(L'\0');
+          return block;
+        };
+        std::vector<wchar_t> env_block;
+        LPVOID env_ptr = nullptr;
+        DWORD creation_flags = 0;
+
+        if (!env_.empty()) {
+          env_block = build_env_block();
+          env_ptr = env_block.data();
+          creation_flags |= CREATE_UNICODE_ENVIRONMENT;
+        }
+
+        if (!spawn_with_handle_list(cmdline.data(), cwd, env_ptr, creation_flags,
+                                    si.hStdInput, si.hStdOutput, si.hStdError,
+                                    procs[i])) {
+          DWORD err = GetLastError();
+          throw std::runtime_error("CreateProcessW failed: " +
+                                   std::to_string(err));
+        }
+
+        if (i > 0) CloseHandle(read_pipes[i - 1]);
+
+        if (i + 1 < n) CloseHandle(write_pipes[i]);
+        continue;
+      }
+    }
     auto cmdline = build_cmd(exe, cmds_[i].args);
     const wchar_t *cwd = cwd_ ? cwd_->c_str() : nullptr;
     auto build_env_block = [this]() -> std::vector<wchar_t> {
@@ -291,8 +432,9 @@ CommandResult Pipeline::run() {
       creation_flags |= CREATE_UNICODE_ENVIRONMENT;
     }
 
-    if (!CreateProcessW(nullptr, cmdline.data(), nullptr, nullptr, TRUE,
-                        creation_flags, env_ptr, cwd, &si, &procs[i])) {
+    if (!spawn_with_handle_list(cmdline.data(), cwd, env_ptr, creation_flags,
+                                si.hStdInput, si.hStdOutput, si.hStdError,
+                                procs[i])) {
       DWORD err = GetLastError();
       throw std::runtime_error("CreateProcessW failed: " + std::to_string(err));
     }
