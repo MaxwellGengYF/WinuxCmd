@@ -128,3 +128,57 @@ TEST(rm, rm_multiple_files) {
   EXPECT_TRUE(!file2_exists);
   EXPECT_TRUE(!file3_exists);
 }
+
+TEST(rm, rm_wildcard) {
+  TempDir tmp;
+  tmp.write("file1.txt", "content1");
+  tmp.write("file2.txt", "content2");
+  tmp.write("keep.log", "log content");
+
+  TEST_LOG_FILE_CONTENT("file1.txt", "content1");
+  TEST_LOG_FILE_CONTENT("file2.txt", "content2");
+  TEST_LOG_FILE_CONTENT("keep.log", "log content");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"rm.exe", {L"*.txt"});
+
+  TEST_LOG_CMD_LIST("rm.exe", L"*.txt");
+
+  auto r = p.run();
+
+  TEST_LOG_EXIT_CODE(r);
+  TEST_LOG("rm output", r.stdout_text);
+
+  EXPECT_EQ(r.exit_code, 0);
+
+  // Verify .txt files were removed but .log file remains
+  bool txt1_exists = std::filesystem::exists(tmp.path / "file1.txt");
+  bool txt2_exists = std::filesystem::exists(tmp.path / "file2.txt");
+  bool log_exists = std::filesystem::exists(tmp.path / "keep.log");
+  EXPECT_TRUE(!txt1_exists);
+  EXPECT_TRUE(!txt2_exists);
+  EXPECT_TRUE(log_exists);
+}
+
+TEST(rm, rm_interactive_once_declines_bulk_remove) {
+  TempDir tmp;
+  tmp.write("file1.txt", "content1");
+  tmp.write("file2.txt", "content2");
+  tmp.write("file3.txt", "content3");
+  tmp.write("file4.txt", "content4");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.set_stdin("n\n");
+  p.add(L"rm.exe",
+        {L"-I", L"file1.txt", L"file2.txt", L"file3.txt", L"file4.txt"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(std::filesystem::exists(tmp.path / "file1.txt"));
+  EXPECT_TRUE(std::filesystem::exists(tmp.path / "file2.txt"));
+  EXPECT_TRUE(std::filesystem::exists(tmp.path / "file3.txt"));
+  EXPECT_TRUE(std::filesystem::exists(tmp.path / "file4.txt"));
+}

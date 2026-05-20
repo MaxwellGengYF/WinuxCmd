@@ -31,7 +31,7 @@
 /// @Copyright: Copyright © 2026 WinuxCmd
 
 #include "pch/pch.h"
-//include other header after pch.h
+// include other header after pch.h
 #include "core/command_macros.h"
 
 import std;
@@ -43,8 +43,10 @@ using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
 
 auto constexpr UNEXPAND_OPTIONS = std::array{
-    OPTION("-t", "--tabs", "specify tab stop positions (default: 8)", STRING_TYPE),
-    OPTION("-a", "--all", "convert all spaces, not just leading ones", BOOL_TYPE)
+    OPTION("-t", "--tabs", "specify tab stop positions (default: 8)",
+           STRING_TYPE),
+    OPTION("-a", "--all", "convert all spaces, not just leading ones",
+           BOOL_TYPE)
     // --help (not implemented)
     // --version (not implemented)
 };
@@ -69,7 +71,8 @@ auto build_config(const CommandContext<UNEXPAND_OPTIONS.size()>& ctx)
   }
 
   if (!tabs_opt.empty()) {
-    // Parse tab width (can be comma-separated list, but we only support single value)
+    // Parse tab width (can be comma-separated list, but we only support single
+    // value)
     try {
       cfg.tab_width = std::stoi(tabs_opt);
       if (cfg.tab_width <= 0) {
@@ -81,7 +84,17 @@ auto build_config(const CommandContext<UNEXPAND_OPTIONS.size()>& ctx)
   }
 
   for (auto arg : ctx.positionals) {
-    cfg.files.push_back(std::string(arg));
+    std::string file_arg(arg);
+    if (contains_wildcard(file_arg)) {
+      auto glob_result = glob_expand(file_arg);
+      if (glob_result.expanded) {
+        for (const auto& file : glob_result.files) {
+          cfg.files.push_back(wstring_to_utf8(file));
+        }
+        continue;
+      }
+    }
+    cfg.files.push_back(file_arg);
   }
 
   if (cfg.files.empty()) {
@@ -92,7 +105,8 @@ auto build_config(const CommandContext<UNEXPAND_OPTIONS.size()>& ctx)
 }
 
 // Convert spaces to tabs in a single line
-auto unexpand_line(const std::string& line, int tab_width, bool all_spaces) -> std::string {
+auto unexpand_line(const std::string& line, int tab_width, bool all_spaces)
+    -> std::string {
   std::string result;
   result.reserve(line.size());
   size_t pos = 0;
@@ -190,7 +204,8 @@ auto run(const Config& cfg) -> int {
         result += unexpand_line(line, cfg.tab_width, cfg.all_spaces);
         break;
       } else {
-        line = content.substr(line_start, line_end - line_start + 1);  // Include newline
+        line = content.substr(line_start,
+                              line_end - line_start + 1);  // Include newline
         result += unexpand_line(line, cfg.tab_width, cfg.all_spaces);
         line_start = line_end + 1;
       }
@@ -204,21 +219,20 @@ auto run(const Config& cfg) -> int {
 
 }  // namespace unexpand_pipeline
 
-REGISTER_COMMAND(unexpand, "unexpand",
-                 "unexpand [OPTION]... [FILE]...",
-                 "Convert spaces to tabs.\n"
-                 "\n"
-                 "Convert spaces to tabs. By default, only convert leading spaces to tabs.\n"
-                 "Use -a to convert all spaces.\n"
-                 "\n"
-                 "Note: This implementation supports basic space-to-tab conversion.\n"
-                 "Advanced features like comma-separated tab positions are not implemented.",
-                 "  unexpand file.txt\n"
-                 "  unexpand -t 4 file.txt\n"
-                 "  unexpand -a file.txt\n"
-                 "  echo 'hello world' | unexpand",
-                 "expand(1)", "WinuxCmd",
-                 "Copyright © 2026 WinuxCmd", UNEXPAND_OPTIONS) {
+REGISTER_COMMAND(
+    unexpand, "unexpand", "unexpand [OPTION]... [FILE]...",
+    "Convert spaces to tabs.\n"
+    "\n"
+    "Convert spaces to tabs. By default, only convert leading spaces to tabs.\n"
+    "Use -a to convert all spaces.\n"
+    "\n"
+    "Note: This implementation supports basic space-to-tab conversion.\n"
+    "Advanced features like comma-separated tab positions are not implemented.",
+    "  unexpand file.txt\n"
+    "  unexpand -t 4 file.txt\n"
+    "  unexpand -a file.txt\n"
+    "  echo 'hello world' | unexpand",
+    "expand(1)", "WinuxCmd", "Copyright © 2026 WinuxCmd", UNEXPAND_OPTIONS) {
   using namespace unexpand_pipeline;
 
   auto cfg_result = build_config(ctx);

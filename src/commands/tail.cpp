@@ -26,11 +26,9 @@
 
 #include "pch/pch.h"
 
-//include other header after pch.h
+// include other header after pch.h
 
 #include "core/command_macros.h"
-
-
 
 import std;
 
@@ -54,28 +52,39 @@ using cmd::meta::OptionType;
  *
  * - @a -c, @a --bytes: Output the last NUM bytes; or use -c +NUM to output
  *   starting with byte NUM of each file [IMPLEMENTED]
- * - @a -f, @a --follow: Output appended data as the file grows [NOT SUPPORT]
+ * - @a -f, @a --follow: Output appended data as the file grows [IMPLEMENTED]
+ *
  * - @a -F: Same as --follow=name --retry [NOT SUPPORT]
  * - @a -n, @a --lines: Output the last NUM lines, instead of the last 10; or
- *   use -n +NUM to skip NUM-1 lines at the start [IMPLEMENTED]
- * - @a --max-unchanged-stats: With --follow=name, reopen a FILE which has not changed
- *   size after N iterations to see if it has been renamed [NOT SUPPORT]
+ *
+ * use -n +NUM to skip NUM-1 lines at the start [IMPLEMENTED]
+ * - @a -NUM:
+ * Obsolete GNU-compatible shorthand for -n NUM [IMPLEMENTED]
+ * - @a +NUM:
+ * Obsolete compatibility shorthand for -n +NUM [IMPLEMENTED]
+ * - @a
+ * --max-unchanged-stats: With --follow=name, reopen a FILE which has not
+ * changed
+ *   size after N iterations to see if it has been renamed [NOT
+ * SUPPORT]
  * - @a --pid: With -f, terminate after process ID, PID dies [NOT SUPPORT]
  * - @a -q, @a --quiet: Never output headers giving file names [IMPLEMENTED]
  * - @a --silent: Never output headers giving file names [IMPLEMENTED]
  * - @a --retry: Keep trying to open a file if it is inaccessible [NOT SUPPORT]
- * - @a -s, @a --sleep-interval: With -f, sleep for approximately N seconds between iterations
- *   [NOT SUPPORT]
- * - @a -v, @a --verbose: Always output headers giving file names [IMPLEMENTED]
- * - @a -z, @a --zero-terminated: Line delimiter is NUL, not newline [IMPLEMENTED]
+ * - @a -s, @a --sleep-interval: With -f, sleep for approximately N seconds
+ *
+ * between iterations [IMPLEMENTED]
+ * - @a -v, @a --verbose: Always output
+ * headers giving file names [IMPLEMENTED]
+ * - @a -z, @a --zero-terminated: Line delimiter is NUL, not newline
+ * [IMPLEMENTED]
  */
 auto constexpr TAIL_OPTIONS = std::array{
     OPTION("-c", "--bytes",
            "output the last NUM bytes; or use -c +NUM to output\n"
            "starting with byte NUM of each file",
            STRING_TYPE),
-    OPTION("-f", "--follow",
-           "output appended data as the file grows [NOT SUPPORT]"),
+    OPTION("-f", "--follow", "output appended data as the file grows"),
     OPTION("-F", "", "same as --follow=name --retry [NOT SUPPORT]"),
     OPTION("-n", "--lines",
            "output the last NUM lines, instead of the last 10; or\n"
@@ -94,8 +103,7 @@ auto constexpr TAIL_OPTIONS = std::array{
     OPTION("", "--retry",
            "keep trying to open a file if it is inaccessible [NOT SUPPORT]"),
     OPTION("-s", "--sleep-interval",
-           "with -f, sleep for approximately N seconds between iterations\n"
-           "[NOT SUPPORT]",
+           "with -f, sleep for approximately N seconds between iterations",
            STRING_TYPE),
     OPTION("-v", "--verbose", "always output headers giving file names"),
     OPTION("-z", "--zero-terminated", "line delimiter is NUL, not newline")};
@@ -113,7 +121,10 @@ struct TailConfig {
   CountSpec spec;
   bool quiet = false;
   bool verbose = false;
+  bool follow = false;
+  bool stdin_mode = false;
   char delimiter = '\n';
+  std::chrono::milliseconds sleep_interval{1000};
 };
 
 auto stream_all(std::istream& in) -> void {
@@ -128,7 +139,7 @@ auto stream_all(std::istream& in) -> void {
 
 auto suffix_multiplier(std::string_view suffix)
     -> std::optional<std::uintmax_t> {
-  static constexpr auto kMultipliers = 
+  static constexpr auto kMultipliers =
       make_constexpr_map<std::string_view, std::uintmax_t>(
           std::array<std::pair<std::string_view, std::uintmax_t>, 25>{
               std::pair{std::string_view{"b"}, 512ULL},
@@ -141,25 +152,39 @@ auto suffix_multiplier(std::string_view suffix)
               std::pair{std::string_view{"GB"}, 1000ULL * 1000ULL * 1000ULL},
               std::pair{std::string_view{"G"}, 1024ULL * 1024ULL * 1024ULL},
               std::pair{std::string_view{"GiB"}, 1024ULL * 1024ULL * 1024ULL},
-              std::pair{std::string_view{"TB"}, 1000ULL * 1000ULL * 1000ULL * 1000ULL},
-              std::pair{std::string_view{"T"}, 1024ULL * 1024ULL * 1024ULL * 1024ULL},
-              std::pair{std::string_view{"TiB"}, 1024ULL * 1024ULL * 1024ULL * 1024ULL},
-              std::pair{std::string_view{"PB"}, 1000ULL * 1000ULL * 1000ULL * 1000ULL * 1000ULL},
-              std::pair{std::string_view{"P"}, 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
-              std::pair{std::string_view{"PiB"}, 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
-              std::pair{std::string_view{"EB"}, 1000ULL * 1000ULL * 1000ULL * 1000ULL * 1000ULL * 1000ULL},
-              std::pair{std::string_view{"E"}, 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
-              std::pair{std::string_view{"EiB"}, 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
-              std::pair{std::string_view{"Z"}, 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
-              std::pair{std::string_view{"Y"}, 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
+              std::pair{std::string_view{"TB"},
+                        1000ULL * 1000ULL * 1000ULL * 1000ULL},
+              std::pair{std::string_view{"T"},
+                        1024ULL * 1024ULL * 1024ULL * 1024ULL},
+              std::pair{std::string_view{"TiB"},
+                        1024ULL * 1024ULL * 1024ULL * 1024ULL},
+              std::pair{std::string_view{"PB"},
+                        1000ULL * 1000ULL * 1000ULL * 1000ULL * 1000ULL},
+              std::pair{std::string_view{"P"},
+                        1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
+              std::pair{std::string_view{"PiB"},
+                        1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
+              std::pair{
+                  std::string_view{"EB"},
+                  1000ULL * 1000ULL * 1000ULL * 1000ULL * 1000ULL * 1000ULL},
+              std::pair{std::string_view{"E"}, 1024ULL * 1024ULL * 1024ULL *
+                                                   1024ULL * 1024ULL * 1024ULL},
+              std::pair{
+                  std::string_view{"EiB"},
+                  1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
+              std::pair{std::string_view{"Z"}, 1024ULL * 1024ULL * 1024ULL *
+                                                   1024ULL * 1024ULL * 1024ULL *
+                                                   1024ULL},
+              std::pair{std::string_view{"Y"}, 1024ULL * 1024ULL * 1024ULL *
+                                                   1024ULL * 1024ULL * 1024ULL *
+                                                   1024ULL * 1024ULL},
               std::pair{std::string_view{"R"}, 0ULL},
               std::pair{std::string_view{"Q"}, 0ULL},
               std::pair{std::string_view{"ZB"}, 0ULL},
-              std::pair{std::string_view{"YB"}, 0ULL}
-          });
-  
+              std::pair{std::string_view{"YB"}, 0ULL}});
+
   if (suffix.empty()) return 1;
-  
+
   if (auto it = kMultipliers.find(suffix); it != kMultipliers.end()) {
     auto mult = it->second;
     if (mult == 0ULL) return std::nullopt;
@@ -216,6 +241,21 @@ auto parse_count_spec(std::string spec_text, std::string_view opt_name)
 
   spec.value = *parsed;
   return spec;
+}
+
+auto parse_sleep_interval(std::string_view text)
+    -> std::optional<std::chrono::milliseconds> {
+  if (text.empty()) return std::nullopt;
+  std::string s(text);
+  char* end = nullptr;
+  errno = 0;
+  double seconds = std::strtod(s.c_str(), &end);
+  if (errno != 0 || end != s.c_str() + s.size() || seconds <= 0.0) {
+    return std::nullopt;
+  }
+  auto millis = static_cast<long long>(seconds * 1000.0);
+  if (millis <= 0) millis = 1;
+  return std::chrono::milliseconds(millis);
 }
 
 auto output_tail(std::istream& in, const TailConfig& config) -> void {
@@ -302,9 +342,6 @@ auto output_tail(std::istream& in, const TailConfig& config) -> void {
 
 template <size_t N>
 auto check_unsupported(const CommandContext<N>& ctx) -> cp::Result<void> {
-  if (ctx.get<bool>("--follow", false) || ctx.get<bool>("-f", false)) {
-    return std::unexpected("--follow is [NOT SUPPORT] on this platform");
-  }
   if (ctx.get<bool>("-F", false)) {
     return std::unexpected("-F is [NOT SUPPORT] on this platform");
   }
@@ -317,10 +354,6 @@ auto check_unsupported(const CommandContext<N>& ctx) -> cp::Result<void> {
   if (ctx.get<bool>("--retry", false)) {
     return std::unexpected("--retry is [NOT SUPPORT]");
   }
-  if (!ctx.get<std::string>("--sleep-interval", "").empty() ||
-      !ctx.get<std::string>("-s", "").empty()) {
-    return std::unexpected("--sleep-interval is [NOT SUPPORT]");
-  }
   return {};
 }
 
@@ -331,6 +364,18 @@ auto build_config(const CommandContext<N>& ctx) -> cp::Result<TailConfig> {
       ctx.get<bool>("--quiet", false) || ctx.get<bool>("--silent", false);
   config.verbose = ctx.get<bool>("--verbose", false);
   config.delimiter = ctx.get<bool>("--zero-terminated", false) ? '\0' : '\n';
+  config.follow =
+      ctx.get<bool>("-f", false) || ctx.get<bool>("--follow", false);
+
+  std::string sleep_arg = ctx.get<std::string>("--sleep-interval", "");
+  if (sleep_arg.empty()) sleep_arg = ctx.get<std::string>("-s", "");
+  if (!sleep_arg.empty()) {
+    auto parsed_sleep = parse_sleep_interval(sleep_arg);
+    if (!parsed_sleep) {
+      return std::unexpected("invalid sleep interval");
+    }
+    config.sleep_interval = *parsed_sleep;
+  }
 
   auto unsupported = check_unsupported(ctx);
   if (!unsupported) return std::unexpected(unsupported.error());
@@ -371,7 +416,9 @@ REGISTER_COMMAND(
     "With no FILE, or when FILE is -, read standard input.",
     "  tail file.txt\n"
     "  tail -n 20 file.txt\n"
+    "  tail -20 file.txt\n"
     "  tail -n +5 file.txt\n"
+    "  tail +5 file.txt\n"
     "  tail -c 64 file.txt\n"
     "  tail -v a.txt b.txt",
     "head(1), cat(1)", "WinuxCmd", "Copyright © 2026 WinuxCmd", TAIL_OPTIONS) {
@@ -382,11 +429,23 @@ REGISTER_COMMAND(
     cp::report_error(config_result, L"tail");
     return 1;
   }
-auto config = *config_result;
+  auto config = *config_result;
 
   // Use SmallVector for files (max 64 files) - all stack-allocated
   SmallVector<std::string, 64> files{};
-  for (auto p : ctx.positionals) files.push_back(std::string(p));
+  for (auto p : ctx.positionals) {
+    std::string file_arg(p);
+    if (contains_wildcard(file_arg)) {
+      auto glob_result = glob_expand(file_arg);
+      if (glob_result.expanded) {
+        for (const auto& file : glob_result.files) {
+          files.push_back(wstring_to_utf8(file));
+        }
+        continue;
+      }
+    }
+    files.push_back(file_arg);
+  }
   if (files.empty()) files.push_back("-");
 
   bool any_error = false;
@@ -406,6 +465,7 @@ auto config = *config_result;
     }
 
     if (file == "-") {
+      config.stdin_mode = true;
       output_tail(std::cin, config);
       if (std::cin.bad()) {
         safeErrorPrint("tail: error reading '-'\n");
@@ -427,6 +487,39 @@ auto config = *config_result;
         safeErrorPrint(file);
         safeErrorPrint("'\n");
         any_error = true;
+      }
+      input.close();
+
+      if (config.follow && !config.stdin_mode) {
+        std::ifstream monitor_file(file, std::ios::binary);
+        if (!monitor_file.is_open()) {
+          safeErrorPrint("tail: cannot open '");
+          safeErrorPrint(file);
+          safeErrorPrint("' for following\n");
+          any_error = true;
+        } else {
+          monitor_file.seekg(0, std::ios::end);
+          while (true) {
+            std::this_thread::sleep_for(config.sleep_interval);
+            auto current_pos = monitor_file.tellg();
+            monitor_file.seekg(0, std::ios::end);
+            auto end_pos = monitor_file.tellg();
+            if (end_pos > current_pos) {
+              monitor_file.seekg(current_pos);
+              std::string line;
+              while (std::getline(monitor_file, line)) {
+                safePrint(line);
+                safePrint("\n");
+              }
+            }
+            if (GetAsyncKeyState(VK_CONTROL) & 0x8000) {
+              if (GetAsyncKeyState('C') & 0x8000) {
+                break;
+              }
+            }
+          }
+          monitor_file.close();
+        }
       }
     }
 

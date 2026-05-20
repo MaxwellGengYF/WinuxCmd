@@ -25,7 +25,7 @@
  */
 
 #include "pch/pch.h"
-//include other header after pch.h
+// include other header after pch.h
 #include "core/command_macros.h"
 
 import std;
@@ -45,14 +45,22 @@ using cmd::meta::OptionType;
  *
  * @par Options:
  *
- * - @a -c, @a --bytes: Print the first NUM bytes of each file; with the leading '-',
- *   print all but the last NUM bytes [IMPLEMENTED]
- * - @a -n, @a --lines: Print the first NUM lines instead of the first 10; with the
+ * - @a -c, @a --bytes: Print the first NUM bytes of each file; with the leading
+ * '-', print all but the last NUM bytes [IMPLEMENTED]
+ * - @a -n, @a --lines: Print the first NUM lines instead of the first 10; with
+ * the
  *   leading '-', print all but the last NUM lines [IMPLEMENTED]
- * - @a -q, @a --quiet: Never print headers giving file names for multiple files [IMPLEMENTED]
- * - @a --silent: Never print headers giving file names for multiple files [IMPLEMENTED]
- * - @a -v, @a --verbose: Always print headers giving file names for multiple files [IMPLEMENTED]
- * - @a -z, @a --zero-terminated: Line delimiter is NUL, not newline [IMPLEMENTED]
+ * - @a
+ * -NUM: Obsolete GNU-compatible shorthand for -n NUM [IMPLEMENTED]
+ * - @a -q,
+ * @a --quiet: Never print headers giving file names for multiple files
+ * [IMPLEMENTED]
+ * - @a --silent: Never print headers giving file names for
+ * multiple files [IMPLEMENTED]
+ * - @a -v, @a --verbose: Always print headers giving file names for multiple
+ * files [IMPLEMENTED]
+ * - @a -z, @a --zero-terminated: Line delimiter is NUL, not newline
+ * [IMPLEMENTED]
  */
 auto constexpr HEAD_OPTIONS = std::array{
     OPTION("-c", "--bytes",
@@ -98,6 +106,90 @@ auto parse_uint(std::string_view text) -> std::optional<std::uintmax_t> {
   return value;
 }
 
+auto suffix_multiplier(std::string_view suffix)
+    -> std::optional<std::uintmax_t> {
+  static constexpr auto kMultipliers =
+      make_constexpr_map<std::string_view, std::uintmax_t>(
+          std::array<std::pair<std::string_view, std::uintmax_t>, 25>{
+              std::pair{std::string_view{"b"}, 512ULL},
+              std::pair{std::string_view{"kB"}, 1000ULL},
+              std::pair{std::string_view{"K"}, 1024ULL},
+              std::pair{std::string_view{"KiB"}, 1024ULL},
+              std::pair{std::string_view{"MB"}, 1000ULL * 1000ULL},
+              std::pair{std::string_view{"M"}, 1024ULL * 1024ULL},
+              std::pair{std::string_view{"MiB"}, 1024ULL * 1024ULL},
+              std::pair{std::string_view{"GB"}, 1000ULL * 1000ULL * 1000ULL},
+              std::pair{std::string_view{"G"}, 1024ULL * 1024ULL * 1024ULL},
+              std::pair{std::string_view{"GiB"}, 1024ULL * 1024ULL * 1024ULL},
+              std::pair{std::string_view{"TB"},
+                        1000ULL * 1000ULL * 1000ULL * 1000ULL},
+              std::pair{std::string_view{"T"},
+                        1024ULL * 1024ULL * 1024ULL * 1024ULL},
+              std::pair{std::string_view{"TiB"},
+                        1024ULL * 1024ULL * 1024ULL * 1024ULL},
+              std::pair{std::string_view{"PB"},
+                        1000ULL * 1000ULL * 1000ULL * 1000ULL * 1000ULL},
+              std::pair{std::string_view{"P"},
+                        1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
+              std::pair{std::string_view{"PiB"},
+                        1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
+              std::pair{
+                  std::string_view{"EB"},
+                  1000ULL * 1000ULL * 1000ULL * 1000ULL * 1000ULL * 1000ULL},
+              std::pair{std::string_view{"E"}, 1024ULL * 1024ULL * 1024ULL *
+                                                   1024ULL * 1024ULL * 1024ULL},
+              std::pair{
+                  std::string_view{"EiB"},
+                  1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
+              std::pair{std::string_view{"Z"}, 1024ULL * 1024ULL * 1024ULL *
+                                                   1024ULL * 1024ULL * 1024ULL *
+                                                   1024ULL},
+              std::pair{std::string_view{"Y"}, 1024ULL * 1024ULL * 1024ULL *
+                                                   1024ULL * 1024ULL * 1024ULL *
+                                                   1024ULL * 1024ULL},
+              std::pair{std::string_view{"R"}, 0ULL},
+              std::pair{std::string_view{"Q"}, 0ULL},
+              std::pair{std::string_view{"ZB"}, 0ULL},
+              std::pair{std::string_view{"YB"}, 0ULL}});
+
+  if (suffix.empty()) return 1;
+
+  if (auto it = kMultipliers.find(suffix); it != kMultipliers.end()) {
+    auto mult = it->second;
+    if (mult == 0ULL) return std::nullopt;
+    return mult;
+  }
+  if (suffix == "RB" || suffix == "QB") {
+    return std::nullopt;
+  }
+
+  return std::nullopt;
+}
+
+auto parse_numeric_with_suffix(std::string_view text)
+    -> std::optional<std::uintmax_t> {
+  if (text.empty()) return std::nullopt;
+
+  size_t i = 0;
+  while (i < text.size() && std::isdigit(static_cast<unsigned char>(text[i]))) {
+    ++i;
+  }
+  if (i == 0) return std::nullopt;
+
+  auto parsed = parse_uint(text.substr(0, i));
+  if (!parsed.has_value()) return std::nullopt;
+
+  auto mult = suffix_multiplier(text.substr(i));
+  if (!mult.has_value()) return std::nullopt;
+
+  if (*mult != 0 &&
+      *parsed > (std::numeric_limits<std::uintmax_t>::max() / *mult)) {
+    return std::nullopt;
+  }
+
+  return *parsed * *mult;
+}
+
 auto parse_count_spec(std::string spec_text, std::string_view opt_name)
     -> cp::Result<CountSpec> {
   if (spec_text.empty()) {
@@ -113,7 +205,7 @@ auto parse_count_spec(std::string spec_text, std::string_view opt_name)
     }
   }
 
-  auto parsed = parse_uint(spec_text);
+  auto parsed = parse_numeric_with_suffix(spec_text);
   if (!parsed.has_value()) {
     return std::unexpected("invalid number of " + std::string(opt_name));
   }
@@ -258,6 +350,7 @@ REGISTER_COMMAND(
     "With no FILE, or when FILE is -, read standard input.",
     "  head file.txt\n"
     "  head -n 20 file.txt\n"
+    "  head -20 file.txt\n"
     "  head -c 64 file.txt\n"
     "  head -n -5 file.txt\n"
     "  head -v a.txt b.txt",
@@ -269,11 +362,23 @@ REGISTER_COMMAND(
     cp::report_error(config_result, L"head");
     return 1;
   }
-auto config = *config_result;
+  auto config = *config_result;
 
   // Use SmallVector for files (max 64 files) - all stack-allocated
   SmallVector<std::string, 64> files{};
-  for (auto p : ctx.positionals) files.push_back(std::string(p));
+  for (auto p : ctx.positionals) {
+    std::string file_arg(p);
+    if (contains_wildcard(file_arg)) {
+      auto glob_result = glob_expand(file_arg);
+      if (glob_result.expanded) {
+        for (const auto& file : glob_result.files) {
+          files.push_back(wstring_to_utf8(file));
+        }
+        continue;
+      }
+    }
+    files.push_back(file_arg);
+  }
   if (files.empty()) files.push_back("-");
 
   bool any_error = false;

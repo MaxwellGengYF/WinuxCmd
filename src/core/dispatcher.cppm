@@ -64,6 +64,43 @@ struct CommandEntryErased {
       : meta(std::move(m)), handler(std::move(h)), brief_desc(brief) {}
 };
 
+auto is_legacy_line_count(std::string_view arg) -> bool {
+  if (arg.size() < 2 || arg[0] != '-' || arg[1] == '-') return false;
+  return std::ranges::all_of(
+      arg.substr(1), [](unsigned char ch) { return std::isdigit(ch) != 0; });
+}
+
+auto is_legacy_tail_from_start_count(std::string_view arg) -> bool {
+  if (arg.size() < 2 || arg[0] != '+') return false;
+  return std::ranges::all_of(
+      arg.substr(1), [](unsigned char ch) { return std::isdigit(ch) != 0; });
+}
+
+auto legacy_count_value(std::string_view arg) -> std::string {
+  if (arg.empty()) return {};
+  if ((arg[0] == '-' || arg[0] == '+') && arg.size() > 1) {
+    return std::string(arg.substr(1));
+  }
+  return std::string(arg);
+}
+
+auto needs_head_tail_count_rewrite(std::string_view cmdName,
+                                   std::span<std::string_view> args)
+    -> std::optional<std::string> {
+  if (args.empty()) return std::nullopt;
+
+  if ((cmdName == "head" || cmdName == "tail") &&
+      is_legacy_line_count(args[0])) {
+    return legacy_count_value(args[0]);
+  }
+
+  if (cmdName == "tail" && is_legacy_tail_from_start_count(args[0])) {
+    return std::string(args[0]);
+  }
+
+  return std::nullopt;
+}
+
 // Internal registry implementation class
 class RegistryImpl {
   std::unordered_map<std::string_view, CommandEntryErased> registry_;
@@ -98,13 +135,32 @@ class RegistryImpl {
       return 127;
     }
 
+    std::vector<std::string> rewritten_storage;
+    std::vector<std::string_view> rewritten_views;
+    std::span<std::string_view> effective_args = args;
+
+    if (auto legacy_count = needs_head_tail_count_rewrite(cmdName, args)) {
+      rewritten_storage.reserve(args.size() + 1);
+      rewritten_storage.emplace_back("-n");
+      rewritten_storage.emplace_back(*legacy_count);
+      for (size_t i = 1; i < args.size(); ++i) {
+        rewritten_storage.emplace_back(args[i]);
+      }
+
+      rewritten_views.reserve(rewritten_storage.size());
+      for (const auto &arg : rewritten_storage) {
+        rewritten_views.emplace_back(arg);
+      }
+      effective_args = std::span<std::string_view>(rewritten_views);
+    }
+
     // Get meta data from the command
     const auto &meta = it->second.meta;
     auto options = meta.options();  // std::span<const OptionMeta>
 
     // Check if it contains help
     bool wants_help = false;
-    for (const auto &arg : args) {
+    for (const auto &arg : effective_args) {
       if (arg == "--help") {
         wants_help = true;
         break;
@@ -121,7 +177,7 @@ class RegistryImpl {
         }
       }
       if (!has_h_option) {
-        for (const auto &arg : args) {
+        for (const auto &arg : effective_args) {
           if (arg == "-h") {
             wants_help = true;
             break;
@@ -135,12 +191,17 @@ class RegistryImpl {
       return 0;
     }
 
-    return it->second.handler(args);
+    return it->second.handler(effective_args);
   }
 
   // Print command help
   void help(std::string_view cmdName) {
     cmd::meta::Registry::print_help(cmdName);
+  }
+
+  // Get man page for a command
+  std::string man(std::string_view cmdName) {
+    return cmd::meta::Registry::get_man(cmdName);
   }
 
   // Get all registered command names
@@ -161,8 +222,7 @@ class RegistryImpl {
     std::vector<OptionInfo> result;
     result.reserve(opts.size());
     for (const auto &opt : opts) {
-      result.push_back({std::string(opt.short_name),
-                        std::string(opt.long_name),
+      result.push_back({std::string(opt.short_name), std::string(opt.long_name),
                         std::string(opt.description)});
     }
     return result;
@@ -212,8 +272,12 @@ export class CommandRegistry {
   // Check whether a command is registered.
   static bool hasCommand(std::string_view cmdName) noexcept {
     auto all = getImpl().list();
-    return std::ranges::any_of(all, [cmdName](const auto &item) {
-      return item.first == cmdName;
-    });
+    return std::ranges::any_of(
+        all, [cmdName](const auto &item) { return item.first == cmdName; });
+  }
+
+  // Print man page for a command
+  static std::string getManPage(std::string_view cmdName) noexcept {
+    return getImpl().man(cmdName);
   }
 };

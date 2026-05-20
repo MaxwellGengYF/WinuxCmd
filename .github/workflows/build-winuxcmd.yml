@@ -108,6 +108,11 @@ jobs:
       version: ${{ steps.final_version.outputs.version }}
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: Extract Version from Tag
         id: final_version
         run: |
@@ -126,6 +131,11 @@ jobs:
           name: WinuxCmd-${{ steps.final_version.outputs.version }}-arm64
           path: artifacts/arm64
 
+      - name: Package WinuxCmd Skill
+        shell: pwsh
+        run: |
+          ./scripts/package-skill.ps1 -Root $env:GITHUB_WORKSPACE -Version "${{ steps.final_version.outputs.version }}" -OutputDir artifacts/skill
+
       - name: Verify Packages
         run: |
           echo "=== Valid Packages ==="
@@ -142,6 +152,7 @@ jobs:
             artifacts/arm64/*.7z
             artifacts/arm64/*.zip
             artifacts/arm64/*.tar.gz
+            artifacts/skill/*.zip
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
@@ -158,6 +169,7 @@ jobs:
             - WinuxCmd-${{ steps.final_version.outputs.version }}-win-arm64.7z
             - WinuxCmd-${{ steps.final_version.outputs.version }}-win-arm64.zip
             - WinuxCmd-${{ steps.final_version.outputs.version }}-win-arm64.tar.gz
+            - WinuxCmd-skill-v${{ steps.final_version.outputs.version }}.zip
             
             ### Package Contents:
             - `winuxcmd.exe` - Main executable
@@ -166,6 +178,7 @@ jobs:
               - `winuxcore.dll` - FFI library (direct function call API)
               - `winuxcore.lib` - Import library
             - Scripts for installation and setup
+            - Standalone `winuxcmd` skill bundle for AI agents
             
             ### Package Formats:
             - **7Z**: Best compression (requires 7-Zip)

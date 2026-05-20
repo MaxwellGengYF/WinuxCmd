@@ -1,24 +1,24 @@
 /*
  *  Copyright © 2026 [caomengxuan666]
- *  
+ *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the “Software”), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is furnished
- *  to do so, subject to the following conditions:
- *  
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *  
+ *  of this software and associated documentation files (the “Software”), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
  *  THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *  
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ *
  *  - File: head_unit_test.cpp
  *  - Username: Administrator
  *  - CopyrightYear: 2026
@@ -59,6 +59,32 @@ TEST(head, head_n_and_c_options) {
   EXPECT_EQ_TEXT(r2.stdout_text, "alpha");
 }
 
+TEST(head, head_count_suffixes) {
+  TempDir tmp;
+  tmp.write("a.txt", "0123456789abcdef");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"head.exe", {L"-c", L"1K", L"a.txt"});
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_EQ_TEXT(r.stdout_text, "0123456789abcdef");
+}
+
+TEST(head, head_legacy_count_shorthand) {
+  TempDir tmp;
+  tmp.write("a.txt", "alpha\nbeta\ngamma\n");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"head.exe", {L"-2", L"a.txt"});
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_EQ_TEXT(r.stdout_text, "alpha\nbeta\n");
+}
+
 TEST(head, head_verbose_header_multi_files) {
   TempDir tmp;
   tmp.write("a.txt", "A1\nA2\n");
@@ -74,4 +100,27 @@ TEST(head, head_verbose_header_multi_files) {
   EXPECT_TRUE(r.stdout_text.find("==> b.txt <==") != std::string::npos);
   EXPECT_TRUE(r.stdout_text.find("A1\n") != std::string::npos);
   EXPECT_TRUE(r.stdout_text.find("B1\n") != std::string::npos);
+}
+
+TEST(head, head_wildcard) {
+  TempDir tmp;
+  tmp.write("file1.txt", "line1\nline2\nline3\n");
+  tmp.write("file2.txt", "line4\nline5\nline6\n");
+  tmp.write("other.log", "log1\nlog2\n");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"head.exe", {L"-n", L"1", L"*.txt"});
+
+  TEST_LOG_CMD_LIST("head.exe", L"-n", L"1", L"*.txt");
+
+  auto r = p.run();
+
+  TEST_LOG_EXIT_CODE(r);
+  TEST_LOG("head output", r.stdout_text);
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("line1") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("line4") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("log1") == std::string::npos);
 }

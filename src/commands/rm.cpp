@@ -69,10 +69,14 @@ using namespace core::pipeline;
  * - @a --interactive: Prompt according to WHEN: never, once (-I), or always
  * (-i) [IMPLEMENTED]
  * - @a --one-file-system: When removing a hierarchy recursively, skip any
+ *
  * directory that is on a file system different from that of the corresponding
- * command line argument [TODO]
- * - @a --no-preserve-root: Do not treat '/' specially [IMPLEMENTED]
- * - @a --preserve-root: Do not remove '/' (default) [IMPLEMENTED]
+
+ * * command line argument [APPROXIMATE ON WINDOWS]
+ * - @a --no-preserve-root:
+ * Do not treat '/' specially [IMPLEMENTED]
+ * - @a --preserve-root: Do not
+ * remove '/' (default) [IMPLEMENTED]
  */
 // clang-format off
 constexpr auto RM_OPTIONS = std::array{
@@ -83,10 +87,10 @@ constexpr auto RM_OPTIONS = std::array{
     OPTION("-r", "--recursive", "remove directories and their contents recursively"),
     OPTION("-R", "--recursive", "remove directories and their contents recursively"),
     OPTION("-v", "--verbose", "explain what is being done"),
-    OPTION("--interactive", "", "prompt according to WHEN: never, once (-I), or always (-i)"),
-    OPTION("--one-file-system", "", "when removing a hierarchy recursively, skip any directory that is on a file system different from that of the corresponding command line argument"),
-    OPTION("--no-preserve-root", "", "do not treat '/' specially"),
-    OPTION("--preserve-root", "", "do not remove '/' (default)")};
+    OPTION("", "--interactive", "prompt according to WHEN: never, once (-I), or always (-i)"),
+    OPTION("", "--one-file-system", "when removing a hierarchy recursively, skip any directory that is on a file system different from that of the corresponding command line argument"),
+    OPTION("", "--no-preserve-root", "do not treat '/' specially"),
+    OPTION("", "--preserve-root", "do not remove '/' (default)")};
 // clang-format on
 
 // ======================================================
@@ -126,14 +130,14 @@ auto get_system_error_message(DWORD error) -> std::wstring {
 /**
  * @brief Convert a path to Windows extended-length path (\\?\) format.
  *
- * This bypasses reserved device name resolution (nul, con, prn, aux, com*, lpt*)
- * and also removes the MAX_PATH limit. The path is first resolved to an
+ * This bypasses reserved device name resolution (nul, con, prn, aux, com*,
+ * lpt*) and also removes the MAX_PATH limit. The path is first resolved to an
  * absolute path via GetFullPathNameW, then prefixed with "\\?\\\\". If
  * resolution fails the original path is returned unchanged.
  */
 auto to_extended_path(const std::wstring& path) -> std::wstring {
   // Already in extended form
-  if (path.size() >= 4 && path.compare(0, 4, L"\\\\?\\" ) == 0) {
+  if (path.size() >= 4 && path.compare(0, 4, L"\\\\?\\") == 0) {
     return path;
   }
   wchar_t abs_buf[32768];
@@ -157,11 +161,50 @@ auto check_paths(const std::vector<std::string>& paths)
   return paths;
 }
 
+auto is_root_path(std::string_view path) -> bool {
+  if (path == "/" || path == "\\") {
+    return true;
+  }
+
+  if (path.size() >= 3 && std::isalpha(static_cast<unsigned char>(path[0])) &&
+      path[1] == ':' && (path[2] == '\\' || path[2] == '/')) {
+    for (size_t i = 3; i < path.size(); ++i) {
+      if (path[i] != '\\' && path[i] != '/') {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
+auto get_volume_root(const std::wstring& path) -> std::wstring {
+  wchar_t volume[MAX_PATH];
+  if (!GetVolumePathNameW(path.c_str(), volume, MAX_PATH)) {
+    return {};
+  }
+  return volume;
+}
+
+auto confirm_bulk_remove(size_t path_count, bool recursive) -> bool {
+  safeErrorPrint("rm: remove ");
+  safeErrorPrint(std::to_string(path_count));
+  safeErrorPrint(recursive ? " arguments recursively? (y/n) "
+                           : " arguments? (y/n) ");
+
+  char response = '\0';
+  std::cin >> response;
+  return response == 'y' || response == 'Y';
+}
+
 /**
  * @brief Remove a file or directory
  * @param path Path to remove
- * @param ctx Command context with options
- * @return true if removal was successful, false on error
+ * @param
+ * ctx Command context with options
+ * @return true if removal was successful,
+ * false on error
  */
 auto remove_path(const std::string& path,
                  const CommandContext<RM_OPTIONS.size()>& ctx) -> bool {
@@ -178,6 +221,17 @@ auto remove_path(const std::string& path,
                    ctx.get<bool>("-r", false) || ctx.get<bool>("-R", false);
   bool verbose =
       ctx.get<bool>("--verbose", false) || ctx.get<bool>("-v", false);
+  bool one_file_system = ctx.get<bool>("--one-file-system", false);
+  bool no_preserve_root = ctx.get<bool>("--no-preserve-root", false);
+  bool preserve_root =
+      ctx.get<bool>("--preserve-root", false) || !no_preserve_root;
+
+  if (preserve_root && is_root_path(path)) {
+    safeErrorPrint("rm: it is dangerous to operate recursively on root '");
+    safeErrorPrint(path);
+    safeErrorPrint("'\n");
+    return false;
+  }
 
   if (attr == INVALID_FILE_ATTRIBUTES) {
     if (force) {
@@ -214,7 +268,21 @@ auto remove_path(const std::string& path,
   if (attr & FILE_ATTRIBUTE_DIRECTORY) {
     // Recursive function to delete directory with post-order traversal
     std::function<bool(const std::wstring&)> remove_directory_recursive;
+    std::wstring root_volume = one_file_system ? get_volume_root(wpath) : L"";
     remove_directory_recursive = [&](const std::wstring& dirPath) -> bool {
+      if (one_file_system && !root_volume.empty()) {
+        std::wstring current_volume = get_volume_root(dirPath);
+        if (!current_volume.empty() && current_volume != root_volume) {
+          if (verbose) {
+            std::string dirPathStr = wstring_to_utf8(dirPath);
+            safePrint("skipping directory '");
+            safePrint(dirPathStr);
+            safePrintLn("' on a different file system");
+          }
+          return true;
+        }
+      }
+
       // First, enumerate all items in the directory
       std::wstring searchPath = dirPath + L"\\*";
       WIN32_FIND_DATAW findData;
@@ -364,12 +432,30 @@ auto process_paths(const std::vector<std::string>& paths,
 auto process_command(const CommandContext<RM_OPTIONS.size()>& ctx)
     -> cp::Result<bool> {
   std::vector<std::string> paths;
+  bool recursive = ctx.get<bool>("--recursive", false) ||
+                   ctx.get<bool>("-r", false) || ctx.get<bool>("-R", false);
+  bool ask_once = ctx.get<bool>("-I", false);
   for (auto arg : ctx.positionals) {
-    paths.push_back(std::string(arg));
+    std::string file_arg(arg);
+    if (contains_wildcard(file_arg)) {
+      auto glob_result = glob_expand(file_arg);
+      if (glob_result.expanded) {
+        for (const auto& file : glob_result.files) {
+          paths.push_back(wstring_to_utf8(file));
+        }
+        continue;
+      }
+    }
+    paths.push_back(file_arg);
   }
 
   return check_paths(paths).and_then(
       [&](const std::vector<std::string>& valid_paths) {
+        if (ask_once && (recursive || valid_paths.size() > 3)) {
+          if (!confirm_bulk_remove(valid_paths.size(), recursive)) {
+            return cp::Result<bool>{true};
+          }
+        }
         return process_paths(valid_paths, ctx);
       });
 }

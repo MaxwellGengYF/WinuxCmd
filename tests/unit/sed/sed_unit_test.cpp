@@ -54,6 +54,22 @@ TEST(sed, script_file_and_quiet) {
   EXPECT_EQ_TEXT(r.stdout_text, "bar\n");
 }
 
+TEST(sed, in_place_edit) {
+  TempDir tmp;
+  tmp.write("a.txt", "foo\nbar\n");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"sed.exe", {L"-i", L"s/foo/baz/", L"a.txt"});
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_EQ_TEXT(r.stdout_text, "");
+
+  auto content = tmp.read("a.txt");
+  EXPECT_EQ_TEXT(content, "baz\nbar\n");
+}
+
 TEST(sed, extended_regex_option) {
   TempDir tmp;
   tmp.write("a.txt", "a1\nb2\n");
@@ -143,4 +159,50 @@ TEST(sed, quit_command) {
 
   EXPECT_EQ(r.exit_code, 0);
   EXPECT_EQ_TEXT(r.stdout_text, "one\ntwo\n");
+}
+
+TEST(sed, wildcard_files) {
+  TempDir tmp;
+  tmp.write("file1.txt", "hello world\n");
+  tmp.write("file2.txt", "hello there\n");
+  tmp.write("other.log", "hello log\n");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"sed.exe", {L"s/hello/bye/", L"*.txt"});
+
+  TEST_LOG_CMD_LIST("sed.exe", L"s/hello/bye/", L"*.txt");
+
+  auto r = p.run();
+
+  TEST_LOG_EXIT_CODE(r);
+  TEST_LOG("sed output", r.stdout_text);
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("bye world") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("bye there") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("bye log") == std::string::npos);
+}
+
+TEST(sed, wildcard_question_mark) {
+  TempDir tmp;
+  tmp.write("a1.txt", "foo bar\n");
+  tmp.write("a2.txt", "foo baz\n");
+  tmp.write("a10.txt", "foo qux\n");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"sed.exe", {L"s/foo/REPLACED/", L"a?.txt"});
+
+  TEST_LOG_CMD_LIST("sed.exe", L"s/foo/REPLACED/", L"a?.txt");
+
+  auto r = p.run();
+
+  TEST_LOG_EXIT_CODE(r);
+  TEST_LOG("sed output", r.stdout_text);
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("REPLACED bar") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("REPLACED baz") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("REPLACED qux") == std::string::npos);
 }

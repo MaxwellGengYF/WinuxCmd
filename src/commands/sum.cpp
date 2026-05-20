@@ -31,7 +31,7 @@
 /// @Copyright: Copyright © 2026 WinuxCmd
 
 #include "pch/pch.h"
-//include other header after pch.h
+// include other header after pch.h
 #include "core/command_macros.h"
 
 import std;
@@ -43,9 +43,10 @@ using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
 
 auto constexpr SUM_OPTIONS = std::array{
-    OPTION("-r", "--sysv", "use System V sum algorithm (512-byte blocks)", BOOL_TYPE),
-    OPTION("-s", "--bsd", "use BSD sum algorithm (1024-byte blocks)", BOOL_TYPE)
-};
+    OPTION("-r", "--sysv", "use System V sum algorithm (512-byte blocks)",
+           BOOL_TYPE),
+    OPTION("-s", "--bsd", "use BSD sum algorithm (1024-byte blocks)",
+           BOOL_TYPE)};
 
 namespace sum_pipeline {
 namespace cp = core::pipeline;
@@ -61,7 +62,17 @@ auto build_config(const CommandContext<SUM_OPTIONS.size()>& ctx)
   cfg.use_sysv = ctx.get<bool>("--sysv", false) || ctx.get<bool>("-r", false);
 
   for (auto arg : ctx.positionals) {
-    cfg.files.push_back(std::string(arg));
+    std::string file_arg(arg);
+    if (contains_wildcard(file_arg)) {
+      auto glob_result = glob_expand(file_arg);
+      if (glob_result.expanded) {
+        for (const auto& file : glob_result.files) {
+          cfg.files.push_back(wstring_to_utf8(file));
+        }
+        continue;
+      }
+    }
+    cfg.files.push_back(file_arg);
   }
 
   if (cfg.files.empty()) {
@@ -71,7 +82,8 @@ auto build_config(const CommandContext<SUM_OPTIONS.size()>& ctx)
   return cfg;
 }
 
-auto calculate_checksum(const std::string& filename, uint32_t& block_count, bool use_sysv) -> cp::Result<uint16_t> {
+auto calculate_checksum(const std::string& filename, uint32_t& block_count,
+                        bool use_sysv) -> cp::Result<uint16_t> {
   std::vector<char> data;
 
   if (filename == "-" || filename.empty()) {
@@ -80,7 +92,8 @@ auto calculate_checksum(const std::string& filename, uint32_t& block_count, bool
   } else {
     std::ifstream f(filename, std::ios::binary);
     if (!f) {
-      return std::unexpected(std::string("cannot open '") + filename + "' for reading");
+      return std::unexpected(std::string("cannot open '") + filename +
+                             "' for reading");
     }
     data.assign(std::istreambuf_iterator<char>(f),
                 std::istreambuf_iterator<char>());
@@ -91,7 +104,8 @@ auto calculate_checksum(const std::string& filename, uint32_t& block_count, bool
 
   // Calculate block count
   int block_size = use_sysv ? 512 : 1024;
-  block_count = (static_cast<uint32_t>(data.size()) + block_size - 1) / block_size;
+  block_count =
+      (static_cast<uint32_t>(data.size()) + block_size - 1) / block_size;
 
   // Simple checksum algorithm (BSD)
   uint16_t checksum = 0;
@@ -130,19 +144,19 @@ auto run(const Config& cfg) -> int {
 
 }  // namespace sum_pipeline
 
-REGISTER_COMMAND(sum, "sum",
-                 "sum [OPTION]... [FILE]...",
-                 "Checksum and count the blocks in a file.\n"
-                 "\n"
-                 "With no FILE, or when FILE is -, read standard input.\n"
-                 "\n"
-                 "Note: This is a simplified implementation. The BSD algorithm\n"
-                 "is used by default (1024-byte blocks).",
-                 "  sum file.txt\n"
-                 "  echo \"test\" | sum\n"
-                 "  sum -r file.txt",
-                 "cksum(1), md5sum(1)", "WinuxCmd",
-                 "Copyright © 2026 WinuxCmd", SUM_OPTIONS) {
+REGISTER_COMMAND(
+    sum, "sum", "sum [OPTION]... [FILE]...",
+    "Checksum and count the blocks in a file.\n"
+    "\n"
+    "With no FILE, or when FILE is -, read standard input.\n"
+    "\n"
+    "Note: This is a simplified implementation. The BSD algorithm\n"
+    "is used by default (1024-byte blocks).",
+    "  sum file.txt\n"
+    "  echo \"test\" | sum\n"
+    "  sum -r file.txt",
+    "cksum(1), md5sum(1)", "WinuxCmd", "Copyright © 2026 WinuxCmd",
+    SUM_OPTIONS) {
   using namespace sum_pipeline;
 
   auto cfg_result = build_config(ctx);

@@ -31,7 +31,7 @@
 /// @Copyright: Copyright © 2026 WinuxCmd
 
 #include "pch/pch.h"
-//include other header after pch.h
+// include other header after pch.h
 #include "core/command_macros.h"
 
 import std;
@@ -45,11 +45,13 @@ using cmd::meta::OptionType;
 auto constexpr COMM_OPTIONS = std::array{
     OPTION("-1", "", "suppress column 1 (lines unique to FILE1)", BOOL_TYPE),
     OPTION("-2", "", "suppress column 2 (lines unique to FILE2)", BOOL_TYPE),
-    OPTION("-3", "", "suppress column 3 (lines that appear in both files)", BOOL_TYPE),
-    OPTION("--check-order", "", "check that the input is correctly sorted", STRING_TYPE),
-    OPTION("--nocheck-order", "", "do not check that the input is correctly sorted", STRING_TYPE)
-    // --output-delimiter (not implemented)
-};
+    OPTION("-3", "", "suppress column 3 (lines that appear in both files)",
+           BOOL_TYPE),
+    OPTION("--check-order", "", "check that the input is correctly sorted",
+           STRING_TYPE),
+    OPTION("--nocheck-order", "",
+           "do not check that the input is correctly sorted", STRING_TYPE),
+    OPTION("--output-delimiter", "", "separate columns with STR", STRING_TYPE)};
 
 namespace comm_pipeline {
 namespace cp = core::pipeline;
@@ -59,6 +61,7 @@ struct Config {
   bool suppress_col2 = false;
   bool suppress_col3 = false;
   bool check_order = false;
+  std::string output_delimiter = "\t";
   SmallVector<std::string, 64> files;
 };
 
@@ -69,13 +72,26 @@ auto build_config(const CommandContext<COMM_OPTIONS.size()>& ctx)
   cfg.suppress_col2 = ctx.get<bool>("-2", false);
   cfg.suppress_col3 = ctx.get<bool>("-3", false);
   cfg.check_order = ctx.get<bool>("--check-order", false);
+  cfg.output_delimiter = ctx.get<std::string>("--output-delimiter", "\t");
 
   for (auto arg : ctx.positionals) {
-    cfg.files.push_back(std::string(arg));
+    std::string file_arg(arg);
+    if (contains_wildcard(file_arg)) {
+      auto glob_result = glob_expand(file_arg);
+      if (glob_result.expanded) {
+        for (const auto& file : glob_result.files) {
+          cfg.files.push_back(wstring_to_utf8(file));
+        }
+        continue;
+      }
+    }
+    cfg.files.push_back(file_arg);
   }
 
   if (cfg.files.size() < 2) {
-    return std::unexpected("missing operand after '" + (cfg.files.empty() ? std::string() : cfg.files[0]) + "'");
+    return std::unexpected("missing operand after '" +
+                           (cfg.files.empty() ? std::string() : cfg.files[0]) +
+                           "'");
   }
   if (cfg.files.size() > 2) {
     return std::unexpected("extra operand '" + cfg.files[2] + "'");
@@ -85,7 +101,8 @@ auto build_config(const CommandContext<COMM_OPTIONS.size()>& ctx)
 }
 
 // Read sorted lines from file
-auto read_lines(const std::string& filename) -> cp::Result<SmallVector<std::string, 1024>> {
+auto read_lines(const std::string& filename)
+    -> cp::Result<SmallVector<std::string, 1024>> {
   SmallVector<std::string, 1024> lines;
 
   if (filename == "-") {
@@ -98,7 +115,8 @@ auto read_lines(const std::string& filename) -> cp::Result<SmallVector<std::stri
     // Read from file
     std::ifstream f(filename, std::ios::binary);
     if (!f) {
-      return std::unexpected(std::string("cannot open '") + filename + "' for reading");
+      return std::unexpected(std::string("cannot open '") + filename +
+                             "' for reading");
     }
 
     std::string line;
@@ -144,7 +162,7 @@ auto run(const Config& cfg) -> int {
   size_t i = 0, j = 0;
   while (i < lines1.size() || j < lines2.size()) {
     int cmp_result = 0;
-    
+
     if (i >= lines1.size()) {
       cmp_result = 1;
     } else if (j >= lines2.size()) {
@@ -163,7 +181,7 @@ auto run(const Config& cfg) -> int {
       // Line only in file2
       if (!cfg.suppress_col2) {
         if (!cfg.suppress_col1) {
-          safePrint("\t");
+          safePrint(cfg.output_delimiter);
         }
         safePrintLn(lines2[j]);
       }
@@ -172,10 +190,10 @@ auto run(const Config& cfg) -> int {
       // Line in both files
       if (!cfg.suppress_col3) {
         if (!cfg.suppress_col1) {
-          safePrint("\t");
+          safePrint(cfg.output_delimiter);
         }
         if (!cfg.suppress_col2) {
-          safePrint("\t");
+          safePrint(cfg.output_delimiter);
         }
         safePrintLn(lines1[i]);
       }
@@ -189,23 +207,23 @@ auto run(const Config& cfg) -> int {
 
 }  // namespace comm_pipeline
 
-REGISTER_COMMAND(comm, "comm",
-                 "comm [OPTION]... FILE1 FILE2",
-                 "Compare sorted files line by line.\n"
-                 "\n"
-                 "With no options, produce three-column output. Column one contains\n"
-                 "lines unique to FILE1, column two contains lines unique to FILE2,\n"
-                 "and column three contains lines common to both files.\n"
-                 "\n"
-                 "Note: Input files must be sorted. This implementation does not\n"
-                 "automatically sort the input files.",
-                 "  comm file1 file2\n"
-                 "  comm -12 file1 file2        # show only common lines\n"
-                 "  comm -23 file1 file2        # show only lines in file1\n"
-                 "  comm -13 file1 file2        # show only lines in file2\n"
-                 "  comm -3 file1 file2 | wc -l # count common lines",
-                 "cmp(1), diff(1), uniq(1)", "WinuxCmd",
-                 "Copyright © 2026 WinuxCmd", COMM_OPTIONS) {
+REGISTER_COMMAND(
+    comm, "comm", "comm [OPTION]... FILE1 FILE2",
+    "Compare sorted files line by line.\n"
+    "\n"
+    "With no options, produce three-column output. Column one contains\n"
+    "lines unique to FILE1, column two contains lines unique to FILE2,\n"
+    "and column three contains lines common to both files.\n"
+    "\n"
+    "Note: Input files must be sorted. This implementation does not\n"
+    "automatically sort the input files.",
+    "  comm file1 file2\n"
+    "  comm -12 file1 file2        # show only common lines\n"
+    "  comm -23 file1 file2        # show only lines in file1\n"
+    "  comm -13 file1 file2        # show only lines in file2\n"
+    "  comm -3 file1 file2 | wc -l # count common lines",
+    "cmp(1), diff(1), uniq(1)", "WinuxCmd", "Copyright © 2026 WinuxCmd",
+    COMM_OPTIONS) {
   using namespace comm_pipeline;
 
   auto cfg_result = build_config(ctx);

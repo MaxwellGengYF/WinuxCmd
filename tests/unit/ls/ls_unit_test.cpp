@@ -22,8 +22,10 @@
  *  - File: ls_unit_test.cpp
  *  - CopyrightYear: 2026
  */
-#include "framework/winuxtest.h"
 #include <filesystem>
+#include <regex>
+
+#include "framework/winuxtest.h"
 
 TEST(ls, ls_basic) {
   TempDir tmp;
@@ -70,6 +72,28 @@ TEST(ls, ls_long_format) {
   EXPECT_EQ(r.exit_code, 0);
   // Verify the output contains the expected file in long format
   EXPECT_TRUE(r.stdout_text.find("file1.txt") != std::string::npos);
+}
+
+TEST(ls, ls_long_format_reports_hardlink_count) {
+  TempDir tmp;
+  tmp.write("original.txt", "content");
+
+  std::filesystem::path original = tmp.path / "original.txt";
+  std::filesystem::path alias = tmp.path / "alias.txt";
+  bool created = CreateHardLinkW(alias.wstring().c_str(),
+                                 original.wstring().c_str(), nullptr) != FALSE;
+  EXPECT_TRUE(created);
+  if (!created) return;
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"ls.exe", {L"-l", L"original.txt"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(
+      std::regex_search(r.stdout_text, std::regex(R"([dl-][rwx-]{9}\s+2\s+)")));
 }
 
 TEST(ls, ls_all) {
@@ -143,6 +167,45 @@ TEST(ls, ls_wildcard) {
   EXPECT_TRUE(r.stdout_text.find("test1.txt") != std::string::npos);
   EXPECT_TRUE(r.stdout_text.find("test2.txt") != std::string::npos);
   EXPECT_TRUE(r.stdout_text.find("other.log") == std::string::npos);
+}
+
+TEST(ls, ls_char_class_wildcard) {
+  TempDir tmp;
+  tmp.write("a1.txt", "a1");
+  tmp.write("a2.txt", "a2");
+  tmp.write("b1.txt", "b1");
+  tmp.write("c.log", "c");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"ls.exe", {L"a?.txt"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("a1.txt") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("a2.txt") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("b1.txt") == std::string::npos);
+}
+
+TEST(ls, ls_char_class_range_wildcard) {
+  TempDir tmp;
+  tmp.write("a.txt", "a");
+  tmp.write("b.txt", "b");
+  tmp.write("c.txt", "c");
+  tmp.write("d.txt", "d");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"ls.exe", {L"[ab]*.txt"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("a.txt") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("b.txt") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("c.txt") == std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("d.txt") == std::string::npos);
 }
 
 TEST(ls, ls_directory_only) {
@@ -313,6 +376,74 @@ TEST(ls, ls_reverse_sort) {
   size_t ccc_pos = r.stdout_text.find("ccc.txt");
   EXPECT_GT(aaa_pos, bbb_pos);
   EXPECT_GT(bbb_pos, ccc_pos);
+}
+
+TEST(ls, ls_extension_sort) {
+  TempDir tmp;
+  tmp.write("README", "readme");
+  tmp.write("alpha.log", "log");
+  tmp.write("beta.txt", "txt");
+  tmp.write("gamma.txt", "txt2");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"ls.exe", {L"-1", L"-X"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  size_t readme_pos = r.stdout_text.find("README");
+  size_t log_pos = r.stdout_text.find("alpha.log");
+  size_t beta_pos = r.stdout_text.find("beta.txt");
+  size_t gamma_pos = r.stdout_text.find("gamma.txt");
+  EXPECT_TRUE(readme_pos != std::string::npos);
+  EXPECT_TRUE(log_pos != std::string::npos);
+  EXPECT_TRUE(beta_pos != std::string::npos);
+  EXPECT_TRUE(gamma_pos != std::string::npos);
+  EXPECT_LT(readme_pos, log_pos);
+  EXPECT_LT(log_pos, beta_pos);
+  EXPECT_LT(beta_pos, gamma_pos);
+}
+
+TEST(ls, ls_ignore_pattern) {
+  TempDir tmp;
+  tmp.write("keep.txt", "keep");
+  tmp.write("skip.tmp", "skip");
+  tmp.write("also.txt", "also");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"ls.exe", {L"-1", L"-I", L"*.tmp"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("keep.txt") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("also.txt") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("skip.tmp") == std::string::npos);
+}
+
+TEST(ls, ls_version_sort) {
+  TempDir tmp;
+  tmp.write("file1.txt", "1");
+  tmp.write("file10.txt", "10");
+  tmp.write("file2.txt", "2");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"ls.exe", {L"-1", L"-v"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  size_t file1_pos = r.stdout_text.find("file1.txt");
+  size_t file2_pos = r.stdout_text.find("file2.txt");
+  size_t file10_pos = r.stdout_text.find("file10.txt");
+  EXPECT_TRUE(file1_pos != std::string::npos);
+  EXPECT_TRUE(file2_pos != std::string::npos);
+  EXPECT_TRUE(file10_pos != std::string::npos);
+  EXPECT_LT(file1_pos, file2_pos);
+  EXPECT_LT(file2_pos, file10_pos);
 }
 
 TEST(ls, ls_long_with_file) {
