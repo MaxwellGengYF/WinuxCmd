@@ -57,6 +57,38 @@ TEST(find, find_iname_and_type) {
   EXPECT_TRUE(r.stdout_text.find("file.txt") == std::string::npos);
 }
 
+TEST(find, find_path_pattern_matches_full_path) {
+  TempDir tmp;
+  std::filesystem::create_directories(tmp.path / "src" / "nested");
+  tmp.write("src/nested/match.txt", "");
+  tmp.write("src/nested/skip.log", "");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"find.exe", {L"src", L"-path", L"src/*/*.txt"});
+
+  auto r = p.run();
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("src/nested/match.txt") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("src/nested/skip.log") == std::string::npos);
+}
+
+TEST(find, find_ipath_pattern_is_case_insensitive) {
+  TempDir tmp;
+  std::filesystem::create_directories(tmp.path / "Case" / "Inner");
+  tmp.write("Case/Inner/ReadMe.TXT", "");
+  tmp.write("Case/Inner/Other.log", "");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"find.exe", {L"Case", L"-ipath", L"case/*/*.txt"});
+
+  auto r = p.run();
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("Case/Inner/ReadMe.TXT") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("Case/Inner/Other.log") == std::string::npos);
+}
+
 TEST(find, find_maxdepth) {
   TempDir tmp;
   std::filesystem::create_directories(tmp.path / "a" / "b");
@@ -71,6 +103,20 @@ TEST(find, find_maxdepth) {
   EXPECT_EQ(r.exit_code, 0);
   EXPECT_TRUE(r.stdout_text.find("a/top.txt") != std::string::npos);
   EXPECT_TRUE(r.stdout_text.find("a/b/deep.txt") == std::string::npos);
+}
+
+TEST(find, find_print0_uses_nul_separator) {
+  TempDir tmp;
+  std::filesystem::create_directories(tmp.path / "a");
+  tmp.write("a/with space.txt", "");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"find.exe", {L"a", L"-name", L"*.txt", L"-print0"});
+
+  auto r = p.run();
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_EQ(r.stdout_text, std::string("a/with space.txt\0", 17));
 }
 
 TEST(find, find_missing_path_returns_error) {

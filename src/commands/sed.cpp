@@ -22,6 +22,10 @@ using cmd::meta::OptionType;
 auto constexpr SED_OPTIONS = std::array{
     OPTION("-n", "--quiet", "suppress automatic printing of pattern space"),
     OPTION("", "--silent", "alias for -n"),
+    OPTION("-s", "--separate",
+           "consider files as separate rather than as a single continuous "
+           "long stream"),
+    OPTION("-z", "--null-data", "separate lines by NUL characters"),
     OPTION("-i", "--in-place", "edit files in place"),
     OPTION("-e", "--expression",
            "add the script to the commands to be executed", STRING_TYPE),
@@ -54,6 +58,8 @@ struct Script {
 
 struct Config {
   bool suppress_output = false;
+  bool separate_files = false;
+  char delimiter = '\n';
   bool in_place = false;
   SmallVector<Script, 32> scripts;
   SmallVector<std::string, 64> files;
@@ -415,6 +421,11 @@ auto build_config(const CommandContext<SED_OPTIONS.size()>& ctx)
   cfg.suppress_output = ctx.get<bool>("--quiet", false) ||
                         ctx.get<bool>("-n", false) ||
                         ctx.get<bool>("--silent", false);
+  cfg.separate_files =
+      ctx.get<bool>("--separate", false) || ctx.get<bool>("-s", false);
+  if (ctx.get<bool>("--null-data", false) || ctx.get<bool>("-z", false)) {
+    cfg.delimiter = '\0';
+  }
   cfg.in_place =
       ctx.get<bool>("--in-place", false) || ctx.get<bool>("-i", false);
 
@@ -445,11 +456,24 @@ auto build_config(const CommandContext<SED_OPTIONS.size()>& ctx)
     scripts.insert(scripts.end(), fscripts->begin(), fscripts->end());
   }
 
+  auto positional_looks_like_file = [](std::string_view value) {
+    if (value == "-") return true;
+    if (contains_wildcard(value)) return true;
+    std::error_code ec;
+    return std::filesystem::exists(std::filesystem::path(value), ec);
+  };
+
   size_t consumed_positional = 0;
   if (scripts.empty()) {
     if (ctx.positionals.empty()) return std::unexpected("script required");
-    size_t script_end =
-        ctx.positionals.size() >= 2 ? ctx.positionals.size() - 1 : 1;
+    size_t script_end = 1;
+    while (script_end + 1 < ctx.positionals.size() &&
+           !positional_looks_like_file(ctx.positionals[script_end])) {
+      auto maybe_script =
+          parse_script_line(ctx.positionals[script_end], cfg.regex_syntax);
+      if (!maybe_script) break;
+      ++script_end;
+    }
     for (size_t i = 0; i < script_end; ++i) {
       auto s = parse_script_line(ctx.positionals[i], cfg.regex_syntax);
       if (!s) return std::unexpected(s.error());
@@ -469,8 +493,9 @@ auto build_config(const CommandContext<SED_OPTIONS.size()>& ctx)
 
 auto apply_scripts(std::string_view line, const std::vector<Script>& scripts,
                    std::vector<ScriptState>& states, size_t line_no,
-                   bool suppress, bool is_last, std::string& out_line,
-                   bool& matched_any, bool& should_quit) -> bool {
+                   bool suppress, bool is_last, char output_delim,
+                   std::string& out_line, bool& matched_any, bool& should_quit)
+    -> bool {
   std::string current(line);
   matched_any = false;
   std::vector<std::string> insert_before;
@@ -589,12 +614,12 @@ auto apply_scripts(std::string_view line, const std::vector<Script>& scripts,
 
   if (!deleted && (!suppress || explicit_print)) {
     output.append(current);
-    output.push_back('\n');
+    output.push_back(output_delim);
   }
 
   if (deleted && explicit_print) {
     output.append(current);
-    output.push_back('\n');
+    output.push_back(output_delim);
   }
 
   for (auto& a : append_after) {
@@ -602,34 +627,31 @@ auto apply_scripts(std::string_view line, const std::vector<Script>& scripts,
     output.push_back('\n');
   }
 
-  if (!output.empty() && output.back() == '\n') output.pop_back();
+  if (!output.empty() && output.back() == output_delim) output.pop_back();
   out_line.swap(output);
   return !out_line.empty();
 }
 
-auto process_stream(std::istream& in, const Config& cfg, std::string* capture)
-    -> bool {
-  const char delim = '\n';
-  size_t line_no = 1;
-  std::vector<ScriptState> states(cfg.scripts.size());
+auto process_stream(std::istream& in, const Config& cfg,
+                    std::vector<ScriptState>& states, size_t& line_no,
+                    bool final_input, std::string* capture) -> bool {
   std::vector<Script> scripts_vec(cfg.scripts.begin(), cfg.scripts.end());
   std::string line;
-  while (std::getline(in, line)) {
+  while (std::getline(in, line, cfg.delimiter)) {
     std::string out_line;
     bool matched_any = false;
     bool should_quit = false;
-    bool is_last = false;
-    if (in.peek() == EOF) is_last = true;
-    bool should_print =
-        apply_scripts(line, scripts_vec, states, line_no, cfg.suppress_output,
-                      is_last, out_line, matched_any, should_quit);
+    bool is_last = final_input && in.peek() == EOF;
+    bool should_print = apply_scripts(
+        line, scripts_vec, states, line_no, cfg.suppress_output, is_last,
+        cfg.delimiter, out_line, matched_any, should_quit);
     if (should_print) {
       if (capture) {
         capture->append(out_line);
-        capture->push_back(delim);
+        capture->push_back(cfg.delimiter);
       } else {
         safePrint(out_line);
-        safePrint(std::string_view(&delim, 1));
+        safePrint(std::string_view(&cfg.delimiter, 1));
       }
     }
     if (should_quit) return true;
@@ -710,7 +732,11 @@ auto process_files(const Config& cfg) -> int {
   }
 
   bool any_error = false;
-  for (const auto& f : expanded_files) {
+  std::vector<ScriptState> states(cfg.scripts.size());
+  size_t line_no = 1;
+  for (size_t file_index = 0; file_index < expanded_files.size();
+       ++file_index) {
+    const auto& f = expanded_files[file_index];
     if (cfg.in_place && f == "-") {
       safeErrorPrint("sed: cannot edit standard input in place\n");
       any_error = true;
@@ -731,9 +757,18 @@ auto process_files(const Config& cfg) -> int {
       in = &file;
     }
 
+    if (cfg.separate_files || cfg.in_place) {
+      states.assign(cfg.scripts.size(), {});
+      line_no = 1;
+    }
+
+    const bool final_input =
+        cfg.separate_files || (file_index + 1 == expanded_files.size());
+
     if (cfg.in_place) {
       std::string output;
-      bool should_quit = process_stream(*in, cfg, &output);
+      bool should_quit =
+          process_stream(*in, cfg, states, line_no, true, &output);
       file.close();
       if (!replace_file_atomically(f, output)) {
         any_error = true;
@@ -742,7 +777,8 @@ auto process_files(const Config& cfg) -> int {
       continue;
     }
 
-    if (process_stream(*in, cfg, nullptr)) return any_error ? 1 : 0;
+    if (process_stream(*in, cfg, states, line_no, final_input, nullptr))
+      return any_error ? 1 : 0;
   }
   return any_error ? 1 : 0;
 }

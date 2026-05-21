@@ -161,6 +161,42 @@ TEST(sed, quit_command) {
   EXPECT_EQ_TEXT(r.stdout_text, "one\ntwo\n");
 }
 
+TEST(sed, separate_files_resets_addresses) {
+  TempDir tmp;
+  tmp.write("a.txt", "one\n");
+  tmp.write("b.txt", "two\n");
+
+  Pipeline combined;
+  combined.set_cwd(tmp.wpath());
+  combined.add(L"sed.exe", {L"-n", L"$p", L"a.txt", L"b.txt"});
+  auto combined_result = combined.run();
+
+  EXPECT_EQ(combined_result.exit_code, 0);
+  EXPECT_EQ_TEXT(combined_result.stdout_text, "two\n");
+
+  Pipeline separate;
+  separate.set_cwd(tmp.wpath());
+  separate.add(L"sed.exe", {L"-n", L"-s", L"$p", L"a.txt", L"b.txt"});
+  auto separate_result = separate.run();
+
+  EXPECT_EQ(separate_result.exit_code, 0);
+  EXPECT_EQ_TEXT(separate_result.stdout_text, "one\ntwo\n");
+}
+
+TEST(sed, null_data_uses_nul_delimiter) {
+  TempDir tmp;
+  tmp.write_bytes("a.bin", {'f', 'o', 'o', '\0', 'b', 'a', 'r', '\0'});
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"sed.exe", {L"-z", L"s/foo/baz/", L"a.bin"});
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_EQ(r.stdout_text.size(), 8u);
+  EXPECT_EQ(r.stdout_text, std::string("baz\0bar\0", 8));
+}
+
 TEST(sed, wildcard_files) {
   TempDir tmp;
   tmp.write("file1.txt", "hello world\n");

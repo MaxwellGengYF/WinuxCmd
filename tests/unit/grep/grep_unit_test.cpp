@@ -212,3 +212,53 @@ TEST(grep, grep_wildcard_pattern) {
   EXPECT_TRUE(r.stdout_text.find("#pragma once") == std::string::npos);
   EXPECT_TRUE(r.stdout_text.find("just text") == std::string::npos);
 }
+
+TEST(grep, grep_exclude_from_file) {
+  TempDir tmp;
+  tmp.write("keep.txt", "needle\n");
+  tmp.write("keep2.txt", "needle\n");
+  tmp.write("skip.log", "needle\n");
+  tmp.write("exclude.lst", "skip.*\n");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"grep.exe",
+        {L"--exclude-from", L"exclude.lst", L"needle", L"*.txt", L"*.log"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("keep.txt") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("keep2.txt") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("skip.log") == std::string::npos);
+}
+
+TEST(grep, grep_binary_files_without_match_skips_binary_content) {
+  TempDir tmp;
+  tmp.write_bytes("binary.dat", {'a', 'l', 'p', 'h', 'a', '\0', 'n', 'e', 'e',
+                                 'd', 'l', 'e', '\n'});
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"grep.exe", {L"-I", L"needle", L"binary.dat"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 1);
+  EXPECT_EQ_TEXT(r.stdout_text, "");
+}
+
+TEST(grep, grep_binary_files_text_searches_binary_content) {
+  TempDir tmp;
+  tmp.write_bytes("binary.dat", {'a', 'l', 'p', 'h', 'a', '\0', 'n', 'e', 'e',
+                                 'd', 'l', 'e', '\n'});
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"grep.exe", {L"--binary-files=text", L"needle", L"binary.dat"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("needle") != std::string::npos);
+}

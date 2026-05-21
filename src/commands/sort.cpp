@@ -55,7 +55,7 @@ auto constexpr SORT_OPTIONS = std::array{
     OPTION("-h", "--human-numeric-sort",
            "compare human readable numbers (e.g., 1K, 2M)"),
     OPTION("-M", "--month-sort", "compare as month names [NOT SUPPORT]"),
-    OPTION("-m", "--merge", "merge already sorted files [NOT SUPPORT]"),
+    OPTION("-m", "--merge", "merge already sorted files"),
     OPTION("-n", "--numeric-sort",
            "compare according to string numerical value"),
     OPTION("-V", "--version-sort", "compare version numbers naturally"),
@@ -65,8 +65,14 @@ auto constexpr SORT_OPTIONS = std::array{
            "stabilize sort by disabling last-resort comparison [NOT SUPPORT]"),
     OPTION("-u", "--unique", "output only the first of equal runs"),
     OPTION("-z", "--zero-terminated", "line delimiter is NUL, not newline"),
+    OPTION("-c", "--check", "check whether input is sorted"),
+    OPTION("-C", "", "check whether input is sorted quietly"),
     OPTION("-o", "--output", "write result to FILE instead of standard output",
            STRING_TYPE),
+    OPTION(
+        "", "--files0-from",
+        "read input from the files specified by NUL-terminated names in FILE",
+        STRING_TYPE),
     OPTION("", "--sort", "set sort order; 'version' enables version sort",
            STRING_TYPE),
     OPTION("-t", "--field-separator",
@@ -76,6 +82,8 @@ auto constexpr SORT_OPTIONS = std::array{
 
 namespace sort_pipeline {
 namespace cp = core::pipeline;
+
+enum class OperationMode { Sort, Check, CheckQuiet };
 
 struct KeySpec {
   size_t start_field = 1;
@@ -90,10 +98,13 @@ struct Config {
   bool human_numeric = false;
   bool general_numeric = false;
   bool reverse = false;
+  bool merge = false;
   bool unique = false;
+  OperationMode mode = OperationMode::Sort;
   char delimiter = '\n';
   std::optional<char> field_separator;
   std::string output_file;
+  std::string files0_from;
   KeySpec key;
   SmallVector<std::string, 64>
       files{};  // SmallVector for paths, stack-allocated
@@ -109,6 +120,28 @@ auto read_source(std::string_view path) -> cp::Result<std::string> {
     return std::unexpected("cannot open '" + std::string(path) + "'");
   }
   return read_all(in);
+}
+
+auto read_files0_from(const std::string& path)
+    -> cp::Result<std::vector<std::string>> {
+  std::istream* input = nullptr;
+  std::ifstream file;
+  if (path == "-") {
+    input = &std::cin;
+  } else {
+    file.open(path, std::ios::binary);
+    if (!file.is_open()) {
+      return std::unexpected("cannot open file list '" + path + "'");
+    }
+    input = &file;
+  }
+
+  std::vector<std::string> paths;
+  std::string name;
+  while (std::getline(*input, name, '\0')) {
+    if (!name.empty()) paths.push_back(name);
+  }
+  return paths;
 }
 
 auto split_records(std::string_view content, char delimiter)
@@ -404,8 +437,6 @@ auto is_unsupported_used(const CommandContext<SORT_OPTIONS.size()>& ctx)
     return "--ignore-nonprinting is [NOT SUPPORT]";
   if (ctx.get<bool>("--month-sort", false) || ctx.get<bool>("-M", false))
     return "--month-sort is [NOT SUPPORT]";
-  if (ctx.get<bool>("--merge", false) || ctx.get<bool>("-m", false))
-    return "--merge is [NOT SUPPORT]";
   if (ctx.get<bool>("--random-sort", false) || ctx.get<bool>("-R", false))
     return "--random-sort is [NOT SUPPORT]";
   if (ctx.get<bool>("--stable", false) || ctx.get<bool>("-s", false))
@@ -430,7 +461,14 @@ auto build_config(const CommandContext<SORT_OPTIONS.size()>& ctx)
   cfg.general_numeric = ctx.get<bool>("--general-numeric-sort", false) ||
                         ctx.get<bool>("-g", false);
   cfg.reverse = ctx.get<bool>("--reverse", false) || ctx.get<bool>("-r", false);
+  cfg.merge = ctx.get<bool>("--merge", false) || ctx.get<bool>("-m", false);
   cfg.unique = ctx.get<bool>("--unique", false) || ctx.get<bool>("-u", false);
+  if (ctx.get<bool>("--check", false) || ctx.get<bool>("-c", false)) {
+    cfg.mode = OperationMode::Check;
+  }
+  if (ctx.get<bool>("-C", false)) {
+    cfg.mode = OperationMode::CheckQuiet;
+  }
   cfg.delimiter =
       (ctx.get<bool>("--zero-terminated", false) || ctx.get<bool>("-z", false))
           ? '\0'
@@ -438,6 +476,7 @@ auto build_config(const CommandContext<SORT_OPTIONS.size()>& ctx)
 
   cfg.output_file = ctx.get<std::string>("--output", "");
   if (cfg.output_file.empty()) cfg.output_file = ctx.get<std::string>("-o", "");
+  cfg.files0_from = ctx.get<std::string>("--files0-from", "");
 
   std::string sep = ctx.get<std::string>("--field-separator", "");
   if (sep.empty()) sep = ctx.get<std::string>("-t", "");
@@ -462,31 +501,42 @@ auto build_config(const CommandContext<SORT_OPTIONS.size()>& ctx)
     }
   }
 
-  for (auto p : ctx.positionals) {
-    std::string file_arg(p);
-    if (contains_wildcard(file_arg)) {
-      auto glob_result = glob_expand(file_arg);
-      if (glob_result.expanded) {
-        for (const auto& file : glob_result.files) {
-          cfg.files.push_back(wstring_to_utf8(file));
-        }
-        continue;
-      }
+  if (!cfg.files0_from.empty()) {
+    if (!ctx.positionals.empty()) {
+      return std::unexpected(
+          "--files0-from cannot be combined with file operands");
     }
-    cfg.files.push_back(file_arg);
+    auto listed = read_files0_from(cfg.files0_from);
+    if (!listed) return std::unexpected(listed.error());
+    for (const auto& file : *listed) {
+      cfg.files.push_back(file);
+    }
+  } else {
+    for (auto p : ctx.positionals) {
+      std::string file_arg(p);
+      if (contains_wildcard(file_arg)) {
+        auto glob_result = glob_expand(file_arg);
+        if (glob_result.expanded) {
+          for (const auto& file : glob_result.files) {
+            cfg.files.push_back(wstring_to_utf8(file));
+          }
+          continue;
+        }
+      }
+      cfg.files.push_back(file_arg);
+    }
+    if (cfg.files.empty()) cfg.files.push_back("-");
   }
-  if (cfg.files.empty()) cfg.files.push_back("-");
 
   return cfg;
 }
 
-auto run(const Config& cfg) -> int {
+auto load_records(const Config& cfg) -> cp::Result<std::vector<std::string>> {
   std::vector<std::string> records;
   for (size_t i = 0; i < cfg.files.size(); ++i) {
     auto content = read_source(cfg.files[i]);
     if (!content) {
-      cp::report_error(content, L"sort");
-      return 1;
+      return std::unexpected(content.error());
     }
     auto chunk = split_records(*content, cfg.delimiter);
     for (auto& r : chunk) {
@@ -494,12 +544,51 @@ auto run(const Config& cfg) -> int {
     }
   }
 
-  std::stable_sort(records.begin(), records.end(),
-                   [&](const auto& a, const auto& b) {
-                     int cmp = compare_records(a, b, cfg);
-                     if (cfg.reverse) return cmp > 0;
-                     return cmp < 0;
-                   });
+  return records;
+}
+
+auto is_before(const std::string& a, const std::string& b, const Config& cfg)
+    -> bool {
+  int cmp = compare_records(a, b, cfg);
+  if (cfg.reverse) return cmp > 0;
+  return cmp < 0;
+}
+
+auto check_sorted(const std::vector<std::string>& records, const Config& cfg)
+    -> std::optional<size_t> {
+  if (records.size() < 2) return std::nullopt;
+  for (size_t i = 1; i < records.size(); ++i) {
+    if (!is_before(records[i - 1], records[i], cfg) &&
+        compare_records(records[i - 1], records[i], cfg) != 0) {
+      return i;
+    }
+  }
+  return std::nullopt;
+}
+
+auto run(const Config& cfg) -> int {
+  auto loaded = load_records(cfg);
+  if (!loaded) {
+    cp::report_custom_error(L"sort", utf8_to_wstring(loaded.error()));
+    return 1;
+  }
+
+  std::vector<std::string> records = std::move(*loaded);
+
+  if (cfg.mode != OperationMode::Sort) {
+    auto disorder = check_sorted(records, cfg);
+    if (disorder) {
+      if (cfg.mode == OperationMode::Check) {
+        cp::report_custom_error(L"sort", L"input is not sorted");
+      }
+      return 1;
+    }
+    return 0;
+  }
+
+  std::stable_sort(
+      records.begin(), records.end(),
+      [&](const auto& a, const auto& b) { return is_before(a, b, cfg); });
 
   if (cfg.unique) {
     std::vector<std::string> unique_records;

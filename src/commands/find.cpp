@@ -50,12 +50,20 @@ using cmd::meta::OptionType;
  *
  * @par Options:
  *
- * - @a -name: Base of file name (the path with the leading directories removed)
+ * - @a -name: Base of file name (the path with the leading directories
+ * removed)
  * matches shell pattern PATTERN [IMPLEMENTED]
- * - @a -iname: Like -name, but the match is case insensitive [IMPLEMENTED]
- * - @a -type: File is of type c: b,d,p,f,l,s,D [only d,f,l are supported]
+ * - @a -iname: Like
+ * -name, but the match is case insensitive [IMPLEMENTED]
+ * - @a -path: File
+ * name matches shell pattern PATTERN [IMPLEMENTED]
+ * - @a -ipath: Like -path,
+ * but the match is case insensitive [IMPLEMENTED]
+ * - @a -type: File is of
+ * type c: b,d,p,f,l,s,D [only d,f,l are supported]
  * [IMPLEMENTED]
- * - @a -mindepth: Descend at least LEVELS levels of directories before tests
+ * - @a
+ * -mindepth: Descend at least LEVELS levels of directories before tests
  * [IMPLEMENTED]
  * - @a -maxdepth: Descend at most LEVELS levels of directories below
  * starting-points [IMPLEMENTED]
@@ -79,6 +87,9 @@ auto constexpr FIND_OPTIONS = std::array{
            "matches shell pattern PATTERN",
            STRING_TYPE),
     OPTION("-iname", "", "like -name, but the match is case insensitive",
+           STRING_TYPE),
+    OPTION("-path", "", "file name matches shell pattern PATTERN", STRING_TYPE),
+    OPTION("-ipath", "", "like -path, but the match is case insensitive",
            STRING_TYPE),
     OPTION("-type", "",
            "file is of type c: b,d,p,f,l,s,D [only d,f,l are supported]",
@@ -113,6 +124,8 @@ struct Config {
   SmallVector<std::string, 64> roots;
   std::string name_pattern;
   std::string iname_pattern;
+  std::string path_pattern;
+  std::string ipath_pattern;
   std::string type_filter;
   int mindepth = 0;
   int maxdepth = std::numeric_limits<int>::max();
@@ -161,6 +174,8 @@ auto build_config(const CommandContext<FIND_OPTIONS.size()>& ctx)
 
   cfg.name_pattern = ctx.get<std::string>("-name", "");
   cfg.iname_pattern = ctx.get<std::string>("-iname", "");
+  cfg.path_pattern = ctx.get<std::string>("-path", "");
+  cfg.ipath_pattern = ctx.get<std::string>("-ipath", "");
   cfg.type_filter = ctx.get<std::string>("-type", "");
   cfg.mindepth = ctx.get<int>("-mindepth", 0);
   cfg.maxdepth = ctx.get<int>("-maxdepth", std::numeric_limits<int>::max());
@@ -171,6 +186,9 @@ auto build_config(const CommandContext<FIND_OPTIONS.size()>& ctx)
 
   if (!cfg.name_pattern.empty() && !cfg.iname_pattern.empty()) {
     return std::unexpected("cannot use both -name and -iname");
+  }
+  if (!cfg.path_pattern.empty() && !cfg.ipath_pattern.empty()) {
+    return std::unexpected("cannot use both -path and -ipath");
   }
 
   if (!cfg.type_filter.empty() && cfg.type_filter != "f" &&
@@ -236,6 +254,19 @@ auto entry_matches(const Config& cfg, const std::filesystem::path& p,
     return false;
   }
 
+  auto full_path = p.generic_string();
+  if (full_path.empty()) full_path = ".";
+
+  if (!cfg.path_pattern.empty() &&
+      !wildcard_match(cfg.path_pattern, full_path, true)) {
+    return false;
+  }
+
+  if (!cfg.ipath_pattern.empty() &&
+      !wildcard_match(cfg.ipath_pattern, full_path, false)) {
+    return false;
+  }
+
   if (!type_matches(e, cfg.type_filter)) return false;
 
   return true;
@@ -244,7 +275,7 @@ auto entry_matches(const Config& cfg, const std::filesystem::path& p,
 auto print_path(const Config& cfg, std::string_view path) -> void {
   safePrint(path);
   if (cfg.print0) {
-    safePrint("\0");
+    safePrint(char{'\0'});
   } else {
     safePrint("\n");
   }

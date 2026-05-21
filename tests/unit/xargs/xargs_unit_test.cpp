@@ -129,3 +129,99 @@ TEST(xargs, xargs_verbose) {
   // With -t, should also see the command in stderr
   EXPECT_TRUE(r.stderr_text.find("echo") != std::string::npos);
 }
+
+TEST(xargs, xargs_null_input_preserves_spaces_with_replacement) {
+  TempDir tmp;
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"xargs.exe",
+        {L"-0", L"-I", L"{}", L"cmd.exe", L"/C", L"echo", L"[{}]"});
+  p.set_stdin(std::string("two words\0next\0", 15));
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("[two words]") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("[next]") != std::string::npos);
+}
+
+TEST(xargs, xargs_replacement_uses_one_input_line_per_command) {
+  TempDir tmp;
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"xargs.exe", {L"-I", L"{}", L"cmd.exe", L"/C", L"echo", L"[{}]"});
+  p.set_stdin("two words\nnext\n");
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("[two words]") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("[next]") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("[two words next]") == std::string::npos);
+}
+
+TEST(xargs, xargs_custom_delimiter) {
+  TempDir tmp;
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"xargs.exe", {L"-d", L",", L"-n", L"1", L"cmd.exe", L"/C", L"echo"});
+  p.set_stdin("alpha,beta,gamma");
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("alpha") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("beta") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("gamma") != std::string::npos);
+}
+
+TEST(xargs, xargs_max_procs_option_is_accepted) {
+  TempDir tmp;
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"xargs.exe", {L"-P", L"2", L"-n", L"1", L"cmd.exe", L"/C", L"echo"});
+  p.set_stdin("alpha\nbeta\n");
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("alpha") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("beta") != std::string::npos);
+}
+
+TEST(xargs, xargs_max_chars_splits_batches) {
+  TempDir tmp;
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"xargs.exe", {L"-t", L"-s", L"21", L"cmd.exe", L"/C", L"echo"});
+  p.set_stdin("one\ntwo\nthree\n");
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("one") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("two") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("three") != std::string::npos);
+  EXPECT_TRUE(r.stderr_text.find("cmd.exe") != std::string::npos);
+  EXPECT_TRUE(r.stderr_text.find("cmd.exe") != r.stderr_text.rfind("cmd.exe"));
+}
+
+TEST(xargs, xargs_exit_if_exceeded_rejects_oversized_command_line) {
+  TempDir tmp;
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"xargs.exe", {L"-x", L"-s", L"10", L"cmd.exe", L"/C", L"echo"});
+  p.set_stdin("alpha\n");
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 1);
+  EXPECT_TRUE(r.stderr_text.find("command line length exceeded") !=
+              std::string::npos);
+}

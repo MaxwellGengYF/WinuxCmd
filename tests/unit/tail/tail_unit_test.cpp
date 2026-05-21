@@ -130,3 +130,17 @@ TEST(tail, tail_wildcard) {
   EXPECT_TRUE(r.stdout_text.find("line6") != std::string::npos);
   EXPECT_TRUE(r.stdout_text.find("log3") == std::string::npos);
 }
+
+TEST(tail, tail_zero_terminated_records) {
+  TempDir tmp;
+  tmp.write_bytes("a.bin", {'a', '\0', 'b', '\0', 'c', '\0'});
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"tail.exe", {L"-z", L"-n", L"2", L"a.bin"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_EQ(r.stdout_text, std::string("b\0c\0", 4));
+}

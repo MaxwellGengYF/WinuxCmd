@@ -57,11 +57,16 @@ using cmd::meta::OptionType;
  * - @a -I: Replace occurrences of replace-str in the initial-arguments with
  * names [IMPLEMENTED]
  * - @a -0, --null: Input items are terminated by a null character [IMPLEMENTED]
+ * - @a -d, --delimiter: Input items are terminated by the specified character
+ * [IMPLEMENTED]
  * - @a -t, --verbose: Print the command line on the standard error before
  * executing it [IMPLEMENTED]
  * - @a -r, --no-run-if-empty: If the standard input does not contain any
  * nonblanks, do not run the command [IMPLEMENTED]
- * - @a -P, --max-procs: Run up to max-procs processes at a time [NOT SUPPORT]
+ * - @a -P, --max-procs: Run up to max-procs processes at a time [IMPLEMENTED]
+ * - @a -s, --max-chars: Use at most max-chars chars per command line
+ * [IMPLEMENTED]
+ * - @a -x, --exit: Exit if the size (see -s) is exceeded [IMPLEMENTED]
  */
 auto constexpr XARGS_OPTIONS = std::array{
     OPTION("-n", "--max-args",
@@ -71,13 +76,19 @@ auto constexpr XARGS_OPTIONS = std::array{
            "names",
            STRING_TYPE),
     OPTION("-0", "--null", "input items are terminated by a null character"),
+    OPTION("-d", "--delimiter",
+           "input items are terminated by the specified character",
+           STRING_TYPE),
     OPTION("-t", "--verbose",
            "print the command line on the standard error before executing it"),
     OPTION("-r", "--no-run-if-empty",
            "if the standard input does not contain any nonblanks, do not run "
            "the command"),
     OPTION("-P", "--max-procs", "run up to max-procs processes at a time",
-           INT_TYPE)};
+           INT_TYPE),
+    OPTION("-s", "--max-chars", "use at most max-chars chars per command line",
+           INT_TYPE),
+    OPTION("-x", "--exit", "exit if the size (see -s) is exceeded")};
 
 namespace xargs_pipeline {
 namespace cp = core::pipeline;
@@ -88,19 +99,29 @@ namespace cp = core::pipeline;
  * @param replace_str Replacement string for -I option
  * @return Vector of parsed arguments
  */
-auto parse_arguments(char delimiter, const std::string &replace_str)
+auto parse_delimiter(std::string_view text) -> cp::Result<char> {
+  if (text.empty()) return std::unexpected("delimiter must not be empty");
+  if (text == "\\0") return '\0';
+  if (text == "\\n") return '\n';
+  if (text == "\\r") return '\r';
+  if (text == "\\t") return '\t';
+  if (text.size() == 1) return text[0];
+  return std::unexpected("delimiter must be a single character");
+}
+
+auto parse_arguments(char delimiter, bool split_blanks)
     -> std::vector<std::string> {
   SmallVector<std::string, 256> args;
   std::string arg;
 
   char c;
   while (std::cin.get(c)) {
-    if (c == delimiter || c == '\n' || c == '\r') {
-      if (!arg.empty()) {
-        args.push_back(arg);
-        arg.clear();
-      }
-    } else if (c == ' ' || c == '\t') {
+    bool is_separator = c == delimiter;
+    if (split_blanks && (c == '\n' || c == '\r' || c == ' ' || c == '\t')) {
+      is_separator = true;
+    }
+
+    if (is_separator) {
       if (!arg.empty()) {
         args.push_back(arg);
         arg.clear();
@@ -118,6 +139,112 @@ auto parse_arguments(char delimiter, const std::string &replace_str)
   return std::vector<std::string>(args.begin(), args.end());
 }
 
+auto materialize_arguments(const std::vector<std::string> &base_args,
+                           const std::vector<std::string> &input_args,
+                           const std::string &replace_str)
+    -> std::vector<std::string> {
+  SmallVector<std::string, 256> all_args;
+
+  for (const auto &base_arg : base_args) {
+    if (!replace_str.empty() &&
+        base_arg.find(replace_str) != std::string::npos) {
+      std::string replaced = base_arg;
+      std::string replacement;
+      for (size_t j = 0; j < input_args.size(); ++j) {
+        if (j > 0) replacement += " ";
+        replacement += input_args[j];
+      }
+
+      size_t pos = 0;
+      while ((pos = replaced.find(replace_str, pos)) != std::string::npos) {
+        replaced.replace(pos, replace_str.length(), replacement);
+        pos += replacement.length();
+      }
+      all_args.push_back(replaced);
+    } else {
+      all_args.push_back(base_arg);
+    }
+  }
+
+  if (replace_str.empty()) {
+    for (const auto &input_arg : input_args) {
+      all_args.push_back(input_arg);
+    }
+  }
+
+  return std::vector<std::string>(all_args.begin(), all_args.end());
+}
+
+auto quote_arg(const std::wstring &arg) -> std::wstring {
+  if (arg.empty()) return L"\"\"";
+
+  bool need_quote = arg.find_first_of(L" \t\"") != std::wstring::npos;
+  if (!need_quote) return arg;
+
+  std::wstring out = L"\"";
+  size_t backslashes = 0;
+  for (wchar_t c : arg) {
+    if (c == L'\\') {
+      ++backslashes;
+    } else if (c == L'"') {
+      out.append(backslashes * 2 + 1, L'\\');
+      out.push_back(L'"');
+      backslashes = 0;
+    } else {
+      out.append(backslashes, L'\\');
+      backslashes = 0;
+      out.push_back(c);
+    }
+  }
+  out.append(backslashes * 2, L'\\');
+  out.push_back(L'"');
+  return out;
+}
+
+auto build_command_line(const std::string &command,
+                        const std::vector<std::string> &args) -> std::wstring {
+  std::wstring cmd_line = quote_arg(utf8_to_wstring(command));
+  for (const auto &arg : args) {
+    cmd_line.push_back(L' ');
+    cmd_line += quote_arg(utf8_to_wstring(arg));
+  }
+  return cmd_line;
+}
+
+struct ChildProcess {
+  PROCESS_INFORMATION pi{};
+  DWORD exit_code = 0;
+};
+
+auto launch_process(const std::string &command,
+                    const std::vector<std::string> &args)
+    -> cp::Result<ChildProcess> {
+  auto cmd_line = build_command_line(command, args);
+  STARTUPINFOW si = {sizeof(si)};
+  PROCESS_INFORMATION pi{};
+
+  BOOL success =
+      CreateProcessW(nullptr, cmd_line.data(), nullptr, nullptr, TRUE,
+                     CREATE_UNICODE_ENVIRONMENT, nullptr, nullptr, &si, &pi);
+  if (!success) {
+    return std::unexpected("failed to execute '" + command + "'");
+  }
+
+  ChildProcess child;
+  child.pi = pi;
+  return child;
+}
+
+auto wait_child(ChildProcess &child) -> int {
+  WaitForSingleObject(child.pi.hProcess, INFINITE);
+  DWORD result = 0;
+  GetExitCodeProcess(child.pi.hProcess, &result);
+  CloseHandle(child.pi.hProcess);
+  CloseHandle(child.pi.hThread);
+  child.exit_code = result;
+  return static_cast<int>(result);
+}
+
 /**
  * @brief Execute command with arguments
  * @param command Command to execute
@@ -131,49 +258,54 @@ auto parse_arguments(char delimiter, const std::string &replace_str)
 auto execute_command(const std::string &command,
                      const std::vector<std::string> &base_args,
                      const std::vector<std::string> &input_args,
-                     const std::string &replace_str, int max_args, bool verbose)
-    -> int {
+                     const std::string &replace_str, int max_args,
+                     int max_chars, bool exit_if_exceeded, int max_procs,
+                     bool verbose) -> int {
   int exit_code = 0;
 
   if (max_args <= 0) {
-    max_args = input_args.size();
+    max_args = static_cast<int>(input_args.size());
+  }
+  if (!replace_str.empty()) max_args = 1;
+  if (max_args <= 0) max_args = 1;
+  if (max_procs <= 0) {
+    max_procs = static_cast<int>(std::thread::hardware_concurrency());
+    if (max_procs <= 0) max_procs = 1;
   }
 
-  // Split input_args into batches
-  for (size_t i = 0; i < input_args.size(); i += max_args) {
-    SmallVector<std::string, 256> all_args;
-    size_t end = std::min(i + max_args, input_args.size());
+  std::vector<ChildProcess> running;
+  running.reserve(static_cast<size_t>(max_procs));
 
-    // Add base arguments
-    for (const auto &base_arg : base_args) {
-      if (!replace_str.empty() &&
-          base_arg.find(replace_str) != std::string::npos) {
-        // Replace all occurrences with the entire batch
-        std::string replaced = base_arg;
-        size_t pos = 0;
-        while ((pos = replaced.find(replace_str, pos)) != std::string::npos) {
-          std::string replacement;
-          for (size_t j = i; j < end; ++j) {
-            if (j > i) replacement += " ";
-            replacement += input_args[j];
-          }
-          replaced.replace(pos, replace_str.length(), replacement);
-          pos += replacement.length();
-        }
-        all_args.push_back(replaced);
-      } else {
-        all_args.push_back(base_arg);
+  auto wait_one = [&]() {
+    if (running.empty()) return;
+    int child_status = wait_child(running.front());
+    if (child_status != 0) exit_code = child_status;
+    running.erase(running.begin());
+  };
+
+  SmallVector<std::string, 256> batch;
+  batch.reserve(static_cast<size_t>(std::max(max_args, 1)));
+
+  auto fits_limits = [&](const std::vector<std::string> &candidate) -> bool {
+    if (max_args > 0 && static_cast<int>(candidate.size()) > max_args) {
+      return false;
+    }
+    if (max_chars > 0) {
+      auto materialized =
+          materialize_arguments(base_args, candidate, replace_str);
+      auto cmd_line = build_command_line(command, materialized);
+      if (cmd_line.size() > static_cast<size_t>(max_chars)) {
+        return false;
       }
     }
+    return true;
+  };
 
-    // Add input arguments for this batch (only if not using -I)
-    if (replace_str.empty()) {
-      for (size_t j = i; j < end; ++j) {
-        all_args.push_back(input_args[j]);
-      }
-    }
+  auto run_batch = [&](const std::vector<std::string> &current_batch) -> bool {
+    if (current_batch.empty()) return true;
 
-    // Print command if verbose
+    auto all_args =
+        materialize_arguments(base_args, current_batch, replace_str);
     if (verbose) {
       safeErrorPrint(command);
       for (const auto &arg : all_args) {
@@ -183,44 +315,55 @@ auto execute_command(const std::string &command,
       safeErrorPrint("\n");
     }
 
-    // Build command line for CreateProcess
-    std::wstring cmd_line = utf8_to_wstring(command);
-    for (const auto &arg : all_args) {
-      cmd_line += L" ";
-      std::wstring warg = utf8_to_wstring(arg);
-      if (warg.find(L' ') != std::wstring::npos ||
-          warg.find(L'\t') != std::wstring::npos) {
-        cmd_line += L"\"";
-        cmd_line += warg;
-        cmd_line += L"\"";
-      } else {
-        cmd_line += warg;
-      }
-    }
-
-    // Execute command using CreateProcess
-    STARTUPINFOW si = {sizeof(si)};
-    PROCESS_INFORMATION pi;
-
-    BOOL success =
-        CreateProcessW(nullptr, cmd_line.data(), nullptr, nullptr, FALSE,
-                       CREATE_UNICODE_ENVIRONMENT, nullptr, nullptr, &si, &pi);
-
-    if (success) {
-      WaitForSingleObject(pi.hProcess, INFINITE);
-      DWORD result;
-      GetExitCodeProcess(pi.hProcess, &result);
-      exit_code = result;
-      CloseHandle(pi.hProcess);
-      CloseHandle(pi.hThread);
-    } else {
+    auto child = launch_process(command, all_args);
+    if (!child) {
       safeErrorPrint("xargs: failed to execute '");
       safeErrorPrint(command);
       safeErrorPrint("'\n");
       exit_code = 127;
+      return true;
+    }
+
+    running.push_back(*child);
+    if (running.size() >= static_cast<size_t>(max_procs)) {
+      wait_one();
+    }
+    return true;
+  };
+
+  auto flush_batch = [&]() -> bool {
+    if (batch.empty()) return true;
+    bool ok = run_batch(std::vector<std::string>(batch.begin(), batch.end()));
+    batch.clear();
+    return ok;
+  };
+
+  for (const auto &input_arg : input_args) {
+    batch.push_back(input_arg);
+    if (fits_limits(std::vector<std::string>(batch.begin(), batch.end()))) {
+      continue;
+    }
+
+    batch.pop_back();
+    if (!flush_batch()) {
+      return exit_code == 0 ? 1 : exit_code;
+    }
+
+    batch.push_back(input_arg);
+    auto current_batch = std::vector<std::string>(batch.begin(), batch.end());
+    if (!fits_limits(current_batch)) {
+      if (exit_if_exceeded) {
+        cp::report_custom_error(L"xargs", L"command line length exceeded");
+        return 1;
+      }
     }
   }
 
+  if (!flush_batch()) {
+    return exit_code == 0 ? 1 : exit_code;
+  }
+
+  while (!running.empty()) wait_one();
   return exit_code;
 }
 
@@ -246,12 +389,43 @@ REGISTER_COMMAND(
   bool no_run_if_empty =
       ctx.get<bool>("-r", false) || ctx.get<bool>("--no-run-if-empty", false);
   int max_args = ctx.get<int>("-n", 0);
+  int max_procs = ctx.get<int>("--max-procs", 1);
+  if (max_procs == 1) max_procs = ctx.get<int>("-P", 1);
+  int max_chars = ctx.get<int>("--max-chars", 0);
+  if (max_chars == 0) max_chars = ctx.get<int>("-s", 0);
+  bool exit_if_exceeded =
+      ctx.get<bool>("--exit", false) || ctx.get<bool>("-x", false);
+  if (max_procs < 0) {
+    cp::report_custom_error(L"xargs", L"max-procs must be non-negative");
+    return 1;
+  }
+  if (max_chars < 0) {
+    cp::report_custom_error(L"xargs", L"max-chars must be non-negative");
+    return 1;
+  }
   std::string replace_str = ctx.get<std::string>("-I", "");
+  std::string delimiter_arg = ctx.get<std::string>("--delimiter", "");
+  if (delimiter_arg.empty()) delimiter_arg = ctx.get<std::string>("-d", "");
+
+  char delimiter = use_null ? '\0' : ' ';
+  bool split_blanks = !use_null && replace_str.empty();
+  if (!delimiter_arg.empty()) {
+    auto parsed_delim = parse_delimiter(delimiter_arg);
+    if (!parsed_delim) {
+      cp::report_error(parsed_delim, L"xargs");
+      return 1;
+    }
+    delimiter = *parsed_delim;
+    split_blanks = false;
+  } else if (!replace_str.empty() && !use_null) {
+    delimiter = '\n';
+    split_blanks = false;
+  }
 
   // Get command to execute (first positional arg)
   if (ctx.positionals.empty()) {
     // Default to echo if no command specified
-    auto input_args_vec = parse_arguments(' ', replace_str);
+    auto input_args_vec = parse_arguments(delimiter, split_blanks);
     SmallVector<std::string, 256> input_args(input_args_vec.begin(),
                                              input_args_vec.end());
 
@@ -284,8 +458,7 @@ REGISTER_COMMAND(
   }
 
   // Parse arguments from stdin
-  char delimiter = use_null ? '\0' : ' ';
-  auto input_args_vec = parse_arguments(delimiter, replace_str);
+  auto input_args_vec = parse_arguments(delimiter, split_blanks);
   SmallVector<std::string, 256> input_args(input_args_vec.begin(),
                                            input_args_vec.end());
 
@@ -311,5 +484,5 @@ REGISTER_COMMAND(
   return execute_command(
       command, base_args_vec,
       std::vector<std::string>(input_args.begin(), input_args.end()),
-      replace_str, max_args, verbose);
+      replace_str, max_args, max_chars, exit_if_exceeded, max_procs, verbose);
 }
