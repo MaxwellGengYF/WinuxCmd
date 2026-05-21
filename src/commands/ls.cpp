@@ -71,8 +71,9 @@ using cmd::meta::OptionType;
  * - @a -g: Like -l, but do not list owner [IMPLEMENTED]
  * - @a -h, @a --human-readable: With -l and -s, print sizes like 1K 234M 2G
  * etc. [IMPLEMENTED]
- * - @a -i, @a --inode: Print the index number of each file [TODO]
- * - @a -k, @a --kibibytes: Default to 1024-byte blocks for file system usage
+ * - @a -i, @a --inode: Print the index number of each file [IMPLEMENTED]
+ * -
+ * @a -k, @a --kibibytes: Default to 1024-byte blocks for file system usage
  * [TODO]
  * - @a -L, @a --dereference: When showing file information for a symbolic link,
  * show information for the file the link references [TODO]
@@ -90,7 +91,9 @@ using cmd::meta::OptionType;
  * [IMPLEMENTED]
  * - @a -r, @a --reverse: Reverse order while sorting [IMPLEMENTED]
  * - @a -R, @a --recursive: List subdirectories recursively [IMPLEMENTED]
- * - @a -s, @a --size: Print the allocated size of each file, in blocks [TODO]
+ * - @a -s, @a --size: Print the allocated size of each file, in blocks
+ *
+ * [IMPLEMENTED]
  * - @a -S: Sort by file size, largest first [TODO]
  * - @a -t: Sort by time, newest first [TODO]
  * - @a -T, @a --tabsize: Assume tab stops at each COLS instead of 8
@@ -145,17 +148,22 @@ auto constexpr LS_OPTIONS = std::array{
     OPTION("-s", "--size", "print the allocated size of each file, in blocks"),
     OPTION("-S", "", "sort by file size, largest first"),
     OPTION("-t", "", "sort by time, newest first"),
-    OPTION("-T", "--tabsize", "assume tab stops at each COLS instead of 8"),
+    OPTION("-T", "--tabsize", "assume tab stops at each COLS instead of 8",
+           INT_TYPE),
     OPTION(
         "-u", "",
         "with -lt: sort by, and show, access time; with -l: show access time "
         "and sort by name; otherwise: sort by access time, newest first"),
     OPTION("-U", "", "do not sort; list entries in directory order"),
     OPTION("-v", "", "natural sort of (version) numbers within text"),
-    OPTION("-w", "--width", "set output width to COLS. 0 means no limit"),
+    OPTION("-w", "--width", "set output width to COLS. 0 means no limit",
+           INT_TYPE),
     OPTION("-x", "", "list entries by lines instead of by columns"),
     OPTION("-X", "--sort=extension", "sort alphabetically by entry extension"),
     OPTION("-Z", "--context", "print any security context of each file"),
+    OPTION("", "--sort", "sort entries by WORD", STRING_TYPE),
+    OPTION("", "--format", "set output format", STRING_TYPE),
+    OPTION("", "--time", "change time style", STRING_TYPE),
     OPTION("", "--color",
            "colorize the output; WHEN can be 'always', 'auto', or 'never'",
            STRING_TYPE),
@@ -193,8 +201,19 @@ bool is_terminal(FILE *stream) {
 namespace ls_pipeline {
 namespace cp = core::pipeline;
 
+enum class SortMode { Name, Size, Time, Version, Extension, None };
+enum class TimeMode { Modification, Access, Status, Birth };
+enum class FormatMode { Columns, Across, Commas, OnePerLine, Long };
+
+auto get_terminal_width() -> int;
+auto build_listing_prefix(const std::wstring &path,
+                          const WIN32_FIND_DATAW &find_data,
+                          const CommandContext<LS_OPTIONS.size()> &ctx)
+    -> std::string;
+
 struct EntryInfo {
   std::wstring name;
+  std::wstring full_path;
   WIN32_FIND_DATAW find_data;
 };
 
@@ -494,10 +513,210 @@ auto compare_extensions(const EntryInfo &a, const EntryInfo &b) -> bool {
   return a.name < b.name;
 }
 
+auto parse_sort_mode(std::string_view value) -> std::optional<SortMode> {
+  if (value.empty() || value == "name") return SortMode::Name;
+  if (value == "size") return SortMode::Size;
+  if (value == "time") return SortMode::Time;
+  if (value == "version") return SortMode::Version;
+  if (value == "extension") return SortMode::Extension;
+  if (value == "none") return SortMode::None;
+  return std::nullopt;
+}
+
+auto parse_time_mode(std::string_view value) -> std::optional<TimeMode> {
+  if (value.empty() || value == "mtime" || value == "modification" ||
+      value == "modified") {
+    return TimeMode::Modification;
+  }
+  if (value == "atime" || value == "access" || value == "use") {
+    return TimeMode::Access;
+  }
+  if (value == "ctime" || value == "status") {
+    return TimeMode::Status;
+  }
+  if (value == "birth" || value == "creation") {
+    return TimeMode::Birth;
+  }
+  return std::nullopt;
+}
+
+auto parse_format_mode(std::string_view value) -> std::optional<FormatMode> {
+  if (value.empty() || value == "vertical" || value == "columns") {
+    return FormatMode::Columns;
+  }
+  if (value == "across" || value == "horizontal") {
+    return FormatMode::Across;
+  }
+  if (value == "commas") {
+    return FormatMode::Commas;
+  }
+  if (value == "single-column" || value == "single" || value == "one") {
+    return FormatMode::OnePerLine;
+  }
+  if (value == "long") {
+    return FormatMode::Long;
+  }
+  return std::nullopt;
+}
+
+auto get_entry_time(const WIN32_FIND_DATAW &find_data, TimeMode mode)
+    -> FILETIME {
+  switch (mode) {
+    case TimeMode::Modification:
+      return find_data.ftLastWriteTime;
+    case TimeMode::Access:
+      return find_data.ftLastAccessTime;
+    case TimeMode::Status:
+    case TimeMode::Birth:
+      return find_data.ftCreationTime;
+  }
+  return find_data.ftLastWriteTime;
+}
+
+auto compare_time_mode(const EntryInfo &a, const EntryInfo &b, TimeMode mode)
+    -> bool {
+  const FILETIME ta = get_entry_time(a.find_data, mode);
+  const FILETIME tb = get_entry_time(b.find_data, mode);
+  const int cmp = CompareFileTime(&ta, &tb);
+  if (cmp != 0) return cmp > 0;
+  return a.name < b.name;
+}
+
+auto get_time_string(const WIN32_FIND_DATAW &find_data, TimeMode mode)
+    -> std::string {
+  FILETIME file_time = get_entry_time(find_data, mode);
+  FILETIME local_ft{};
+  FileTimeToLocalFileTime(&file_time, &local_ft);
+
+  SYSTEMTIME st{};
+  FileTimeToSystemTime(&local_ft, &st);
+
+  const char *month_abbrs[] = {"",    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
+  char buf[64];
+  snprintf(buf, sizeof(buf), "%s %2d %02d:%02d", month_abbrs[st.wMonth],
+           st.wDay, st.wHour, st.wMinute);
+  return std::string(buf);
+}
+
+auto resolve_color_enabled(const CommandContext<LS_OPTIONS.size()> &ctx)
+    -> bool {
+  std::string color_option = ctx.get<std::string>("--color", "auto");
+  if (color_option == "never") return false;
+  if (color_option == "always") return true;
+  return is_terminal(stdout);
+}
+
+struct RenderedEntry {
+  std::string text;
+  size_t visible_width = 0;
+};
+
+auto render_inline_entry(const EntryInfo &entry,
+                         const CommandContext<LS_OPTIONS.size()> &ctx,
+                         bool color_enabled) -> RenderedEntry {
+  std::wstring display_name =
+      render_display_name(entry.name, entry.find_data, ctx);
+  std::string prefix =
+      build_listing_prefix(entry.full_path, entry.find_data, ctx);
+  std::string text = prefix;
+  if (color_enabled) {
+    text += wstring_to_utf8(
+        std::wstring(get_color_for_entry(entry.name, entry.find_data)));
+  }
+  text += wstring_to_utf8(display_name);
+  if (color_enabled) {
+    text += wstring_to_utf8(COLOR_RESET);
+  }
+
+  return {std::move(text), prefix.size() + display_name.size()};
+}
+
+auto build_rendered_entries(const std::vector<EntryInfo> &entries,
+                            const CommandContext<LS_OPTIONS.size()> &ctx)
+    -> std::vector<RenderedEntry> {
+  const bool color_enabled = resolve_color_enabled(ctx);
+  std::vector<RenderedEntry> rendered;
+  rendered.reserve(entries.size());
+  for (const auto &entry : entries) {
+    rendered.push_back(render_inline_entry(entry, ctx, color_enabled));
+  }
+  return rendered;
+}
+
+auto print_rendered_entries(const std::vector<RenderedEntry> &entries,
+                            size_t width) -> void {
+  size_t line_width = 0;
+  for (size_t i = 0; i < entries.size(); ++i) {
+    if (i > 0) {
+      if (line_width > 0 && line_width + 2 + entries[i].visible_width > width) {
+        safePrintLn(L"");
+        line_width = 0;
+      } else {
+        safePrint(", ");
+        line_width += 2;
+      }
+    }
+    safePrint(entries[i].text);
+    line_width += entries[i].visible_width;
+  }
+}
+
+auto print_grid(const std::vector<EntryInfo> &entries,
+                const CommandContext<LS_OPTIONS.size()> &ctx,
+                bool across_layout) -> void {
+  if (entries.empty()) return;
+
+  const auto rendered = build_rendered_entries(entries, ctx);
+  size_t max_visible_width = 0;
+  for (const auto &entry : rendered) {
+    max_visible_width = std::max(max_visible_width, entry.visible_width);
+  }
+
+  int width = ctx.get<int>("-w", 0);
+  if (width <= 0) {
+    width = ctx.get<int>("--width", 0);
+  }
+  if (width <= 0) {
+    width = get_terminal_width();
+  }
+
+  int cols = width / (static_cast<int>(max_visible_width) + 2);
+  if (cols < 1) cols = 1;
+  int rows = static_cast<int>((entries.size() + cols - 1) / cols);
+  std::vector<size_t> col_widths(static_cast<size_t>(cols), max_visible_width);
+
+  for (size_t idx = 0; idx < rendered.size(); ++idx) {
+    size_t col = across_layout ? idx % static_cast<size_t>(cols)
+                               : idx / static_cast<size_t>(rows);
+    col_widths[col] = std::max(col_widths[col], rendered[idx].visible_width);
+  }
+
+  for (int row = 0; row < rows; ++row) {
+    for (int col = 0; col < cols; ++col) {
+      size_t index = across_layout ? static_cast<size_t>(row * cols + col)
+                                   : static_cast<size_t>(row + col * rows);
+      if (index >= rendered.size()) continue;
+
+      safePrint(rendered[index].text);
+      if (col < cols - 1) {
+        size_t padding = col_widths[static_cast<size_t>(col)] -
+                         rendered[index].visible_width;
+        for (size_t i = 0; i < padding + 2; ++i) {
+          safePrint(" ");
+        }
+      }
+    }
+    safePrintLn(L"");
+  }
+}
+
 /**
  * @brief Validate arguments
  * @param ctx Command context
- * @return Result with paths to process
+ * @return Result
+ * with paths to process
  */
 auto validate_arguments(const CommandContext<LS_OPTIONS.size()> &ctx)
     -> cp::Result<std::vector<std::string>> {
@@ -601,11 +820,6 @@ auto get_permissions_string(const WIN32_FIND_DATAW &find_data) -> std::string {
 auto get_file_size_string(const WIN32_FIND_DATAW &find_data,
                           const CommandContext<LS_OPTIONS.size()> &ctx)
     -> std::string {
-  if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-    return {};
-  }
-
-  // Calculate file size
   uint64_t fileSize = static_cast<uint64_t>(find_data.nFileSizeLow) |
                       (static_cast<uint64_t>(find_data.nFileSizeHigh) << 32);
 
@@ -631,6 +845,41 @@ auto get_file_size_string(const WIN32_FIND_DATAW &find_data,
   }
 
   return std::string(buf);
+}
+
+auto get_file_index_string(const std::wstring &path,
+                           const WIN32_FIND_DATAW &find_data,
+                           const CommandContext<LS_OPTIONS.size()> &ctx)
+    -> std::string {
+  DWORD flags = 0;
+  if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+    flags |= FILE_FLAG_BACKUP_SEMANTICS;
+  }
+
+  const bool dereference =
+      ctx.get<bool>("-L", false) || ctx.get<bool>("--dereference", false);
+  if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) &&
+      !dereference) {
+    flags |= FILE_FLAG_OPEN_REPARSE_POINT;
+  }
+
+  HANDLE handle =
+      CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES,
+                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                  nullptr, OPEN_EXISTING, flags, nullptr);
+  if (handle == INVALID_HANDLE_VALUE) {
+    return {};
+  }
+
+  BY_HANDLE_FILE_INFORMATION info{};
+  std::string result;
+  if (GetFileInformationByHandle(handle, &info)) {
+    ULONGLONG file_index = (static_cast<ULONGLONG>(info.nFileIndexHigh) << 32) |
+                           static_cast<ULONGLONG>(info.nFileIndexLow);
+    result = std::to_string(file_index);
+  }
+  CloseHandle(handle);
+  return result;
 }
 
 auto get_link_count(const std::wstring &path, const WIN32_FIND_DATAW &find_data,
@@ -665,6 +914,46 @@ auto get_link_count(const std::wstring &path, const WIN32_FIND_DATAW &find_data,
   return static_cast<unsigned long>(link_count);
 }
 
+auto get_allocated_blocks_string(const std::wstring &path,
+                                 const WIN32_FIND_DATAW &find_data,
+                                 const CommandContext<LS_OPTIONS.size()> &ctx)
+    -> std::string {
+  (void)ctx;
+  ULARGE_INTEGER allocated{};
+  DWORD high = 0;
+  DWORD low = GetCompressedFileSizeW(path.c_str(), &high);
+  if (low == INVALID_FILE_SIZE && GetLastError() != NO_ERROR) {
+    uint64_t logical_size =
+        static_cast<uint64_t>(find_data.nFileSizeLow) |
+        (static_cast<uint64_t>(find_data.nFileSizeHigh) << 32);
+    allocated.QuadPart = logical_size;
+  } else {
+    allocated.LowPart = low;
+    allocated.HighPart = high;
+  }
+
+  uint64_t blocks = (allocated.QuadPart + 1023ULL) / 1024ULL;
+  return std::to_string(blocks);
+}
+
+auto build_listing_prefix(const std::wstring &path,
+                          const WIN32_FIND_DATAW &find_data,
+                          const CommandContext<LS_OPTIONS.size()> &ctx)
+    -> std::string {
+  std::string prefix;
+  if (ctx.get<bool>("-i", false) || ctx.get<bool>("--inode", false)) {
+    prefix = get_file_index_string(path, find_data, ctx);
+    if (!prefix.empty()) {
+      prefix.push_back(' ');
+    }
+  }
+  if (ctx.get<bool>("-s", false) || ctx.get<bool>("--size", false)) {
+    prefix += get_allocated_blocks_string(path, find_data, ctx);
+    prefix.push_back(' ');
+  }
+  return prefix;
+}
+
 /**
  * @brief Get file modification time string (improved: timezone support)
  *
@@ -675,24 +964,19 @@ auto get_link_count(const std::wstring &path, const WIN32_FIND_DATAW &find_data,
  */
 auto get_modification_time_string(const WIN32_FIND_DATAW &find_data,
                                   bool use_utc = false) -> std::string {
-  SYSTEMTIME st;
   if (use_utc) {
-    FileTimeToSystemTime(&find_data.ftLastWriteTime, &st);  // UTC
-  } else {
-    // Convert to local time (align Git Bash's local timezone)
-    FILETIME local_ft;
-    FileTimeToLocalFileTime(&find_data.ftLastWriteTime, &local_ft);
-    FileTimeToSystemTime(&local_ft, &st);
+    FILETIME file_time = find_data.ftLastWriteTime;
+    SYSTEMTIME st{};
+    FileTimeToSystemTime(&file_time, &st);
+    const char *month_abbrs[] = {"",    "Jan", "Feb", "Mar", "Apr",
+                                 "May", "Jun", "Jul", "Aug", "Sep",
+                                 "Oct", "Nov", "Dec"};
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%s %2d %02d:%02d", month_abbrs[st.wMonth],
+             st.wDay, st.wHour, st.wMinute);
+    return std::string(buf);
   }
-
-  const char *month_abbrs[] = {"",    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-
-  char buf[64];
-  snprintf(buf, sizeof(buf), "%s %2d %02d:%02d", month_abbrs[st.wMonth],
-           st.wDay, st.wHour, st.wMinute);
-
-  return std::string(buf);
+  return get_time_string(find_data, TimeMode::Modification);
 }
 
 /**
@@ -846,9 +1130,13 @@ auto print_columns(const std::vector<EntryInfo> &entries,
     return;
   }
 
+  std::vector<std::string> prefixes;
   std::vector<std::wstring> display_names;
+  prefixes.reserve(entries.size());
   display_names.reserve(entries.size());
   for (const auto &entry : entries) {
+    prefixes.push_back(
+        build_listing_prefix(entry.full_path, entry.find_data, ctx));
     display_names.push_back(
         render_display_name(entry.name, entry.find_data, ctx));
   }
@@ -871,14 +1159,12 @@ auto print_columns(const std::vector<EntryInfo> &entries,
     width = get_terminal_width();
   }
 
-  // Calculate layout
-  auto [cols, rows] = calculate_layout(display_names, width);
-
   // Calculate column widths to fill the terminal
   size_t max_display_width = 0;
-  for (const auto &entry : display_names) {
-    max_display_width =
-        std::max(max_display_width, string_display_width(entry));
+  for (size_t i = 0; i < display_names.size(); ++i) {
+    const auto &entry = display_names[i];
+    max_display_width = std::max(
+        max_display_width, prefixes[i].size() + string_display_width(entry));
   }
 
   // Calculate base column width
@@ -886,6 +1172,10 @@ auto print_columns(const std::vector<EntryInfo> &entries,
   if (base_col_width <= 0) {
     base_col_width = 1;
   }
+
+  int cols = width / base_col_width;
+  if (cols < 1) cols = 1;
+  int rows = (entries.size() + cols - 1) / cols;
 
   // Calculate total width used by all columns
   int total_used_width = cols * base_col_width;
@@ -911,8 +1201,10 @@ auto print_columns(const std::vector<EntryInfo> &entries,
       size_t index = row + col * rows;
       if (index < entries.size()) {
         const auto &entry = entries[index];
+        const auto &prefix = prefixes[index];
         const auto &display_name = display_names[index];
 
+        safePrint(std::string_view(prefix));
         if (color_enabled) {
           safePrint(get_color_for_entry(entry.name, entry.find_data));
         }
@@ -923,7 +1215,8 @@ auto print_columns(const std::vector<EntryInfo> &entries,
         }
 
         if (col < cols - 1) {
-          size_t current_width = string_display_width(display_name);
+          size_t current_width =
+              prefix.size() + string_display_width(display_name);
           int spaces_needed = col_widths[col] - static_cast<int>(current_width);
           if (spaces_needed > 0) {
             for (int i = 0; i < spaces_needed; ++i) {
@@ -997,81 +1290,143 @@ auto list_directory(const std::string &path,
     if (!should_show_entry(filename, find_data, ctx, ignore_pattern)) {
       continue;
     }
-    entries.push_back({filename, find_data});
+    entries.push_back({filename, wpath + L"\\" + filename, find_data});
   } while (FindNextFileW(hFind, &find_data) != 0);
 
   FindClose(hFind);
 
-  // Sort entries
-  bool no_sort = ctx.get<bool>("-U", false);
-  bool file_order = ctx.get<bool>("-f", false);
-  bool sort_by_time = ctx.get<bool>("-t", false);
-  bool sort_by_size = ctx.get<bool>("-S", false);
-  bool sort_by_extension =
-      ctx.get<bool>("-X", false) || ctx.get<bool>("--sort=extension", false);
-  bool version_sort = ctx.get<bool>("-v", false);
-  bool reverse_sort =
-      ctx.get<bool>("-r", false) || ctx.get<bool>("--reverse", false);
+  std::string sort_option = ctx.get<std::string>("--sort", "");
+  std::string format_option = ctx.get<std::string>("--format", "");
+  std::string time_option = ctx.get<std::string>("--time", "");
 
-  if (file_order) {
-    no_sort = true;
+  FormatMode format_mode = FormatMode::Columns;
+  if (!format_option.empty()) {
+    auto parsed = parse_format_mode(format_option);
+    if (parsed) {
+      format_mode = *parsed;
+    }
+  } else if (ctx.get<bool>("-m", false)) {
+    format_mode = FormatMode::Commas;
+  } else if (ctx.get<bool>("-x", false)) {
+    format_mode = FormatMode::Across;
+  } else if (ctx.get<bool>("-1", false)) {
+    format_mode = FormatMode::OnePerLine;
+  } else if (ctx.get<bool>("-C", false)) {
+    format_mode = FormatMode::Columns;
+  }
+  if (ctx.get<bool>("-l", false) || ctx.get<bool>("--long-list", false)) {
+    format_mode = FormatMode::Long;
   }
 
-  if (!no_sort) {
-    if (sort_by_time) {
-      std::sort(entries.begin(), entries.end(),
-                [](const EntryInfo &a, const EntryInfo &b) {
-                  return CompareFileTime(&a.find_data.ftLastWriteTime,
-                                         &b.find_data.ftLastWriteTime) > 0;
-                });
-    } else if (sort_by_size) {
-      // Sort by file size (largest first), then by name for deterministic order
-      std::sort(entries.begin(), entries.end(),
-                [](const EntryInfo &a, const EntryInfo &b) {
-                  uint64_t size_a =
-                      static_cast<uint64_t>(a.find_data.nFileSizeLow) |
-                      (static_cast<uint64_t>(a.find_data.nFileSizeHigh) << 32);
-                  uint64_t size_b =
-                      static_cast<uint64_t>(b.find_data.nFileSizeLow) |
-                      (static_cast<uint64_t>(b.find_data.nFileSizeHigh) << 32);
-                  if (size_a != size_b) {
-                    return size_a > size_b;
-                  }
-                  // If sizes are equal, sort by name
-                  return a.name < b.name;
-                });
-    } else if (version_sort) {
-      std::sort(entries.begin(), entries.end(),
-                [](const EntryInfo &a, const EntryInfo &b) {
-                  return compare_version_strings(a.name, b.name) < 0;
-                });
-    } else if (sort_by_extension) {
-      std::sort(entries.begin(), entries.end(), compare_extensions);
-    } else {
-      // Sort by name (alphabetical)
-      std::sort(entries.begin(), entries.end(),
-                [](const EntryInfo &a, const EntryInfo &b) {
-                  return a.name < b.name;
-                });
+  TimeMode time_mode = TimeMode::Modification;
+  if (!time_option.empty()) {
+    auto parsed = parse_time_mode(time_option);
+    if (parsed) {
+      time_mode = *parsed;
+    }
+  } else if (ctx.get<bool>("-u", false)) {
+    time_mode = TimeMode::Access;
+  } else if (ctx.get<bool>("-c", false)) {
+    time_mode = TimeMode::Status;
+  }
+
+  SortMode sort_mode = SortMode::Name;
+  bool explicit_sort = false;
+  if (!sort_option.empty()) {
+    auto parsed = parse_sort_mode(sort_option);
+    if (parsed) {
+      sort_mode = *parsed;
+      explicit_sort = true;
+    }
+  } else if (ctx.get<bool>("-U", false) || ctx.get<bool>("-f", false)) {
+    sort_mode = SortMode::None;
+    explicit_sort = true;
+  } else if (ctx.get<bool>("-S", false)) {
+    sort_mode = SortMode::Size;
+    explicit_sort = true;
+  } else if (ctx.get<bool>("-t", false)) {
+    sort_mode = SortMode::Time;
+    explicit_sort = true;
+  } else if (ctx.get<bool>("-v", false)) {
+    sort_mode = SortMode::Version;
+    explicit_sort = true;
+  } else if (ctx.get<bool>("-X", false)) {
+    sort_mode = SortMode::Extension;
+    explicit_sort = true;
+  }
+
+  if (!explicit_sort && format_mode != FormatMode::Long &&
+      time_mode != TimeMode::Modification) {
+    sort_mode = SortMode::Time;
+  }
+
+  if (sort_mode != SortMode::None) {
+    switch (sort_mode) {
+      case SortMode::Time:
+        std::sort(entries.begin(), entries.end(),
+                  [&](const EntryInfo &a, const EntryInfo &b) {
+                    return compare_time_mode(a, b, time_mode);
+                  });
+        break;
+      case SortMode::Size:
+        std::sort(
+            entries.begin(), entries.end(),
+            [](const EntryInfo &a, const EntryInfo &b) {
+              uint64_t size_a =
+                  static_cast<uint64_t>(a.find_data.nFileSizeLow) |
+                  (static_cast<uint64_t>(a.find_data.nFileSizeHigh) << 32);
+              uint64_t size_b =
+                  static_cast<uint64_t>(b.find_data.nFileSizeLow) |
+                  (static_cast<uint64_t>(b.find_data.nFileSizeHigh) << 32);
+              if (size_a != size_b) {
+                return size_a > size_b;
+              }
+              return a.name < b.name;
+            });
+        break;
+      case SortMode::Version:
+        std::sort(entries.begin(), entries.end(),
+                  [](const EntryInfo &a, const EntryInfo &b) {
+                    int cmp = compare_version_strings(a.name, b.name);
+                    if (cmp != 0) return cmp < 0;
+                    return a.name < b.name;
+                  });
+        break;
+      case SortMode::Extension:
+        std::sort(entries.begin(), entries.end(), compare_extensions);
+        break;
+      case SortMode::Name:
+        std::sort(entries.begin(), entries.end(),
+                  [](const EntryInfo &a, const EntryInfo &b) {
+                    return a.name < b.name;
+                  });
+        break;
+      case SortMode::None:
+        break;
     }
 
-    if (reverse_sort) {
+    if (ctx.get<bool>("-r", false) || ctx.get<bool>("--reverse", false)) {
       std::reverse(entries.begin(), entries.end());
     }
   }
 
-  // Determine output format
-  bool long_format =
-      ctx.get<bool>("-l", false) || ctx.get<bool>("--long-list", false);
-  bool one_per_line = ctx.get<bool>("-1", false);
+  bool long_format = format_mode == FormatMode::Long;
   bool use_numeric =
       ctx.get<bool>("-n", false) || ctx.get<bool>("--numeric-uid-gid", false);
 
   if (long_format) {
+    const bool show_inode =
+        ctx.get<bool>("-i", false) || ctx.get<bool>("--inode", false);
+    const bool show_blocks =
+        ctx.get<bool>("-s", false) || ctx.get<bool>("--size", false);
+
     struct FileInfo {
       std::wstring name;
       WIN32_FIND_DATAW find_data;
+      std::wstring full_path;
       std::string perms;
+      std::string inode;
+      std::string blocks;
       std::string link_count;
       std::string size;
       std::string mtime;
@@ -1085,12 +1440,20 @@ auto list_directory(const std::string &path,
       FileInfo info;
       info.name = entry.name;
       info.find_data = entry.find_data;
+      info.full_path = entry.full_path;
       info.perms = get_permissions_string(entry.find_data);
-      std::wstring full_path = wpath + L"\\" + entry.name;
+      if (show_inode) {
+        info.inode =
+            get_file_index_string(entry.full_path, entry.find_data, ctx);
+      }
+      if (show_blocks) {
+        info.blocks =
+            get_allocated_blocks_string(entry.full_path, entry.find_data, ctx);
+      }
       info.link_count =
-          std::to_string(get_link_count(full_path, entry.find_data, ctx));
+          std::to_string(get_link_count(entry.full_path, entry.find_data, ctx));
       info.size = get_file_size_string(entry.find_data, ctx);
-      info.mtime = get_modification_time_string(entry.find_data);
+      info.mtime = get_time_string(entry.find_data, time_mode);
 
       // Get owner and group
       auto [owner, group] = get_file_owner_and_group(use_numeric);
@@ -1103,11 +1466,19 @@ auto list_directory(const std::string &path,
     // Calculate maximum widths for alignment
     size_t max_owner_len = 0;
     size_t max_group_len = 0;
+    size_t max_inode_len = 0;
+    size_t max_blocks_len = 0;
     size_t max_link_len = 0;
     size_t max_size_len = 0;
     for (const auto &file : files) {
       max_owner_len = std::max(max_owner_len, file.owner.length());
       max_group_len = std::max(max_group_len, file.group.length());
+      if (show_inode) {
+        max_inode_len = std::max(max_inode_len, file.inode.length());
+      }
+      if (show_blocks) {
+        max_blocks_len = std::max(max_blocks_len, file.blocks.length());
+      }
       max_link_len = std::max(max_link_len, file.link_count.length());
       max_size_len = std::max(max_size_len, file.size.length());
     }
@@ -1115,6 +1486,8 @@ auto list_directory(const std::string &path,
     // Set minimum widths to avoid empty values
     if (max_owner_len == 0) max_owner_len = 1;
     if (max_group_len == 0) max_group_len = 1;
+    if (show_inode && max_inode_len == 0) max_inode_len = 1;
+    if (show_blocks && max_blocks_len == 0) max_blocks_len = 1;
     if (max_link_len == 0) max_link_len = 1;
     if (max_size_len == 0) max_size_len = 1;
 
@@ -1122,6 +1495,26 @@ auto list_directory(const std::string &path,
     for (const auto &file_info : files) {
       std::wstring display_name =
           render_display_name(file_info.name, file_info.find_data, ctx);
+
+      if (show_inode) {
+        int inode_padding = static_cast<int>(max_inode_len) -
+                            static_cast<int>(file_info.inode.length());
+        for (int i = 0; i < inode_padding; ++i) {
+          safePrint(" ");
+        }
+        safePrint(std::string_view(file_info.inode));
+        safePrint(" ");
+      }
+
+      if (show_blocks) {
+        int blocks_padding = static_cast<int>(max_blocks_len) -
+                             static_cast<int>(file_info.blocks.length());
+        for (int i = 0; i < blocks_padding; ++i) {
+          safePrint(" ");
+        }
+        safePrint(std::string_view(file_info.blocks));
+        safePrint(" ");
+      }
 
       // 1. Permissions and link count
       safePrint(std::string_view(file_info.perms));
@@ -1165,13 +1558,7 @@ auto list_directory(const std::string &path,
       safePrint(std::string_view(file_info.mtime));
       safePrint(" ");
 
-      bool color_enabled = true;
-      std::string color_option = ctx.get<std::string>("--color", "auto");
-      if (color_option == "never") {
-        color_enabled = false;
-      } else if (color_option == "auto") {
-        color_enabled = is_terminal(stdout);
-      }
+      bool color_enabled = resolve_color_enabled(ctx);
 
       if (color_enabled) {
         safePrint(get_color_for_entry(file_info.name, file_info.find_data));
@@ -1183,32 +1570,27 @@ auto list_directory(const std::string &path,
       }
       safePrintLn(L"");
     }
-  } else if (one_per_line) {
-    bool color_enabled = true;
-    std::string color_option = ctx.get<std::string>("--color", "auto");
-    if (color_option == "never") {
-      color_enabled = false;
-    } else if (color_option == "auto") {
-      color_enabled = is_terminal(stdout);
+  } else if (format_mode == FormatMode::Commas) {
+    auto rendered = build_rendered_entries(entries, ctx);
+    int width = ctx.get<int>("-w", 0);
+    if (width <= 0) {
+      width = ctx.get<int>("--width", 0);
     }
-
-    for (const auto &entry : entries) {
-      std::wstring display_name =
-          render_display_name(entry.name, entry.find_data, ctx);
-
-      if (color_enabled) {
-        safePrint(get_color_for_entry(entry.name, entry.find_data));
-      }
-
-      safePrint(wstring_to_utf8(display_name));
-      if (color_enabled) {
-        safePrint(COLOR_RESET);
-      }
+    if (width <= 0) {
+      width = get_terminal_width();
+    }
+    print_rendered_entries(rendered, static_cast<size_t>(width));
+    safePrintLn(L"");
+  } else if (format_mode == FormatMode::OnePerLine) {
+    auto rendered = build_rendered_entries(entries, ctx);
+    for (const auto &entry : rendered) {
+      safePrint(entry.text);
       safePrintLn(L"");
     }
+  } else if (format_mode == FormatMode::Across) {
+    print_grid(entries, ctx, true);
   } else {
-    // Column format
-    print_columns(entries, ctx);
+    print_grid(entries, ctx, false);
   }
 
   return true;
@@ -1237,20 +1619,66 @@ auto list_file(const std::string &path,
   std::wstring filename = find_data.cFileName;
   FindClose(hFind);
 
-  // Determine output format
-  bool long_format =
-      ctx.get<bool>("-l", false) || ctx.get<bool>("--long-list", false);
+  std::string format_option = ctx.get<std::string>("--format", "");
+  std::string time_option = ctx.get<std::string>("--time", "");
+
+  FormatMode format_mode = FormatMode::Columns;
+  if (!format_option.empty()) {
+    auto parsed = parse_format_mode(format_option);
+    if (parsed) {
+      format_mode = *parsed;
+    }
+  } else if (ctx.get<bool>("-m", false)) {
+    format_mode = FormatMode::Commas;
+  } else if (ctx.get<bool>("-x", false)) {
+    format_mode = FormatMode::Across;
+  } else if (ctx.get<bool>("-1", false)) {
+    format_mode = FormatMode::OnePerLine;
+  }
+  if (ctx.get<bool>("-l", false) || ctx.get<bool>("--long-list", false)) {
+    format_mode = FormatMode::Long;
+  }
+
+  TimeMode time_mode = TimeMode::Modification;
+  if (!time_option.empty()) {
+    auto parsed = parse_time_mode(time_option);
+    if (parsed) {
+      time_mode = *parsed;
+    }
+  } else if (ctx.get<bool>("-u", false)) {
+    time_mode = TimeMode::Access;
+  } else if (ctx.get<bool>("-c", false)) {
+    time_mode = TimeMode::Status;
+  }
+
+  bool long_format = format_mode == FormatMode::Long;
   bool use_numeric =
       ctx.get<bool>("-n", false) || ctx.get<bool>("--numeric-uid-gid", false);
-  std::wstring display_name = render_display_name(filename, find_data, ctx);
+  bool show_inode =
+      ctx.get<bool>("-i", false) || ctx.get<bool>("--inode", false);
+  bool show_blocks =
+      ctx.get<bool>("-s", false) || ctx.get<bool>("--size", false);
 
   if (long_format) {
     // Long format output for single file
     auto perms = get_permissions_string(find_data);
+    auto inode = show_inode ? get_file_index_string(wpath, find_data, ctx) : "";
+    auto blocks =
+        show_blocks ? get_allocated_blocks_string(wpath, find_data, ctx) : "";
     auto link_count = std::to_string(get_link_count(wpath, find_data, ctx));
     auto size = get_file_size_string(find_data, ctx);
-    auto mtime = get_modification_time_string(find_data);
+    auto mtime = get_time_string(find_data, time_mode);
     auto [owner, group] = get_file_owner_and_group(use_numeric);
+    std::wstring display_name = render_display_name(filename, find_data, ctx);
+
+    if (!inode.empty()) {
+      safePrint(std::string_view(inode));
+      safePrint(" ");
+    }
+    if (!blocks.empty()) {
+      safePrint(std::string_view(blocks));
+      safePrint(" ");
+    }
 
     // 1. Permissions and link count
     safePrint(std::string_view(perms));
@@ -1279,13 +1707,7 @@ auto list_file(const std::string &path,
     safePrint(std::string_view(mtime));
     safePrint(" ");
 
-    bool color_enabled = true;
-    std::string color_option = ctx.get<std::string>("--color", "auto");
-    if (color_option == "never") {
-      color_enabled = false;
-    } else if (color_option == "auto") {
-      color_enabled = is_terminal(stdout);
-    }
+    bool color_enabled = resolve_color_enabled(ctx);
 
     if (color_enabled) {
       safePrint(get_color_for_entry(filename, find_data));
@@ -1297,23 +1719,9 @@ auto list_file(const std::string &path,
     }
     safePrintLn(L"");
   } else {
-    // Simple output format
-    bool color_enabled = true;
-    std::string color_option = ctx.get<std::string>("--color", "auto");
-    if (color_option == "never") {
-      color_enabled = false;
-    } else if (color_option == "auto") {
-      color_enabled = is_terminal(stdout);
-    }
-
-    if (color_enabled) {
-      safePrint(get_color_for_entry(filename, find_data));
-    }
-
-    safePrint(wstring_to_utf8(display_name));
-    if (color_enabled) {
-      safePrint(COLOR_RESET);
-    }
+    auto rendered = render_inline_entry({filename, wpath, find_data}, ctx,
+                                        resolve_color_enabled(ctx));
+    safePrint(rendered.text);
     safePrintLn(L"");
   }
 

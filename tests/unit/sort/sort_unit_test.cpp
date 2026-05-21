@@ -91,16 +91,59 @@ TEST(sort, sort_version_sort) {
   EXPECT_EQ_TEXT(r.stdout_text, "1.2.0\n1.2.2\n1.2.10\n1.10.0\n");
 }
 
-TEST(sort, sort_unsupported_merge) {
+TEST(sort, sort_merge_sorted_inputs) {
   TempDir tmp;
-  tmp.write("a.txt", "x\n");
+  tmp.write("a.txt", "a\nc\n");
+  tmp.write("b.txt", "b\nd\n");
 
   Pipeline p;
   p.set_cwd(tmp.wpath());
-  p.add(L"sort.exe", {L"-m", L"a.txt"});
+  p.add(L"sort.exe", {L"-m", L"a.txt", L"b.txt"});
   auto r = p.run();
 
-  EXPECT_EQ(r.exit_code, 2);
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_EQ_TEXT(r.stdout_text, "a\nb\nc\nd\n");
+}
+
+TEST(sort, sort_check_detects_unsorted_input) {
+  TempDir tmp;
+  tmp.write("bad.txt", "b\na\n");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"sort.exe", {L"-c", L"bad.txt"});
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 1);
+}
+
+TEST(sort, sort_check_quiet_detects_unsorted_input) {
+  TempDir tmp;
+  tmp.write("bad.txt", "b\na\n");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"sort.exe", {L"-C", L"bad.txt"});
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 1);
+  EXPECT_EQ_TEXT(r.stdout_text, "");
+}
+
+TEST(sort, sort_files0_from_reads_nul_terminated_names) {
+  TempDir tmp;
+  tmp.write("a.txt", "c\na\n");
+  tmp.write("b.txt", "b\nd\n");
+  tmp.write_bytes("list.bin", {'a', '.', 't', 'x', 't', '\0', 'b', '.', 't',
+                               'x', 't', '\0'});
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"sort.exe", {L"--files0-from", L"list.bin"});
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_EQ_TEXT(r.stdout_text, "a\nb\nc\nd\n");
 }
 
 TEST(sort, sort_uniq_pipeline_accepts_utf16le_stdin_with_bom) {

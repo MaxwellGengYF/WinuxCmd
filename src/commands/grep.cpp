@@ -84,11 +84,13 @@ using cmd::meta::OptionType;
  * [IMPLEMENTED]
  * - @a -q, @a --quiet: Suppress all normal output [IMPLEMENTED]
  * - @a --silent: Suppress all normal output [IMPLEMENTED]
- * - @a --binary-files: Assume that binary files are TYPE [NOT SUPPORT]
- * - @a -a, @a --text: Equivalent to --binary-files=text [NOT SUPPORT]
- * - @a -I: Equivalent to --binary-files=without-match [NOT SUPPORT]
- * - @a -d, @a --directories: How to handle directories: read, recurse, skip
- * [IMPLEMENTED]
+ * - @a --binary-files: Assume that binary files are TYPE [IMPLEMENTED]
+ * - @a
+ * -a, @a --text: Equivalent to --binary-files=text [IMPLEMENTED]
+ * - @a -I:
+ * Equivalent to --binary-files=without-match [IMPLEMENTED]
+ * - @a -d, @a
+ * --directories: How to handle directories: read, recurse, skip [IMPLEMENTED]
  * - @a -D, @a --devices: How to handle devices/FIFOs/sockets [NOT SUPPORT]
  * - @a -r, @a --recursive: Like --directories=recurse [IMPLEMENTED]
  * - @a -R, @a --dereference-recursive: Like -r but follow symlinks
@@ -97,8 +99,9 @@ using cmd::meta::OptionType;
  * - @a --include: Search only files that match GLOB
  * [IMPLEMENTED]
  * - @a --exclude: Skip files that match GLOB [IMPLEMENTED]
- * - @a --exclude-from: Skip files from patterns in FILE [NOT SUPPORT]
- * - @a --exclude-dir: Skip directories that match GLOB [IMPLEMENTED]
+ * - @a --exclude-from: Skip files from patterns in FILE [IMPLEMENTED]
+ * - @a
+ * --exclude-dir: Skip directories that match GLOB [IMPLEMENTED]
  * - @a
  * -L, @a --files-without-match: Print only names of FILEs with no selected
  * lines [IMPLEMENTED]
@@ -148,11 +151,10 @@ auto constexpr GREP_OPTIONS = std::array{
            "show only nonempty parts of lines that match"),
     OPTION("-q", "--quiet", "suppress all normal output"),
     OPTION("", "--silent", "suppress all normal output"),
-    OPTION("", "--binary-files",
-           "assume that binary files are TYPE [NOT SUPPORT]", STRING_TYPE),
-    OPTION("-a", "--text", "equivalent to --binary-files=text [NOT SUPPORT]"),
-    OPTION("-I", "",
-           "equivalent to --binary-files=without-match [NOT SUPPORT]"),
+    OPTION("", "--binary-files", "assume that binary files are TYPE",
+           STRING_TYPE),
+    OPTION("-a", "--text", "equivalent to --binary-files=text"),
+    OPTION("-I", "", "equivalent to --binary-files=without-match"),
     OPTION("-d", "--directories",
            "how to handle directories: read, recurse, skip", STRING_TYPE),
     OPTION("-D", "--devices",
@@ -161,8 +163,8 @@ auto constexpr GREP_OPTIONS = std::array{
     OPTION("-R", "--dereference-recursive", "like -r but follow symlinks"),
     OPTION("", "--include", "search only files that match GLOB", STRING_TYPE),
     OPTION("", "--exclude", "skip files that match GLOB", STRING_TYPE),
-    OPTION("", "--exclude-from",
-           "skip files from patterns in FILE [NOT SUPPORT]", STRING_TYPE),
+    OPTION("", "--exclude-from", "skip files from patterns in FILE",
+           STRING_TYPE),
     OPTION("", "--exclude-dir", "skip directories that match GLOB",
            STRING_TYPE),
     OPTION("-L", "--files-without-match",
@@ -194,6 +196,7 @@ namespace grep_pipeline {
 namespace cp = core::pipeline;
 
 enum class PatternMode { BasicRegex, ExtendedRegex, Fixed };
+enum class BinaryMode { Binary, Text, WithoutMatch };
 
 struct MatchPiece {
   size_t begin = 0;
@@ -235,8 +238,10 @@ struct Config {
   int before_context = 0;
   int after_context = 0;
   bool color = false;
+  BinaryMode binary_mode = BinaryMode::Binary;
   std::string include;
   std::string exclude;
+  SmallVector<std::string, 16> exclude_from_patterns;
   std::string exclude_dir;
   std::string group_separator = "--";
   bool no_group_separator = false;
@@ -327,22 +332,22 @@ auto load_patterns_from_file(const std::string& path)
 
   std::string buf((std::istreambuf_iterator<char>(in)),
                   std::istreambuf_iterator<char>());
-  return split_lines(buf);
+  auto lines = split_lines(buf);
+  for (auto& line : lines) {
+    if (!line.empty() && line.back() == '\r') {
+      line.pop_back();
+    }
+  }
+  return lines;
 }
 
 auto is_unsupported_used(const CommandContext<GREP_OPTIONS.size()>& ctx)
     -> std::optional<std::string> {
   if (ctx.get<bool>("--perl-regexp", false) || ctx.get<bool>("-P", false))
     return "--perl-regexp is [NOT SUPPORT]";
-  if (!ctx.get<std::string>("--binary-files", "").empty() ||
-      ctx.get<bool>("--text", false) || ctx.get<bool>("-a", false) ||
-      ctx.get<bool>("-I", false))
-    return "binary file mode options are [NOT SUPPORT]";
   if (!ctx.get<std::string>("--devices", "").empty() ||
       !ctx.get<std::string>("-D", "").empty())
     return "--devices is [NOT SUPPORT]";
-  if (!ctx.get<std::string>("--exclude-from", "").empty())
-    return "--exclude-from is [NOT SUPPORT]";
   return std::nullopt;
 }
 
@@ -400,6 +405,26 @@ auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
   cfg.null_after_filename =
       ctx.get<bool>("--null", false) || ctx.get<bool>("-Z", false);
 
+  std::string binary_files = ctx.get<std::string>("--binary-files", "");
+  if (ctx.get<bool>("--text", false) || ctx.get<bool>("-a", false)) {
+    binary_files = "text";
+  }
+  if (ctx.get<bool>("-I", false)) {
+    binary_files = "without-match";
+  }
+  if (!binary_files.empty()) {
+    if (binary_files == "binary") {
+      cfg.binary_mode = BinaryMode::Binary;
+    } else if (binary_files == "text") {
+      cfg.binary_mode = BinaryMode::Text;
+    } else if (binary_files == "without-match") {
+      cfg.binary_mode = BinaryMode::WithoutMatch;
+    } else {
+      return std::unexpected("invalid binary-files type '" + binary_files +
+                             "'");
+    }
+  }
+
   cfg.recursive = ctx.get<bool>("--recursive", false) ||
                   ctx.get<bool>("-r", false) ||
                   ctx.get<bool>("--dereference-recursive", false) ||
@@ -426,6 +451,14 @@ auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
   cfg.include = ctx.get<std::string>("--include", "");
   cfg.exclude = ctx.get<std::string>("--exclude", "");
   cfg.exclude_dir = ctx.get<std::string>("--exclude-dir", "");
+  std::string exclude_from = ctx.get<std::string>("--exclude-from", "");
+  if (!exclude_from.empty()) {
+    auto exclude_patterns = load_patterns_from_file(exclude_from);
+    if (!exclude_patterns) return std::unexpected(exclude_patterns.error());
+    for (const auto& pattern : *exclude_patterns) {
+      if (!pattern.empty()) cfg.exclude_from_patterns.push_back(pattern);
+    }
+  }
 
   cfg.group_separator = ctx.get<std::string>("--group-separator", "--");
   cfg.no_group_separator = ctx.get<bool>("--no-group-separator", false);
@@ -868,6 +901,34 @@ auto read_file_binary(const std::string& path) -> cp::Result<std::string> {
                      std::istreambuf_iterator<char>());
 }
 
+auto contains_binary_bytes(std::string_view text, const Config& cfg) -> bool {
+  return !cfg.null_data && text.find('\0') != std::string_view::npos;
+}
+
+auto matches_any_glob(const SmallVector<std::string, 16>& patterns,
+                      std::string_view filename) -> bool {
+  const std::wstring wfilename = utf8_to_wstring(std::string(filename));
+  for (const auto& pattern : patterns) {
+    if (wildcard_match(utf8_to_wstring(pattern), wfilename)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+auto should_search_file(const Config& cfg, std::string_view filename) -> bool {
+  const std::wstring wfilename = utf8_to_wstring(std::string(filename));
+  if (!cfg.include.empty() &&
+      !wildcard_match(utf8_to_wstring(cfg.include), wfilename)) {
+    return false;
+  }
+  if (!cfg.exclude.empty() &&
+      wildcard_match(utf8_to_wstring(cfg.exclude), wfilename)) {
+    return false;
+  }
+  return !matches_any_glob(cfg.exclude_from_patterns, filename);
+}
+
 auto gather_files_for_input(const Config& cfg, std::vector<std::string>& out)
     -> cp::Result<void> {
   for (const auto& f : cfg.files) {
@@ -882,7 +943,11 @@ auto gather_files_for_input(const Config& cfg, std::vector<std::string>& out)
       if (glob_result.expanded) {
         // Pattern was expanded, add all matched files
         for (const auto& file : glob_result.files) {
-          out.push_back(wstring_to_utf8(file));
+          std::string filepath = wstring_to_utf8(file);
+          std::string filename =
+              std::filesystem::path(filepath).filename().string();
+          if (!should_search_file(cfg, filename)) continue;
+          out.push_back(filepath);
         }
         continue;
       }
@@ -897,18 +962,8 @@ auto gather_files_for_input(const Config& cfg, std::vector<std::string>& out)
     }
 
     if (!is_dir) {
-      if (!cfg.include.empty()) {
-        std::string filename = std::filesystem::path(f).filename().string();
-        if (!wildcard_match(cfg.include, filename)) {
-          continue;
-        }
-      }
-      if (!cfg.exclude.empty()) {
-        std::string filename = std::filesystem::path(f).filename().string();
-        if (wildcard_match(cfg.exclude, filename)) {
-          continue;
-        }
-      }
+      std::string filename = std::filesystem::path(f).filename().string();
+      if (!should_search_file(cfg, filename)) continue;
       out.push_back(f);
       continue;
     }
@@ -935,12 +990,7 @@ auto gather_files_for_input(const Config& cfg, std::vector<std::string>& out)
         if (e.is_regular_file()) {
           std::string filepath = e.path().string();
           std::string filename = e.path().filename().string();
-          if (!cfg.include.empty() && !wildcard_match(cfg.include, filename)) {
-            continue;
-          }
-          if (!cfg.exclude.empty() && wildcard_match(cfg.exclude, filename)) {
-            continue;
-          }
+          if (!should_search_file(cfg, filename)) continue;
           out.push_back(filepath);
         }
       }
@@ -982,7 +1032,29 @@ auto process(Config& cfg) -> int {
                        !cfg.files_without_match;
 
     if (input == "-") {
-      scan_result = scan_stream(std::cin, display_name, show_filename, cfg);
+      if (cfg.binary_mode == BinaryMode::WithoutMatch) {
+        std::string content((std::istreambuf_iterator<char>(std::cin)),
+                            std::istreambuf_iterator<char>());
+        if (!contains_binary_bytes(content, cfg)) {
+          scan_result = scan_text(content, display_name, show_filename, cfg);
+        }
+      } else {
+        scan_result = scan_stream(std::cin, display_name, show_filename, cfg);
+      }
+    } else if (cfg.binary_mode == BinaryMode::WithoutMatch) {
+      auto content = read_file_binary(input);
+      if (!content) {
+        cfg.has_error = true;
+        if (!cfg.no_messages && !cfg.quiet) {
+          safeErrorPrint("grep: ");
+          safeErrorPrint(content.error());
+          safeErrorPrint("\n");
+        }
+        continue;
+      }
+      if (!contains_binary_bytes(*content, cfg)) {
+        scan_result = scan_text(*content, display_name, show_filename, cfg);
+      }
     } else if (use_context) {
       // Read entire file for context support
       auto content = read_file_binary(input);

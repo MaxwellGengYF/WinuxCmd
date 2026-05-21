@@ -22,8 +22,10 @@
  *  - File: ls_unit_test.cpp
  *  - CopyrightYear: 2026
  */
+#include <chrono>
 #include <filesystem>
 #include <regex>
+#include <thread>
 
 #include "framework/winuxtest.h"
 
@@ -311,6 +313,94 @@ TEST(ls, ls_size_sort) {
   EXPECT_LT(large_pos, small_pos);
 }
 
+TEST(ls, ls_comma_format) {
+  TempDir tmp;
+  tmp.write("a.txt", "a");
+  tmp.write("b.txt", "b");
+  tmp.write("c.txt", "c");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"ls.exe", {L"-m"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("a.txt, b.txt, c.txt") != std::string::npos);
+}
+
+TEST(ls, ls_horizontal_layout) {
+  TempDir tmp;
+  tmp.write("a", "a");
+  tmp.write("b", "b");
+  tmp.write("c", "c");
+  tmp.write("d", "d");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"ls.exe", {L"-x", L"-w", L"7"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  auto newline = r.stdout_text.find('\n');
+  EXPECT_NE(newline, std::string::npos);
+  if (newline == std::string::npos) return;
+  std::string first_line = r.stdout_text.substr(0, newline);
+  EXPECT_TRUE(first_line.find("a") != std::string::npos);
+  EXPECT_TRUE(first_line.find("b") != std::string::npos);
+  EXPECT_TRUE(first_line.find("c") == std::string::npos);
+}
+
+TEST(ls, ls_access_time_sort) {
+  TempDir tmp;
+  tmp.write("old.txt", "old");
+  tmp.write("new.txt", "new");
+
+  Pipeline touch_old;
+  touch_old.set_cwd(tmp.wpath());
+  touch_old.add(L"touch.exe", {L"-a", L"-d", L"202501011000", L"old.txt"});
+  touch_old.run();
+
+  Pipeline touch_new;
+  touch_new.set_cwd(tmp.wpath());
+  touch_new.add(L"touch.exe", {L"-a", L"-d", L"202501011200", L"new.txt"});
+  touch_new.run();
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"ls.exe", {L"-1", L"-u"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  size_t new_pos = r.stdout_text.find("new.txt");
+  size_t old_pos = r.stdout_text.find("old.txt");
+  EXPECT_TRUE(new_pos != std::string::npos);
+  EXPECT_TRUE(old_pos != std::string::npos);
+  EXPECT_LT(new_pos, old_pos);
+}
+
+TEST(ls, ls_birth_time_sort) {
+  TempDir tmp;
+  tmp.write("old.txt", "old");
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  tmp.write("new.txt", "new");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"ls.exe", {L"-1", L"-c"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  size_t new_pos = r.stdout_text.find("new.txt");
+  size_t old_pos = r.stdout_text.find("old.txt");
+  EXPECT_TRUE(new_pos != std::string::npos);
+  EXPECT_TRUE(old_pos != std::string::npos);
+  EXPECT_LT(new_pos, old_pos);
+}
+
 TEST(ls, ls_recursive) {
   TempDir tmp;
   std::filesystem::create_directory(tmp.path / "subdir1");
@@ -468,4 +558,20 @@ TEST(ls, ls_long_with_file) {
   // Long format should include file permissions, size, date
   EXPECT_TRUE(r.stdout_text.find("-rw") != std::string::npos ||
               r.stdout_text.find("-r-") != std::string::npos);
+}
+
+TEST(ls, ls_inode_and_blocks_prefixes) {
+  TempDir tmp;
+  tmp.write("sample.txt", "sample");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"ls.exe", {L"-lis", L"sample.txt"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(std::regex_search(
+      r.stdout_text, std::regex(R"(^\s*\d+\s+\d+\s+[dl-][rwx-]{9}\s+\d+\s+)")));
+  EXPECT_TRUE(r.stdout_text.find("sample.txt") != std::string::npos);
 }

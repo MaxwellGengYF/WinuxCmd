@@ -142,3 +142,51 @@ TEST(wc, wc_wildcard) {
   EXPECT_TRUE(r.stdout_text.find("file2.txt") != std::string::npos);
   EXPECT_TRUE(r.stdout_text.find("other.log") == std::string::npos);
 }
+
+TEST(wc, wc_counts_newlines_only_for_lines) {
+  TempDir tmp;
+  tmp.write("a.txt", "one\ntwo");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"wc.exe", {L"-l", L"a.txt"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_EQ_TEXT(r.stdout_text, "1 a.txt\n");
+}
+
+TEST(wc, wc_total_only_omits_label) {
+  TempDir tmp;
+  tmp.write("a.txt", "one\n");
+  tmp.write("b.txt", "one\ntwo\n");
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"wc.exe", {L"-l", L"--total=only", L"*.txt"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_EQ_TEXT(r.stdout_text, "3\n");
+}
+
+TEST(wc, wc_files0_from_reads_nul_terminated_names) {
+  TempDir tmp;
+  tmp.write("a.txt", "hello\nworld\n");
+  tmp.write("b.txt", "foo\nbar\nbaz\n");
+  tmp.write_bytes("list.bin", {'a', '.', 't', 'x', 't', '\0', 'b', '.', 't',
+                               'x', 't', '\0'});
+
+  Pipeline p;
+  p.set_cwd(tmp.wpath());
+  p.add(L"wc.exe", {L"-l", L"--files0-from", L"list.bin"});
+
+  auto r = p.run();
+
+  EXPECT_EQ(r.exit_code, 0);
+  EXPECT_TRUE(r.stdout_text.find("2 a.txt") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("3 b.txt") != std::string::npos);
+  EXPECT_TRUE(r.stdout_text.find("5 total") != std::string::npos);
+}
