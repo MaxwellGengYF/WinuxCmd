@@ -43,20 +43,44 @@ using cmd::meta::OptionType;
 
 auto constexpr BASENC_OPTIONS =
     std::array{OPTION("-d", "--decode", "decode data"),
-               OPTION("-b", "", "baseN", INT_TYPE),
-               OPTION("-w", "", "wrap at COLS", INT_TYPE)};
+               OPTION("-b", "", "baseN", STRING_TYPE),
+               OPTION("-w", "--wrap", "wrap at COLS", STRING_TYPE),
+               OPTION("", "--base64", "use base64 encoding"),
+               OPTION("", "--base64url", "use base64url encoding"),
+               OPTION("", "--base32", "use base32 encoding"),
+               OPTION("", "--base32hex", "use base32hex encoding"),
+               OPTION("", "--base16", "use base16 (hex) encoding"),
+               OPTION("", "--base2msbf", "use base2 MSB-first encoding"),
+               OPTION("", "--base2lsbf", "use base2 LSB-first encoding"),
+               OPTION("", "--base2", "use base2 (binary) encoding"),
+               OPTION("", "--hex", "use base16 (hex) encoding"),
+               OPTION("", "--bin", "use base2 (binary) encoding"),
+               OPTION("", "--base58", "base58 encoding (not implemented)"),
+               OPTION("", "--z85", "z85 encoding (not implemented)"),
+               OPTION("", "--ignore-garbage",
+                      "when decoding, ignore non-alphabet characters")};
 
 // ======================================================
 // Helper functions
 // ======================================================
 
 namespace {
-enum class Encoding { BASE64, BASE32, BASE16, BASE2URL };
+enum class Encoding {
+  BASE64,
+  BASE64URL,
+  BASE32,
+  BASE32HEX,
+  BASE16,
+  BASE2MSBF,
+  BASE2LSBF,
+  NONE
+};
 
-// Base64 encoding
-std::string base64_encode(const std::string& data, int wrap = 76) {
-  const char* alphabet =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+// Base64 encode (standard or URL-safe)
+std::string base64_encode(const std::string& data, int wrap, bool url_safe) {
+  const char* alphabet = url_safe
+      ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+      : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   std::string result;
 
   for (size_t i = 0; i < data.size(); i += 3) {
@@ -70,12 +94,10 @@ std::string base64_encode(const std::string& data, int wrap = 76) {
     result += alphabet[b2 & 0x3F];
   }
 
-  // Add padding
   size_t padding = (3 - data.size() % 3) % 3;
   result.resize(result.size() - padding);
   result.append(padding, '=');
 
-  // Wrap lines
   if (wrap > 0) {
     std::string wrapped;
     for (size_t i = 0; i < result.size(); i += wrap) {
@@ -88,24 +110,18 @@ std::string base64_encode(const std::string& data, int wrap = 76) {
   return result;
 }
 
-// Base64 decoding
-std::string base64_decode(const std::string& encoded) {
-  const signed char decode_table[] = {
-      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-      -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63, 52, 53, 54, 55, 56, 57,
-      58, 59, 60, 61, -1, -1, -1, -1, -1, -1, -1, 0,  1,  2,  3,  4,  5,  6,
-      7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-      25, -1, -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
-      37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1,
-      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-      -1, -1, -1, -1};
+// Base64 decode (standard or URL-safe)
+std::string base64_decode(const std::string& encoded, bool url_safe,
+                          bool ignore_garbage) {
+  // Build decode table
+  signed char decode_table[256];
+  memset(decode_table, -1, sizeof(decode_table));
+  const char* alphabet = url_safe
+      ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+      : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  for (int i = 0; i < 64; ++i) {
+    decode_table[static_cast<unsigned char>(alphabet[i])] = i;
+  }
 
   std::string result;
   unsigned char buffer[4] = {0};
@@ -114,7 +130,10 @@ std::string base64_decode(const std::string& encoded) {
   for (char c : encoded) {
     if (c == '=' || c == '\n' || c == '\r' || c == ' ' || c == '\t') continue;
     signed char value = decode_table[static_cast<unsigned char>(c)];
-    if (value < 0) continue;
+    if (value < 0) {
+      if (ignore_garbage) continue;
+      return {};  // Signal invalid input
+    }
 
     buffer[buffer_pos++] = static_cast<unsigned char>(value);
 
@@ -136,9 +155,11 @@ std::string base64_decode(const std::string& encoded) {
   return result;
 }
 
-// Base32 encoding (RFC 4648)
-std::string base32_encode(const std::string& data, int wrap = 76) {
-  const char* alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+// Base32 encode (RFC 4648 or base32hex)
+std::string base32_encode(const std::string& data, int wrap, bool hex_alphabet) {
+  const char* alphabet = hex_alphabet
+      ? "0123456789ABCDEFGHIJKLMNOPQRSTUV"
+      : "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   std::string result;
 
   for (size_t i = 0; i < data.size(); i += 5) {
@@ -192,16 +213,69 @@ std::string base32_encode(const std::string& data, int wrap = 76) {
   return result;
 }
 
+// Base32 decode
+std::string base32_decode(const std::string& encoded, bool hex_alphabet,
+                          bool ignore_garbage) {
+  signed char decode_table[256];
+  memset(decode_table, -1, sizeof(decode_table));
+  const char* alphabet = hex_alphabet
+      ? "0123456789ABCDEFGHIJKLMNOPQRSTUV"
+      : "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  for (int i = 0; i < 32; ++i) {
+    decode_table[static_cast<unsigned char>(alphabet[i])] = i;
+    // Also accept lowercase
+    if (alphabet[i] >= 'A' && alphabet[i] <= 'Z') {
+      decode_table[static_cast<unsigned char>(alphabet[i] + 32)] = i;
+    }
+  }
+
+  std::string result;
+  unsigned char buffer[8] = {0};
+  size_t buffer_pos = 0;
+
+  for (char c : encoded) {
+    if (c == '=' || c == '\n' || c == '\r' || c == ' ' || c == '\t') continue;
+    signed char value = decode_table[static_cast<unsigned char>(c)];
+    if (value < 0) {
+      if (ignore_garbage) continue;
+      return {};
+    }
+    buffer[buffer_pos++] = static_cast<unsigned char>(value);
+
+    if (buffer_pos == 8) {
+      result.push_back((buffer[0] << 3) | (buffer[1] >> 2));
+      result.push_back(((buffer[1] & 0x03) << 6) | (buffer[2] << 1) |
+                       (buffer[3] >> 4));
+      result.push_back(((buffer[3] & 0x0F) << 4) | (buffer[4] >> 1));
+      result.push_back(((buffer[4] & 0x01) << 7) | (buffer[5] << 2) |
+                       (buffer[6] >> 3));
+      result.push_back(((buffer[6] & 0x07) << 5) | buffer[7]);
+      buffer_pos = 0;
+    }
+  }
+
+  if (buffer_pos >= 2)
+    result.push_back((buffer[0] << 3) | (buffer[1] >> 2));
+  if (buffer_pos >= 4)
+    result.push_back(((buffer[1] & 0x03) << 6) | (buffer[2] << 1) |
+                     (buffer[3] >> 4));
+  if (buffer_pos >= 5)
+    result.push_back(((buffer[3] & 0x0F) << 4) | (buffer[4] >> 1));
+  if (buffer_pos >= 7)
+    result.push_back(((buffer[4] & 0x01) << 7) | (buffer[5] << 2) |
+                     (buffer[6] >> 3));
+
+  return result;
+}
+
 // Base16 (hex) encoding
-std::string base16_encode(const std::string& data, int wrap = 76) {
+std::string base16_encode(const std::string& data, int wrap) {
   const char* alphabet = "0123456789ABCDEF";
   std::string result;
-
   for (unsigned char c : data) {
     result += alphabet[c >> 4];
     result += alphabet[c & 0x0F];
   }
-
   if (wrap > 0) {
     std::string wrapped;
     for (size_t i = 0; i < result.size(); i += wrap) {
@@ -210,58 +284,54 @@ std::string base16_encode(const std::string& data, int wrap = 76) {
     }
     return wrapped;
   }
-
   return result;
 }
 
 // Base16 (hex) decoding
-std::string base16_decode(const std::string& encoded) {
+std::string base16_decode(const std::string& encoded, bool ignore_garbage) {
   std::string result;
-
   for (size_t i = 0; i + 1 < encoded.size(); i += 2) {
     char c1 = encoded[i];
     char c2 = encoded[i + 1];
 
     if (c1 == '\n' || c1 == '\r' || c1 == ' ' || c1 == '\t') {
-      i--;
-      continue;
+      if (ignore_garbage) { i--; continue; }
+      return {};
     }
     if (c2 == '\n' || c2 == '\r' || c2 == ' ' || c2 == '\t') {
-      i++;
-      continue;
+      if (ignore_garbage) { i++; continue; }
+      return {};
     }
 
-    unsigned char value = 0;
-    if (c1 >= '0' && c1 <= '9')
-      value = (c1 - '0') << 4;
-    else if (c1 >= 'A' && c1 <= 'F')
-      value = (c1 - 'A' + 10) << 4;
-    else if (c1 >= 'a' && c1 <= 'f')
-      value = (c1 - 'a' + 10) << 4;
-
-    if (c2 >= '0' && c2 <= '9')
-      value |= (c2 - '0');
-    else if (c2 >= 'A' && c2 <= 'F')
-      value |= (c2 - 'A' + 10);
-    else if (c2 >= 'a' && c2 <= 'f')
-      value |= (c2 - 'a' + 10);
-
-    result.push_back(value);
+    auto hex_val = [](char c) -> int {
+      if (c >= '0' && c <= '9') return c - '0';
+      if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+      if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+      return -1;
+    };
+    int v1 = hex_val(c1);
+    int v2 = hex_val(c2);
+    if (v1 < 0 || v2 < 0) {
+      if (ignore_garbage) continue;
+      return {};
+    }
+    result.push_back(static_cast<unsigned char>((v1 << 4) | v2));
   }
-
   return result;
 }
 
-// Base2 (binary) encoding
-std::string base2_encode(const std::string& data, int wrap = 76) {
+// Base2 encoding (MSB first or LSB first)
+std::string base2_encode(const std::string& data, int wrap, bool lsb_first) {
   std::string result;
-
   for (unsigned char c : data) {
-    for (int i = 7; i >= 0; --i) {
-      result += ((c >> i) & 1) ? '1' : '0';
+    if (lsb_first) {
+      for (int i = 0; i < 8; ++i)
+        result += ((c >> i) & 1) ? '1' : '0';
+    } else {
+      for (int i = 7; i >= 0; --i)
+        result += ((c >> i) & 1) ? '1' : '0';
     }
   }
-
   if (wrap > 0) {
     std::string wrapped;
     for (size_t i = 0; i < result.size(); i += wrap) {
@@ -270,17 +340,21 @@ std::string base2_encode(const std::string& data, int wrap = 76) {
     }
     return wrapped;
   }
-
   return result;
 }
 
-// Determine encoding from argument
+// Determine encoding from -b argument
 Encoding parse_encoding(const std::string& str) {
   if (str == "64" || str == "base64") return Encoding::BASE64;
+  if (str == "64url" || str == "base64url") return Encoding::BASE64URL;
   if (str == "32" || str == "base32") return Encoding::BASE32;
+  if (str == "32hex" || str == "base32hex") return Encoding::BASE32HEX;
   if (str == "16" || str == "base16" || str == "hex") return Encoding::BASE16;
-  if (str == "2" || str == "base2" || str == "bin") return Encoding::BASE2URL;
-  return Encoding::BASE64;
+  if (str == "2" || str == "base2" || str == "bin" || str == "2msbf" ||
+      str == "base2msbf")
+    return Encoding::BASE2MSBF;
+  if (str == "2lsbf" || str == "base2lsbf") return Encoding::BASE2LSBF;
+  return Encoding::NONE;
 }
 }  // namespace
 
@@ -300,23 +374,75 @@ REGISTER_COMMAND(
     "base64(1), base32(1)", "WinuxCmd", "Copyright © 2026 WinuxCmd",
     BASENC_OPTIONS) {
   bool decode = ctx.get<bool>("-d", false) || ctx.get<bool>("--decode", false);
-  int wrap = 76;
-  Encoding encoding = Encoding::BASE64;
+  bool ignore_garbage =
+      ctx.get<bool>("--ignore-garbage", false);
 
-  if (ctx.get<bool>("-b", false)) {
-    encoding = parse_encoding(ctx.get<std::string>("-b", ""));
+  // Parse wrap value
+  int wrap = 76;
+  std::string wrap_str = ctx.get<std::string>("--wrap", "");
+  if (wrap_str.empty()) {
+    wrap_str = ctx.get<std::string>("-w", "");
   }
-  if (ctx.get<bool>("--base64", false)) encoding = Encoding::BASE64;
-  if (ctx.get<bool>("--base32", false)) encoding = Encoding::BASE32;
-  if (ctx.get<bool>("--base16", false) || ctx.get<bool>("--hex", false))
-    encoding = Encoding::BASE16;
-  if (ctx.get<bool>("--base2", false) || ctx.get<bool>("--bin", false))
-    encoding = Encoding::BASE2URL;
-  if (ctx.get<bool>("-w", false)) {
+  if (!wrap_str.empty()) {
     try {
-      wrap = std::stoi(ctx.get<std::string>("-w", "76"));
+      wrap = std::stoi(wrap_str);
     } catch (...) {
     }
+  }
+
+  // Count encoding selectors
+  int selector_count = 0;
+  Encoding encoding = Encoding::NONE;
+
+  auto check_selector = [&](const char* name, Encoding enc) {
+    if (ctx.get<bool>(name, false)) {
+      selector_count++;
+      encoding = enc;
+    }
+  };
+
+  // -b N selector
+  std::string b_val = ctx.get<std::string>("-b", "");
+  if (!b_val.empty()) {
+    selector_count++;
+    encoding = parse_encoding(b_val);
+    if (encoding == Encoding::NONE) {
+      safeErrorPrintLn("basenc: unknown encoding type");
+      return 1;
+    }
+  }
+
+  check_selector("--base64", Encoding::BASE64);
+  check_selector("--base64url", Encoding::BASE64URL);
+  check_selector("--base32", Encoding::BASE32);
+  check_selector("--base32hex", Encoding::BASE32HEX);
+  check_selector("--base16", Encoding::BASE16);
+  check_selector("--hex", Encoding::BASE16);
+  check_selector("--base2msbf", Encoding::BASE2MSBF);
+  check_selector("--base2lsbf", Encoding::BASE2LSBF);
+  check_selector("--base2", Encoding::BASE2MSBF);
+  check_selector("--bin", Encoding::BASE2MSBF);
+
+  // Unimplemented selectors
+  if (ctx.get<bool>("--base58", false)) {
+    safeErrorPrintLn("basenc: base58 encoding is not implemented");
+    return 1;
+  }
+  if (ctx.get<bool>("--z85", false)) {
+    safeErrorPrintLn("basenc: z85 encoding is not implemented");
+    return 1;
+  }
+
+  // No selector: error
+  if (selector_count == 0) {
+    safeErrorPrintLn("basenc: missing encoding type");
+    return 1;
+  }
+
+  // Multiple selectors: error
+  if (selector_count > 1) {
+    safeErrorPrintLn("basenc: multiple encoding options");
+    return 1;
   }
 
   // Read input
@@ -346,40 +472,78 @@ REGISTER_COMMAND(
 
   // Process based on encoding
   std::string output;
+  bool invalid = false;
+  bool is_encode = !decode;
+
   switch (encoding) {
     case Encoding::BASE64:
       if (decode) {
-        output = base64_decode(input);
+        output = base64_decode(input, false, ignore_garbage);
+        if (output.empty() && !input.empty() && !ignore_garbage) invalid = true;
       } else {
-        output = base64_encode(input, wrap);
+        output = base64_encode(input, wrap, false);
+      }
+      break;
+    case Encoding::BASE64URL:
+      if (decode) {
+        output = base64_decode(input, true, ignore_garbage);
+        if (output.empty() && !input.empty() && !ignore_garbage) invalid = true;
+      } else {
+        output = base64_encode(input, wrap, true);
       }
       break;
     case Encoding::BASE32:
       if (decode) {
-        output = "basenc: base32 decode not implemented\n";
-        return 1;
+        output = base32_decode(input, false, ignore_garbage);
+        if (output.empty() && !input.empty() && !ignore_garbage) invalid = true;
       } else {
-        output = base32_encode(input, wrap);
+        output = base32_encode(input, wrap, false);
+      }
+      break;
+    case Encoding::BASE32HEX:
+      if (decode) {
+        output = base32_decode(input, true, ignore_garbage);
+        if (output.empty() && !input.empty() && !ignore_garbage) invalid = true;
+      } else {
+        output = base32_encode(input, wrap, true);
       }
       break;
     case Encoding::BASE16:
       if (decode) {
-        output = base16_decode(input);
+        output = base16_decode(input, ignore_garbage);
+        if (output.empty() && !input.empty() && !ignore_garbage) invalid = true;
       } else {
         output = base16_encode(input, wrap);
       }
       break;
-    case Encoding::BASE2URL:
+    case Encoding::BASE2MSBF:
       if (decode) {
-        output = "basenc: base2 decode not implemented\n";
-        return 1;
+        invalid = true;
       } else {
-        output = base2_encode(input, wrap);
+        output = base2_encode(input, wrap, false);
       }
       break;
+    case Encoding::BASE2LSBF:
+      if (decode) {
+        invalid = true;
+      } else {
+        output = base2_encode(input, wrap, true);
+      }
+      break;
+    default:
+      safeErrorPrintLn("basenc: missing encoding type");
+      return 1;
   }
 
-  safePrintLn(output);
+  if (invalid) {
+    safeErrorPrintLn("basenc: invalid input");
+    return 1;
+  }
+
+  safePrint(output);
+  if (is_encode) {
+    safePrint("\n");
+  }
 
   return 0;
 }

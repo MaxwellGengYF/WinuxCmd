@@ -42,18 +42,22 @@ using cmd::meta::OptionType;
 auto constexpr NL_OPTIONS = std::array{
     OPTION("-b", "--body-numbering", "use STYLE for numbering body lines",
            STRING_TYPE),
+    OPTION("-h", "--header-numbering", "use STYLE for numbering header lines",
+           STRING_TYPE),
+    OPTION("-f", "--footer-numbering", "use STYLE for numbering footer lines",
+           STRING_TYPE),
     OPTION("-i", "line-increment", "line number increment at each line",
            STRING_TYPE),
     OPTION("-s", "number-separator", "add STRING after (possible) line number",
            STRING_TYPE),
     OPTION("-v", "starting-line-number",
            "first line number on each logical page", STRING_TYPE),
-    OPTION("-w", "line-number-width", "width of line numbers", STRING_TYPE)
-    // -n, --number-format (not implemented)
-    // -p, --no-renumber (not implemented)
-    // -d, --section-delimiter (not implemented)
-    // -f, --footer-numbering (not implemented)
-    // -h, --header-numbering (not implemented)
+    OPTION("-w", "line-number-width", "width of line numbers", STRING_TYPE),
+    OPTION("-n", "--number-format", "use FORMAT for line numbers",
+           STRING_TYPE),
+    OPTION("-p", "--no-renumber", "do not reset line numbers at logical pages"),
+    OPTION("-d", "--section-delimiter", "use DELIM for section delimiters",
+           STRING_TYPE)
 };
 
 namespace nl_pipeline {
@@ -61,10 +65,15 @@ namespace cp = core::pipeline;
 
 struct Config {
   std::string body_numbering = "t";  // t: non-empty, a: all, n: none
+  std::string header_numbering = "n";  // Default: no header numbering
+  std::string footer_numbering = "n";  // Default: no footer numbering
+  std::string number_format = "rn";    // rn: right, ln: left, rz: right-zero
   int line_increment = 1;
   std::string separator = "\t";
   int starting_number = 1;
   int number_width = 6;
+  bool no_renumber = false;
+  std::string section_delimiter;
   SmallVector<std::string, 64> files;
 };
 
@@ -79,9 +88,27 @@ auto build_config(const CommandContext<NL_OPTIONS.size()>& ctx)
   if (!body_opt.empty()) {
     cfg.body_numbering = body_opt;
     if (cfg.body_numbering != "t" && cfg.body_numbering != "a" &&
-        cfg.body_numbering != "n") {
+        cfg.body_numbering != "n" &&
+        cfg.body_numbering != "pRE" &&  // regexp based
+        cfg.body_numbering != "p") {
       return core::pipeline::unexpected("invalid body numbering style");
     }
+  }
+
+  auto header_opt = ctx.get<std::string>("--header-numbering", "");
+  if (header_opt.empty()) {
+    header_opt = ctx.get<std::string>("-h", "");
+  }
+  if (!header_opt.empty()) {
+    cfg.header_numbering = header_opt;
+  }
+
+  auto footer_opt = ctx.get<std::string>("--footer-numbering", "");
+  if (footer_opt.empty()) {
+    footer_opt = ctx.get<std::string>("-f", "");
+  }
+  if (!footer_opt.empty()) {
+    cfg.footer_numbering = footer_opt;
   }
 
   auto increment_opt = ctx.get<std::string>("--line-increment", "");
@@ -91,9 +118,7 @@ auto build_config(const CommandContext<NL_OPTIONS.size()>& ctx)
   if (!increment_opt.empty()) {
     try {
       cfg.line_increment = std::stoi(increment_opt);
-      if (cfg.line_increment <= 0) {
-        return core::pipeline::unexpected("line increment must be positive");
-      }
+      // GNU nl allows negative increments
     } catch (...) {
       return core::pipeline::unexpected("invalid line increment");
     }
@@ -114,9 +139,6 @@ auto build_config(const CommandContext<NL_OPTIONS.size()>& ctx)
   if (!start_opt.empty()) {
     try {
       cfg.starting_number = std::stoi(start_opt);
-      if (cfg.starting_number < 0) {
-        return core::pipeline::unexpected("starting line number cannot be negative");
-      }
     } catch (...) {
       return core::pipeline::unexpected("invalid starting line number");
     }
@@ -135,6 +157,25 @@ auto build_config(const CommandContext<NL_OPTIONS.size()>& ctx)
     } catch (...) {
       return core::pipeline::unexpected("invalid line number width");
     }
+  }
+
+  auto format_opt = ctx.get<std::string>("--number-format", "");
+  if (format_opt.empty()) {
+    format_opt = ctx.get<std::string>("-n", "");
+  }
+  if (!format_opt.empty()) {
+    cfg.number_format = format_opt;
+  }
+
+  cfg.no_renumber = ctx.get<bool>("--no-renumber", false) ||
+                    ctx.get<bool>("-p", false);
+
+  auto delim_opt = ctx.get<std::string>("--section-delimiter", "");
+  if (delim_opt.empty()) {
+    delim_opt = ctx.get<std::string>("-d", "");
+  }
+  if (!delim_opt.empty()) {
+    cfg.section_delimiter = delim_opt;
   }
 
   for (auto arg : ctx.positionals) {

@@ -65,8 +65,30 @@ struct CommandEntryErased {
 
 inline auto is_legacy_line_count(std::string_view arg) -> bool {
   if (arg.size() < 2 || arg[0] != '-' || arg[1] == '-') return false;
-  return std::ranges::all_of(
-      arg.substr(1), [](unsigned char ch) { return std::isdigit(ch) != 0; });
+  // Check for -NUM or -NUM[c|b|k|M|G|T|P|E|Z|Y] (compact obsolete syntax)
+  size_t i = 1;
+  bool has_digits = false;
+  while (i < arg.size() && std::isdigit(static_cast<unsigned char>(arg[i]))) {
+    has_digits = true;
+    ++i;
+  }
+  if (!has_digits) return false;
+  // Optional suffix: single char or multi-char (e.g. kB, KiB)
+  if (i < arg.size()) {
+    std::string_view suffix = arg.substr(i);
+    // Valid suffixes: c, b, k, K, kB, KiB, M, MB, MiB, G, GB, GiB,
+    // T, TB, TiB, P, PB, PiB, E, EB, EiB, Z, ZB, Y, YB
+    static constexpr std::string_view valid_suffixes[] = {
+        "c", "b", "k", "K", "kB", "KiB", "M", "MB", "MiB",
+        "G", "GB", "GiB", "T", "TB", "TiB", "P", "PB", "PiB",
+        "E", "EB", "EiB", "Z", "ZB", "Y", "YB"};
+    bool suffix_ok = false;
+    for (auto s : valid_suffixes) {
+      if (suffix == s) { suffix_ok = true; break; }
+    }
+    if (!suffix_ok) return false;
+  }
+  return true;
 }
 
 inline auto is_legacy_tail_from_start_count(std::string_view arg) -> bool {

@@ -51,7 +51,43 @@ auto constexpr STTY_OPTIONS = std::array{
     OPTION("-g", "--save",
            "print all current settings in a stty-readable form"),
     OPTION("-F", "--file", "open and use the specified device instead of stdin",
-           STRING_TYPE)};
+           STRING_TYPE),
+    // Common stty settings registered as options to prevent parse failures
+    OPTION("-echo", "", "echo input characters"),
+    OPTION("-icanon", "", "enable canonical mode"),
+    OPTION("-isig", "", "enable signal processing"),
+    OPTION("-echoe", "", "echo erase character"),
+    OPTION("-echok", "", "echo kill character"),
+    OPTION("-echonl", "", "echo newline"),
+    OPTION("-noflsh", "", "disable flush after interrupt"),
+    OPTION("-tostop", "", "stop background jobs on terminal write"),
+    OPTION("-echoctl", "", "echo control characters"),
+    OPTION("-echoprt", "", "echo erase character"),
+    OPTION("-echoke", "", "echo kill character"),
+    OPTION("-flusho", "", "flush output"),
+    OPTION("-extproc", "", "enable external processing"),
+    OPTION("-ignbrk", "", "ignore break"),
+    OPTION("-brkint", "", "break on interrupt"),
+    OPTION("-parmrk", "", "mark parity errors"),
+    OPTION("-istrip", "", "strip input characters"),
+    OPTION("-inlcr", "", "translate NL to CR on input"),
+    OPTION("-igncr", "", "ignore CR on input"),
+    OPTION("-icrnl", "", "translate CR to NL on input"),
+    OPTION("-ixon", "", "enable XON/XOFF flow control"),
+    OPTION("-ixoff", "", "enable sending of XON/XOFF"),
+    OPTION("-iuclc", "", "translate uppercase to lowercase on input"),
+    OPTION("-ixany", "", "any character can restart output"),
+    OPTION("-imaxbel", "", "beep on input buffer full"),
+    OPTION("-iutf8", "", "assume input is UTF-8"),
+    OPTION("-opost", "", "post-process output"),
+    OPTION("-olcuc", "", "translate lowercase to uppercase on output"),
+    OPTION("-ocrnl", "", "translate CR to NL on output"),
+    OPTION("-onlcr", "", "translate NL to CR-NL on output"),
+    OPTION("-onocr", "", "do not output CR on column 0"),
+    OPTION("-onlret", "", "NL performs CR function"),
+    OPTION("-ofill", "", "use fill characters for delays"),
+    OPTION("-ofdel", "", "use delete for fill"),
+    OPTION("-pendin", "", "retype pending input")};
 
 namespace stty_pipeline {
 namespace cp = core::pipeline;
@@ -72,6 +108,24 @@ auto build_config(const CommandContext<STTY_OPTIONS.size()>& ctx)
   cfg.device = ctx.get<std::string>("--file", "");
   if (cfg.device.empty()) {
     cfg.device = ctx.get<std::string>("-F", "");
+  }
+
+  // Convert registered option flags back into settings.
+  // The flags are registered as "-echo", "-icanon", etc.
+  // Passing "-echo" in stty means DISABLE echo, so we push "-echo".
+  static constexpr std::string_view stty_settings[] = {
+      "echo",  "icanon", "isig",   "echoe",  "echok",  "echonl",
+      "noflsh", "tostop", "echoctl", "echoprt", "echoke", "flusho",
+      "extproc", "ignbrk", "brkint", "parmrk", "istrip", "inlcr",
+      "igncr", "icrnl", "ixon",   "ixoff",  "iuclc",  "ixany",
+      "imaxbel", "iutf8", "opost", "olcuc", "ocrnl",  "onlcr",
+      "onocr", "onlret", "ofill", "ofdel", "pendin"};
+
+  for (auto setting : stty_settings) {
+    std::string opt_name = "-" + std::string(setting);
+    if (ctx.get<bool>(opt_name, false)) {
+      cfg.settings.push_back("-" + std::string(setting));
+    }
   }
 
   for (const auto& pos : ctx.positionals) {

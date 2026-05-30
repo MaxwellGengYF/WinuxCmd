@@ -169,17 +169,11 @@ auto build_config(const CommandContext<EXPAND_OPTIONS.size()>& ctx)
   }
 
   if (!tabs_opt.empty()) {
-    // Parse tab width (can be comma-separated list, but we only support single
-    // value)
-    try {
-      int tab_width = std::stoi(tabs_opt);
-      if (tab_width <= 0) {
-        return core::pipeline::unexpected("tab width must be positive");
-      }
-      cfg.tab_stops.interval = static_cast<size_t>(tab_width);
-    } catch (...) {
-      return core::pipeline::unexpected("invalid tab width");
+    auto parsed = parse_tab_stops(tabs_opt);
+    if (!parsed) {
+      return core::pipeline::unexpected(parsed.error());
     }
+    cfg.tab_stops = *parsed;
   }
 
   for (auto arg : ctx.positionals) {

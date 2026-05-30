@@ -159,18 +159,18 @@ constexpr char ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 constexpr signed char DECODE_TABLE[256] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
-    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1,
-    -1, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17,
-    18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10,
+    11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1,
+    -1, -1, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
+    17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1};
+    -1, -1, -1, -1, -1, -1, -1, -1, -1};
 }  // namespace base32_detail
 
 /**
@@ -252,9 +252,11 @@ inline std::string base32_encode(std::span<const uint8_t> data, int wrap = 0) {
 /**
  * @brief Decode base32 to data
  * @param encoded Base32 encoded string
+ * @param ignore_garbage Ignore non-base32 characters
  * @return Decoded data, or empty vector on error
  */
-inline std::vector<uint8_t> base32_decode(std::string_view encoded) {
+inline std::vector<uint8_t> base32_decode(std::string_view encoded,
+                                          bool ignore_garbage = false) {
   std::vector<uint8_t> result;
   uint8_t buffer[8] = {0};
   size_t buffer_pos = 0;
@@ -264,17 +266,22 @@ inline std::vector<uint8_t> base32_decode(std::string_view encoded) {
     if (c == '=') {
       padding_count++;
       if (padding_count > 6) break;
-      buffer[buffer_pos++] = 0;
-    } else if (std::isalnum(static_cast<unsigned char>(c))) {
-      signed char value = base32_detail::DECODE_TABLE[static_cast<uint8_t>(
-          std::toupper(static_cast<unsigned char>(c)))];
-      if (value < 0) {
+      continue;
+    }
+    if (c == '\n' || c == '\r' || c == ' ' || c == '\t') {
+      continue;
+    }
+
+    signed char value = base32_detail::DECODE_TABLE[static_cast<uint8_t>(
+        std::toupper(static_cast<unsigned char>(c)))];
+    if (value < 0) {
+      if (!ignore_garbage) {
         return {};  // Invalid character
       }
-      buffer[buffer_pos++] = static_cast<uint8_t>(value);
-    } else if (c != '\n' && c != '\r' && c != ' ') {
-      return {};  // Invalid character
+      continue;
     }
+
+    buffer[buffer_pos++] = static_cast<uint8_t>(value);
 
     if (buffer_pos == 8) {
       result.push_back((buffer[0] << 3) | (buffer[1] >> 2));

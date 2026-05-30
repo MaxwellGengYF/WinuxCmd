@@ -194,6 +194,7 @@ auto cut_line(std::string_view line, const Config& cfg) -> std::string {
   fields.emplace_back(line.substr(start));
 
   if (!has_delim && cfg.only_delimited) return {};
+  if (!has_delim) return std::string(line);
 
   std::string out;
   bool first = true;

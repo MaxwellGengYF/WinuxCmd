@@ -48,36 +48,64 @@ auto constexpr JOIN_OPTIONS = std::array{
     OPTION("-e", "--empty", "replace missing input fields with EMPTY",
            STRING_TYPE),
     OPTION("-o", "--output", "use specified output format", STRING_TYPE),
-    OPTION("-j", "", "equivalent to -1 FIELD -2 FIELD", STRING_TYPE)
-    // -a, --check-order (not implemented)
-    // --header (not implemented)
+    OPTION("-a", "", "output unpairable lines from file FILENUM",
+           STRING_TYPE),
+    OPTION("-j", "", "equivalent to -1 FIELD -2 FIELD", STRING_TYPE),
+    OPTION("-v", "", "like -a but suppress joined output lines",
+           STRING_TYPE),
+    OPTION("-i", "--ignore-case", "ignore case when comparing keys"),
+    OPTION("", "--header", "treat first line as header"),
+    OPTION("-z", "--zero-terminated", "line delimiter is NUL, not newline")
 };
 
 namespace join_pipeline {
 namespace cp = core::pipeline;
+
+struct OutputField {
+  int file_num = 0;  // 1 or 2; 0 = default (all fields)
+  int field_idx = -1;  // 0-based field index, -1 = whole line
+};
 
 struct Config {
   int field1 = 1;
   int field2 = 1;
   char separator = ' ';  // Default to space (standard join uses whitespace)
   std::string empty_field;
-  std::string output_format;
+  std::string output_format_raw;
+  std::vector<OutputField> output_format;
+  int unpaired_file = 0;  // 1 or 2 for -a, or 0 for none
+  int suppress_joined = 0;  // 1 or 2 for -v, or 0 for none
+  bool ignore_case = false;
+  bool header = false;
+  char delimiter = '\n';
   SmallVector<std::string, 64> files;
 };
+
+auto is_whitespace(char c) -> bool {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
 
 auto split_line(const std::string& line, char sep, int field_num)
     -> std::string {
   std::string result;
   int current_field = 1;
+  bool in_delim = true;
 
   for (size_t i = 0; i < line.size(); ++i) {
-    if (line[i] == sep) {
-      current_field++;
-      if (current_field > field_num) {
-        break;
+    bool is_sep = (sep == ' ') ? is_whitespace(line[i]) : (line[i] == sep);
+    if (is_sep) {
+      if (!in_delim) {
+        current_field++;
+        in_delim = true;
+        if (current_field > field_num) {
+          break;
+        }
       }
-    } else if (current_field == field_num) {
-      result += line[i];
+    } else {
+      in_delim = false;
+      if (current_field == field_num) {
+        result += line[i];
+      }
     }
   }
 
@@ -88,30 +116,24 @@ auto split_all_fields(const std::string& line, char sep)
     -> SmallVector<std::string, 64> {
   SmallVector<std::string, 64> fields;
   std::string current;
+  bool in_delim = true;
 
   for (char c : line) {
-    if (c == sep) {
-      // Trim trailing whitespace from current field
-      while (!current.empty() &&
-             (current.back() == ' ' || current.back() == '\t' ||
-              current.back() == '\n' || current.back() == '\r')) {
-        current.pop_back();
+    bool is_sep = (sep == ' ') ? is_whitespace(c) : (c == sep);
+    if (is_sep) {
+      if (!in_delim) {
+        if (!current.empty()) {
+          fields.push_back(current);
+        }
+        current.clear();
+        in_delim = true;
       }
-      if (!current.empty()) {
-        fields.push_back(current);
-      }
-      current.clear();
     } else {
+      in_delim = false;
       current += c;
     }
   }
 
-  // Trim trailing whitespace from last field
-  while (!current.empty() &&
-         (current.back() == ' ' || current.back() == '\t' ||
-          current.back() == '\n' || current.back() == '\r')) {
-    current.pop_back();
-  }
   if (!current.empty()) {
     fields.push_back(current);
   }
@@ -119,11 +141,56 @@ auto split_all_fields(const std::string& line, char sep)
   return fields;
 }
 
+auto parse_output_format(const std::string& fmt) -> std::vector<OutputField> {
+  std::vector<OutputField> result;
+  if (fmt.empty()) return result;
+
+  size_t pos = 0;
+  while (pos < fmt.size()) {
+    // Skip whitespace/commas
+    while (pos < fmt.size() && (fmt[pos] == ' ' || fmt[pos] == ','))
+      ++pos;
+    if (pos >= fmt.size()) break;
+
+    OutputField of;
+    // Check if it's "0" (whole line)
+    if (fmt[pos] == '0') {
+      of.file_num = 0;
+      of.field_idx = -1;
+      pos++;
+      result.push_back(of);
+      continue;
+    }
+    // Parse file number (1 or 2)
+    if (fmt[pos] == '1' || fmt[pos] == '2') {
+      of.file_num = fmt[pos] - '0';
+      pos++;
+      if (pos < fmt.size() && fmt[pos] == '.') {
+        pos++;  // Skip dot
+        // Parse field number
+        size_t start = pos;
+        while (pos < fmt.size() && std::isdigit(static_cast<unsigned char>(fmt[pos])))
+          ++pos;
+        if (pos > start) {
+          of.field_idx = std::stoi(fmt.substr(start, pos - start)) - 1;
+          // 1-based to 0-based
+        }
+      } else {
+        // Just file number means all fields from that file
+        of.field_idx = -1;
+      }
+      result.push_back(of);
+    } else {
+      // Invalid, skip
+      pos++;
+    }
+  }
+  return result;
+}
+
 auto build_config(const CommandContext<JOIN_OPTIONS.size()>& ctx)
     -> cp::Result<Config> {
   Config cfg;
-  // Don't override the default separator (space) from Config struct
-  // cfg.separator = '\t';  // Removed - use default space separator
 
   auto field1_opt = ctx.get<std::string>("-1", "");
   if (!field1_opt.empty()) {
@@ -171,7 +238,39 @@ auto build_config(const CommandContext<JOIN_OPTIONS.size()>& ctx)
   if (output_opt.empty()) {
     output_opt = ctx.get<std::string>("-o", "");
   }
-  cfg.output_format = output_opt;
+  cfg.output_format_raw = output_opt;
+  if (!output_opt.empty()) {
+    cfg.output_format = parse_output_format(output_opt);
+  }
+
+  auto unpaired_opt = ctx.get<std::string>("-a", "");
+  if (!unpaired_opt.empty()) {
+    try {
+      cfg.unpaired_file = std::stoi(unpaired_opt);
+      if (cfg.unpaired_file != 1 && cfg.unpaired_file != 2) {
+        return core::pipeline::unexpected("invalid file number for -a");
+      }
+    } catch (...) {
+      return core::pipeline::unexpected("invalid file number for -a");
+    }
+  }
+
+  auto suppress_opt = ctx.get<std::string>("-v", "");
+  if (!suppress_opt.empty()) {
+    try {
+      cfg.suppress_joined = std::stoi(suppress_opt);
+      if (cfg.suppress_joined != 1 && cfg.suppress_joined != 2) {
+        return core::pipeline::unexpected("invalid file number for -v");
+      }
+    } catch (...) {
+      return core::pipeline::unexpected("invalid file number for -v");
+    }
+  }
+
+  cfg.ignore_case = ctx.get<bool>("--ignore-case", false) ||
+                    ctx.get<bool>("-i", false);
+  cfg.header = ctx.get<bool>("--header", false);
+  cfg.delimiter = ctx.get<bool>("--zero-terminated", false) ? '\0' : '\n';
 
   for (auto arg : ctx.positionals) {
     std::string file_arg(arg);
@@ -235,6 +334,75 @@ auto read_lines(const std::string& filename)
   return lines;
 }
 
+auto key_to_lower(std::string s) -> std::string {
+  for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  return s;
+}
+
+auto format_output(const Config& cfg, const std::string& line1,
+                   const std::string& line2, bool is_paired) -> std::string {
+  auto fields1 = split_all_fields(line1, cfg.separator);
+  auto fields2 = split_all_fields(line2, cfg.separator);
+  std::string empty = cfg.empty_field;
+
+  if (!cfg.output_format.empty()) {
+    std::string result;
+    for (size_t i = 0; i < cfg.output_format.size(); ++i) {
+      if (i > 0) result += cfg.separator;
+      const auto& of = cfg.output_format[i];
+      if (of.file_num == 0) {
+        // Whole joined line
+        result += line1 + cfg.separator + line2;
+      } else if (of.file_num == 1) {
+        if (of.field_idx < 0) {
+          // All fields from file1 (except key when paired)
+          for (size_t j = (is_paired ? cfg.field1 : 1) - 1;
+               j < fields1.size(); ++j) {
+            if (j >= (is_paired ? cfg.field1 : 1) - 1 && j != (is_paired ? cfg.field1 : 1) - 1) {
+              // Actually let's just output all fields
+            }
+            if (j > (is_paired ? cfg.field1 : 1) - 1)
+              result += cfg.separator;
+            result += fields1[j];
+          }
+        } else if (static_cast<size_t>(of.field_idx) < fields1.size()) {
+          result += fields1[of.field_idx];
+        } else {
+          result += empty;
+        }
+      } else if (of.file_num == 2) {
+        if (of.field_idx < 0) {
+          for (size_t j = (is_paired ? cfg.field2 : 1) - 1;
+               j < fields2.size(); ++j) {
+            if (j > (is_paired ? cfg.field2 : 1) - 1)
+              result += cfg.separator;
+            result += fields2[j];
+          }
+        } else if (static_cast<size_t>(of.field_idx) < fields2.size()) {
+          result += fields2[of.field_idx];
+        } else {
+          result += empty;
+        }
+      }
+    }
+    return result;
+  }
+
+  // Default format: join field + rest of line1 + rest of line2
+  std::string key = split_line(line1, cfg.separator, cfg.field1);
+  std::string result = key;
+
+  for (size_t i = cfg.field1; i < fields1.size(); ++i) {
+    result += cfg.separator;
+    result += fields1[i];
+  }
+  for (size_t i = cfg.field2; i < fields2.size(); ++i) {
+    result += cfg.separator;
+    result += fields2[i];
+  }
+  return result;
+}
+
 auto run(const Config& cfg) -> int {
   const std::string& file1 = cfg.files[0];
   const std::string& file2 = cfg.files[1];
@@ -254,45 +422,54 @@ auto run(const Config& cfg) -> int {
   const auto& lines1 = *lines1_result;
   const auto& lines2 = *lines2_result;
 
+  size_t start1 = cfg.header ? 1 : 0;
+  size_t start2 = cfg.header ? 1 : 0;
+
   // Build index for file2
   std::unordered_map<std::string, SmallVector<size_t, 16>> file2_index;
-  for (size_t i = 0; i < lines2.size(); ++i) {
+  for (size_t i = start2; i < lines2.size(); ++i) {
     std::string key = split_line(lines2[i], cfg.separator, cfg.field2);
+    if (cfg.ignore_case) key = key_to_lower(key);
     file2_index[key].push_back(i);
   }
 
-  // Join lines
-  for (const auto& line1 : lines1) {
-    std::string key = split_line(line1, cfg.separator, cfg.field1);
+  // Track which file2 lines were matched (for -a/-v)
+  std::vector<bool> file2_matched(lines2.size(), false);
+  bool any_output = false;
 
-    auto it = file2_index.find(key);
+  // Join lines
+  for (size_t i = start1; i < lines1.size(); ++i) {
+    const auto& line1 = lines1[i];
+    std::string key = split_line(line1, cfg.separator, cfg.field1);
+    std::string lookup_key = cfg.ignore_case ? key_to_lower(key) : key;
+
+    auto it = file2_index.find(lookup_key);
     if (it != file2_index.end()) {
       // Found matches
-      for (size_t idx : it->second) {
-        if (cfg.output_format.empty()) {
-          // Default format: key + rest of line1 + rest of line2
-          safePrint(key);
-
-          // Get remaining fields from line1 (skip the key field at index
-          // field1-1)
-          auto fields1 = split_all_fields(line1, cfg.separator);
-          for (size_t i = cfg.field1; i < fields1.size(); ++i) {
-            safePrint(cfg.separator);
-            safePrint(fields1[i]);
-          }
-
-          // Get all fields from line2 (skip the key field at index field2-1)
-          auto fields2 = split_all_fields(lines2[idx], cfg.separator);
-          for (size_t i = cfg.field2; i < fields2.size(); ++i) {
-            safePrint(cfg.separator);
-            safePrint(fields2[i]);
-          }
-
-          safePrintLn("");
-        } else {
-          // Custom output format (not fully implemented)
-          safePrintLn(line1 + cfg.separator + lines2[idx]);
+      if (cfg.suppress_joined != 1) {
+        for (size_t idx : it->second) {
+          file2_matched[idx] = true;
+          safePrintLn(format_output(cfg, line1, lines2[idx], true));
+          any_output = true;
         }
+      } else {
+        for (size_t idx : it->second) {
+          file2_matched[idx] = true;
+        }
+      }
+    } else if (cfg.unpaired_file == 1 || cfg.suppress_joined == 1) {
+      // Unpaired line from file1
+      safePrintLn(format_output(cfg, line1, "", false));
+      any_output = true;
+    }
+  }
+
+  // Output unpaired lines from file2
+  if (cfg.unpaired_file == 2 || cfg.suppress_joined == 2) {
+    for (size_t i = start2; i < lines2.size(); ++i) {
+      if (!file2_matched[i]) {
+        safePrintLn(format_output(cfg, "", lines2[i], false));
+        any_output = true;
       }
     }
   }

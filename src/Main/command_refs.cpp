@@ -10,8 +10,10 @@ namespace command_cal_internal { extern volatile int force_link; }
 namespace command_cat_internal { extern volatile int force_link; }
 namespace command_chmod_internal { extern volatile int force_link; }
 namespace command_chown_internal { extern volatile int force_link; }
+namespace command_chgrp_internal { extern volatile int force_link; }
 namespace command_cksum_internal { extern volatile int force_link; }
 namespace command_clear_internal { extern volatile int force_link; }
+namespace command_col_internal { extern volatile int force_link; }
 namespace command_cmp_internal { extern volatile int force_link; }
 namespace command_column_internal { extern volatile int force_link; }
 namespace command_comm_internal { extern volatile int force_link; }
@@ -26,6 +28,8 @@ namespace command_dd_internal { extern volatile int force_link; }
 namespace command_df_internal { extern volatile int force_link; }
 namespace command_diff_internal { extern volatile int force_link; }
 namespace command_diff3_internal { extern volatile int force_link; }
+namespace command_dir_internal { extern volatile int force_link; }
+namespace command_dircolors_internal { extern volatile int force_link; }
 namespace command_dirname_internal { extern volatile int force_link; }
 namespace command_dos2unix_internal { extern volatile int force_link; }
 namespace command_du_internal { extern volatile int force_link; }
@@ -44,6 +48,7 @@ namespace command_getconf_internal { extern volatile int force_link; }
 namespace command_grep_internal { extern volatile int force_link; }
 namespace command_groups_internal { extern volatile int force_link; }
 namespace command_head_internal { extern volatile int force_link; }
+namespace command_hexdump_internal { extern volatile int force_link; }
 namespace command_hmac256_internal { extern volatile int force_link; }
 namespace command_hostid_internal { extern volatile int force_link; }
 namespace command_hostname_internal { extern volatile int force_link; }
@@ -63,6 +68,7 @@ namespace command_lsof_internal { extern volatile int force_link; }
 namespace command_man_internal { extern volatile int force_link; }
 namespace command_md5sum_internal { extern volatile int force_link; }
 namespace command_mkdir_internal { extern volatile int force_link; }
+namespace command_more_internal { extern volatile int force_link; }
 namespace command_mktemp_internal { extern volatile int force_link; }
 namespace command_mpicalc_internal { extern volatile int force_link; }
 namespace command_mv_internal { extern volatile int force_link; }
@@ -91,6 +97,7 @@ namespace command_rmdir_internal { extern volatile int force_link; }
 namespace command_sdiff_internal { extern volatile int force_link; }
 namespace command_sed_internal { extern volatile int force_link; }
 namespace command_seq_internal { extern volatile int force_link; }
+namespace command_strings_internal { extern volatile int force_link; }
 namespace command_sha1sum_internal { extern volatile int force_link; }
 namespace command_sha224sum_internal { extern volatile int force_link; }
 namespace command_sha256sum_internal { extern volatile int force_link; }
@@ -103,6 +110,7 @@ namespace command_sort_internal { extern volatile int force_link; }
 namespace command_split_internal { extern volatile int force_link; }
 namespace command_stat_internal { extern volatile int force_link; }
 namespace command_stdbuf_internal { extern volatile int force_link; }
+namespace command_stty_internal { extern volatile int force_link; }
 namespace command_sum_internal { extern volatile int force_link; }
 namespace command_sync_internal { extern volatile int force_link; }
 namespace command_tac_internal { extern volatile int force_link; }
@@ -131,6 +139,7 @@ namespace command_unix2dos_internal { extern volatile int force_link; }
 namespace command_unlink_internal { extern volatile int force_link; }
 namespace command_uptime_internal { extern volatile int force_link; }
 namespace command_users_internal { extern volatile int force_link; }
+namespace command_vdir_internal { extern volatile int force_link; }
 namespace command_watch_internal { extern volatile int force_link; }
 namespace command_wc_internal { extern volatile int force_link; }
 namespace command_which_internal { extern volatile int force_link; }
@@ -152,8 +161,10 @@ int get_command_refs_sum() {
     sum += command_cat_internal::force_link;
     sum += command_chmod_internal::force_link;
     sum += command_chown_internal::force_link;
+    sum += command_chgrp_internal::force_link;
     sum += command_cksum_internal::force_link;
     sum += command_clear_internal::force_link;
+    sum += command_col_internal::force_link;
     sum += command_cmp_internal::force_link;
     sum += command_column_internal::force_link;
     sum += command_comm_internal::force_link;
@@ -168,6 +179,8 @@ int get_command_refs_sum() {
     sum += command_df_internal::force_link;
     sum += command_diff_internal::force_link;
     sum += command_diff3_internal::force_link;
+    sum += command_dir_internal::force_link;
+    sum += command_dircolors_internal::force_link;
     sum += command_dirname_internal::force_link;
     sum += command_dos2unix_internal::force_link;
     sum += command_du_internal::force_link;
@@ -186,6 +199,7 @@ int get_command_refs_sum() {
     sum += command_grep_internal::force_link;
     sum += command_groups_internal::force_link;
     sum += command_head_internal::force_link;
+    sum += command_hexdump_internal::force_link;
     sum += command_hmac256_internal::force_link;
     sum += command_hostid_internal::force_link;
     sum += command_hostname_internal::force_link;
@@ -205,6 +219,7 @@ int get_command_refs_sum() {
     sum += command_man_internal::force_link;
     sum += command_md5sum_internal::force_link;
     sum += command_mkdir_internal::force_link;
+    sum += command_more_internal::force_link;
     sum += command_mktemp_internal::force_link;
     sum += command_mpicalc_internal::force_link;
     sum += command_mv_internal::force_link;
@@ -233,6 +248,7 @@ int get_command_refs_sum() {
     sum += command_sdiff_internal::force_link;
     sum += command_sed_internal::force_link;
     sum += command_seq_internal::force_link;
+    sum += command_strings_internal::force_link;
     sum += command_sha1sum_internal::force_link;
     sum += command_sha224sum_internal::force_link;
     sum += command_sha256sum_internal::force_link;
@@ -245,6 +261,7 @@ int get_command_refs_sum() {
     sum += command_split_internal::force_link;
     sum += command_stat_internal::force_link;
     sum += command_stdbuf_internal::force_link;
+    sum += command_stty_internal::force_link;
     sum += command_sum_internal::force_link;
     sum += command_sync_internal::force_link;
     sum += command_tac_internal::force_link;
@@ -273,6 +290,7 @@ int get_command_refs_sum() {
     sum += command_unlink_internal::force_link;
     sum += command_uptime_internal::force_link;
     sum += command_users_internal::force_link;
+    sum += command_vdir_internal::force_link;
     sum += command_watch_internal::force_link;
     sum += command_wc_internal::force_link;
     sum += command_which_internal::force_link;

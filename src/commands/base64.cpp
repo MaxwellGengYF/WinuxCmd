@@ -1,5 +1,5 @@
 /*
- *  Copyright © 2026 [caomengxuan666]
+ *  Copyright © 2026 WinuxCmd
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to
@@ -20,18 +20,9 @@
  *  IN THE SOFTWARE.
  *
  *  - File: base64.cpp
- *  - Username: Administrator
  *  - CopyrightYear: 2026
  */
-/// @contributors:
-///   - caomengxuan666 <2507560089@qq.com>
-/// @Description: Implementation for base64.
-/// @Version: 0.1.0
-/// @License: MIT
-/// @Copyright: Copyright © 2026 WinuxCmd
-// include other header after pch.h
 #include "core/command_macros.h"
-
 #include "../core/core.h"
 #include "../utils/utils.h"
 #include "../container/container.h"
@@ -51,44 +42,34 @@ auto constexpr BASE64_OPTIONS = std::array{
 namespace base64_pipeline {
 namespace cp = core::pipeline;
 
-/**
- * @brief Read input from file or stdin
- */
 auto read_input(std::string_view filename) -> cp::Result<std::string> {
   std::string content;
-
   if (filename == "-" || filename.empty()) {
-    // Read from stdin
     content.assign(std::istreambuf_iterator<char>(std::cin),
                    std::istreambuf_iterator<char>());
     if (std::cin.fail() && !std::cin.eof()) {
-      return core::pipeline::unexpected("error reading from standard input");
+      return cp::unexpected("error reading from standard input");
     }
   } else {
-    // Read from file
     std::ifstream file(std::string(filename), std::ios::binary);
     if (!file) {
-      return core::pipeline::unexpected(std::string("cannot open '") +
-                             std::string(filename) + "' for reading");
+      return cp::unexpected(std::string("cannot open '") + std::string(filename) +
+                            "' for reading");
     }
     content.assign(std::istreambuf_iterator<char>(file),
                    std::istreambuf_iterator<char>());
     if (file.fail() && !file.eof()) {
-      return core::pipeline::unexpected("error reading from file");
+      return cp::unexpected("error reading from file");
     }
   }
-
   return content;
 }
 
-/**
- * @brief Build configuration from command context
- */
 struct Config {
   bool decode = false;
   bool ignore_garbage = false;
   int wrap = 76;
-  SmallVector<std::string, 16> files;
+  std::string file;
 };
 
 auto build_config(const CommandContext<BASE64_OPTIONS.size()>& ctx)
@@ -99,68 +80,41 @@ auto build_config(const CommandContext<BASE64_OPTIONS.size()>& ctx)
       ctx.get<bool>("--ignore-garbage", false) || ctx.get<bool>("-i", false);
   cfg.wrap = ctx.get<int>("--wrap", 76);
 
-  for (auto arg : ctx.positionals) {
-    std::string file_arg(arg);
-    if (contains_wildcard(file_arg)) {
-      auto glob_result = glob_expand(file_arg);
-      if (glob_result.expanded) {
-        for (const auto& file : glob_result.files) {
-          cfg.files.push_back(wstring_to_utf8(file));
-        }
-        continue;
-      }
+  if (!ctx.positionals.empty()) {
+    if (ctx.positionals.size() > 1) {
+      return cp::unexpected("extra operand");
     }
-    cfg.files.push_back(file_arg);
-  }
-
-  if (cfg.files.empty()) {
-    cfg.files.push_back("-");
+    cfg.file = std::string(ctx.positionals[0]);
   }
 
   return cfg;
 }
 
-/**
- * @brief Run base64 encode/decode
- */
 auto run(const Config& cfg) -> int {
-  for (const auto& file : cfg.files) {
-    auto content_result = read_input(file);
-    if (!content_result) {
-      cp::report_error(content_result, L"base64");
+  auto content_result = read_input(cfg.file);
+  if (!content_result) {
+    cp::report_error(content_result, L"base64");
+    return 1;
+  }
+
+  std::string content = *content_result;
+
+  if (cfg.decode) {
+    auto decoded = encoding::base64_decode(content, cfg.ignore_garbage);
+    if (decoded.empty() && !content.empty()) {
+      safeErrorPrintLn("base64: invalid input");
       return 1;
     }
-
-    std::string content = *content_result;
-    std::string output;
-
-    if (cfg.decode) {
-      // Remove newlines for decoding (except when using --ignore-garbage)
-      if (!cfg.ignore_garbage) {
-        std::string cleaned;
-        cleaned.reserve(content.size());
-        for (char c : content) {
-          if (c != '\n' && c != '\r') {
-            cleaned += c;
-          }
-        }
-        content = cleaned;
-      }
-
-      auto decoded = encoding::base64_decode(content, cfg.ignore_garbage);
-      if (cfg.ignore_garbage && decoded.empty() && !content.empty()) {
-        // Only report error if ignore_garbage is false or input was valid
-        cp::report_custom_error(L"base64", L"invalid input");
-        return 1;
-      }
-      output.assign(reinterpret_cast<char*>(decoded.data()), decoded.size());
-    } else {
-      auto data = std::span<const uint8_t>(
-          reinterpret_cast<const uint8_t*>(content.data()), content.size());
-      output = encoding::base64_encode(data, cfg.wrap);
+    std::string output(reinterpret_cast<const char*>(decoded.data()),
+                       decoded.size());
+    safePrint(output);
+  } else {
+    auto data = std::span<const uint8_t>(
+        reinterpret_cast<const uint8_t*>(content.data()), content.size());
+    std::string output = encoding::base64_encode(data, cfg.wrap);
+    if (!output.empty()) {
       output += '\n';
     }
-
     safePrint(output);
   }
 

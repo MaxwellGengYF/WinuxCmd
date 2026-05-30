@@ -46,27 +46,29 @@ auto constexpr COLUMN_OPTIONS = std::array{
            "determine the number of columns the input contains", BOOL_TYPE),
     OPTION("-s", "--separator", "specify the possible input item delimiters",
            STRING_TYPE),
-    OPTION("-o", "output-separator",
+    OPTION("-o", "--output-separator",
            "specify the columns separator for table output", STRING_TYPE),
-    OPTION("-n", "table-name", "specify the table name for JSON or XML output",
+    OPTION("-n", "--table-name", "specify the table name for JSON or XML output",
            STRING_TYPE),
-    OPTION("-x", "output-fields",
+    OPTION("-x", "--output-fields",
            "specify which columns to include in JSON or XML output",
            STRING_TYPE),
-    OPTION("-r", "table-right", "right align text in table columns", BOOL_TYPE),
-    OPTION("-R", "table-right-columns",
+    OPTION("-r", "", "right align text in all table columns", BOOL_TYPE),
+    OPTION("", "--table-right",
+           "right align text in these table columns", STRING_TYPE),
+    OPTION("-R", "--table-right-columns",
            "columns to right align in table output", STRING_TYPE),
-    OPTION("-H", "table-hide", "don't print header in table output", BOOL_TYPE),
-    OPTION("-e", "table-empty", "don't use empty lines in table output",
+    OPTION("-H", "--table-hide", "don't print header in table output", BOOL_TYPE),
+    OPTION("-e", "--table-empty", "don't use empty lines in table output",
            BOOL_TYPE),
-    OPTION("-N", "table-no-trunc", "don't truncate text in table output",
+    OPTION("-N", "--table-no-trunc", "don't truncate text in table output",
            BOOL_TYPE),
-    OPTION("-E", "table-noescape",
+    OPTION("-E", "--table-noescape",
            "don't escape newline, tab, backslash in table output", BOOL_TYPE),
-    OPTION("-J", "json", "use JSON output format for table", BOOL_TYPE),
-    OPTION("-O", "output-width", "maximum display width", INT_TYPE),
-    OPTION("-V", "version", "output version information and exit", BOOL_TYPE),
-    OPTION("-h", "help", "display this help and exit", BOOL_TYPE)};
+    OPTION("-J", "--json", "use JSON output format for table", BOOL_TYPE),
+    OPTION("-O", "--output-width", "maximum display width", INT_TYPE),
+    OPTION("-V", "--version", "output version information and exit", BOOL_TYPE),
+    OPTION("-h", "--help", "display this help and exit", BOOL_TYPE)};
 
 namespace column_pipeline {
 namespace cp = core::pipeline;
@@ -100,7 +102,19 @@ auto build_config(const CommandContext<COLUMN_OPTIONS.size()>& ctx)
   cfg.table_name = ctx.get<std::string>("-n", "");
   cfg.output_fields = ctx.get<std::string>("-x", "");
   cfg.table_right = ctx.get<bool>("-r", false);
-  cfg.table_right_columns = ctx.get<std::string>("-R", "");
+  auto tr_str = ctx.get<std::string>("--table-right", "");
+  if (!tr_str.empty()) {
+    cfg.table_right_columns = tr_str;
+    cfg.table_right = true;
+  }
+  auto tr_cols = ctx.get<std::string>("--table-right-columns", "");
+  if (tr_cols.empty()) {
+    tr_cols = ctx.get<std::string>("-R", "");
+  }
+  if (!tr_cols.empty()) {
+    cfg.table_right_columns = tr_cols;
+    cfg.table_right = true;
+  }
   cfg.table_hide = ctx.get<bool>("-H", false);
   cfg.table_empty = ctx.get<bool>("-e", false);
   cfg.table_no_trunc = ctx.get<bool>("-N", false);
@@ -182,8 +196,9 @@ auto run(const Config& cfg) -> int {
     all_content += *content_result;
   }
 
-  if (cfg.table_mode) {
-    // Table mode - format as a table
+  // Parse lines for both table and JSON modes
+  auto parse_table = [&]() -> std::vector<std::vector<std::string>> {
+    std::vector<std::vector<std::string>> table;
     // Use heap allocation to avoid stack overflow
     std::vector<std::string> lines;
     size_t start = 0;
@@ -200,7 +215,7 @@ auto run(const Config& cfg) -> int {
     }
 
     if (lines.empty()) {
-      return 0;
+      return table;
     }
 
     // Determine separator
@@ -209,17 +224,13 @@ auto run(const Config& cfg) -> int {
       sep = cfg.separator[0];
     }
 
-    // Parse all lines into columns
-    std::vector<std::vector<std::string>> table;
-    size_t max_cols = 0;
-
     for (const auto& line : lines) {
       std::vector<std::string> row;
       size_t col_start = 0;
 
       while (col_start < line.size()) {
         size_t col_end = line.find(sep, col_start);
-        if (col_end == std::string::npos || col_end == col_start) {
+        if (col_end == std::string::npos) {
           if (col_start < line.size()) {
             row.push_back(line.substr(col_start));
           }
@@ -231,13 +242,54 @@ auto run(const Config& cfg) -> int {
         col_start = col_end + 1;
       }
 
-      if (row.size() > max_cols) {
-        max_cols = row.size();
-      }
-
       if (!cfg.table_empty || !row.empty()) {
         table.push_back(std::move(row));
       }
+    }
+    return table;
+  };
+
+  // JSON output mode (can be used without --table)
+  if (cfg.json_output) {
+    auto table = parse_table();
+    if (table.empty()) return 0;
+
+    safePrintLn("[");
+    size_t data_start = (cfg.table_hide && table.size() > 0) ? 1 : 0;
+    for (size_t row_idx = data_start; row_idx < table.size(); ++row_idx) {
+      const auto& row = table[row_idx];
+      safePrint("  {");
+      for (size_t col_idx = 0; col_idx < row.size(); ++col_idx) {
+        if (col_idx > 0) safePrint(",");
+        // Use header as key if available and not hidden
+        std::string key = "col" + std::to_string(col_idx + 1);
+        if (!cfg.table_hide && table.size() > 0 && col_idx < table[0].size()) {
+          key = table[0][col_idx];
+        }
+        // Escape JSON strings
+        std::string escaped_val = row[col_idx];
+        for (size_t ei = 0; ei < escaped_val.size(); ++ei) {
+          if (escaped_val[ei] == '"' || escaped_val[ei] == '\\') {
+            escaped_val.insert(ei, "\\");
+            ei++;
+          }
+        }
+        safePrint("\"" + key + "\":\"" + escaped_val + "\"");
+      }
+      safePrintLn("}" +
+                   std::string(row_idx < table.size() - 1 ? "," : ""));
+    }
+    safePrintLn("]");
+    return 0;
+  }
+
+  if (cfg.table_mode) {
+    auto table = parse_table();
+    if (table.empty()) return 0;
+
+    size_t max_cols = 0;
+    for (const auto& row : table) {
+      if (row.size() > max_cols) max_cols = row.size();
     }
 
     // Calculate column widths
@@ -316,28 +368,6 @@ auto run(const Config& cfg) -> int {
       }
 
       safePrintLn(line_output);
-    }
-
-    // JSON output mode
-    if (cfg.json_output) {
-      safePrintLn("[");
-      for (size_t row_idx = (cfg.table_hide ? 1 : 0); row_idx < table.size();
-           ++row_idx) {
-        const auto& row = table[row_idx];
-        safePrint("  {");
-        for (size_t col_idx = 0; col_idx < row.size(); ++col_idx) {
-          if (col_idx > 0) safePrint(",");
-          // Use header as key if available
-          std::string key = "col" + std::to_string(col_idx + 1);
-          if (!table.empty() && col_idx < table[0].size()) {
-            key = table[0][col_idx];
-          }
-          safePrint("\"" + key + "\":\"" + row[col_idx] + "\"");
-        }
-        safePrintLn("}" +
-                     std::string(row_idx < table.size() - 1 ? "," : ""));
-      }
-      safePrintLn("]");
     }
   } else {
     // Simple column output mode

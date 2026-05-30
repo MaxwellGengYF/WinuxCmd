@@ -90,7 +90,7 @@ constexpr char DEFAULT_BACKUP_SUFFIX[] = "~";
 
 auto constexpr CP_OPTIONS = std::array{
     OPTION("-a", "--archive", "same as -dR --preserve=all"),
-    OPTION("-b", "", "like --backup but does not accept an argument"),
+    OPTION("-b", "--backup", "make a backup of each existing destination file"),
     OPTION("-d", "", "same as --no-dereference --preserve=links"),
     OPTION("-f", "--force",
            "if an existing destination file cannot be opened, remove it and "
@@ -239,12 +239,37 @@ auto copy_file(const std::string& srcPath, const std::string& destPath,
   bool no_clobber =
       ctx.get<bool>("--no-clobber", false) || ctx.get<bool>("-n", false);
   bool update = ctx.get<bool>("-u", false) || ctx.get<bool>("--update", false);
+  bool force = ctx.get<bool>("--force", false) || ctx.get<bool>("-f", false);
+  bool backup = ctx.get<bool>("--backup", false) || ctx.get<bool>("-b", false);
+  std::string suffix = ctx.get<std::string>("--suffix", "~");
+  if (suffix.empty()) suffix = ctx.get<std::string>("-S", "~");
+  if (suffix.empty()) suffix = "~";
 
-  if (no_clobber && std::filesystem::exists(destPath)) {
+  // Resolve paths for self-copy detection
+  std::wstring wsrcAbs = utf8_to_wstring(srcPath);
+  std::wstring wdstAbs = utf8_to_wstring(destPath);
+  wchar_t srcFull[MAX_PATH];
+  wchar_t dstFull[MAX_PATH];
+  if (GetFullPathNameW(wsrcAbs.c_str(), MAX_PATH, srcFull, nullptr) &&
+      GetFullPathNameW(wdstAbs.c_str(), MAX_PATH, dstFull, nullptr)) {
+    if (_wcsicmp(srcFull, dstFull) == 0) {
+      // Source and destination are the same file
+      safeErrorPrint("cp: '");
+      safeErrorPrint(srcPath);
+      safeErrorPrint("' and '");
+      safeErrorPrint(destPath);
+      safeErrorPrint("' are the same file\n");
+      return true;  // Not an error per GNU cp
+    }
+  }
+
+  bool dest_exists = std::filesystem::exists(destPath);
+
+  if (no_clobber && dest_exists) {
     return true;
   }
 
-  if (update && std::filesystem::exists(destPath)) {
+  if (update && dest_exists) {
     WIN32_FILE_ATTRIBUTE_DATA src_data{};
     WIN32_FILE_ATTRIBUTE_DATA dest_data{};
     std::wstring wsrc = utf8_to_wstring(srcPath);
@@ -258,17 +283,25 @@ auto copy_file(const std::string& srcPath, const std::string& destPath,
     }
   }
 
-  if (interactive) {
-    std::ifstream destTest(destPath);
-    if (destTest.good()) {
-      // OPTIMIZED: Avoid wstring concatenation
-      safeErrorPrint("cp: overwrite '");
-      safeErrorPrint(destPath);
-      safeErrorPrint("'? (y/n) ");
-      char response;
-      std::cin.get(response);
-      if (response != 'y' && response != 'Y') {
-        return true;
+  if (interactive && dest_exists) {
+    safeErrorPrint("cp: overwrite '");
+    safeErrorPrint(destPath);
+    safeErrorPrint("'? (y/n) ");
+    char response;
+    std::cin.get(response);
+    if (response != 'y' && response != 'Y') {
+      return true;
+    }
+  }
+
+  // Backup existing destination
+  if (backup && dest_exists) {
+    std::string backupPath = destPath + suffix;
+    if (!CopyFileW(utf8_to_wstring(destPath).c_str(),
+                   utf8_to_wstring(backupPath).c_str(), FALSE)) {
+      // If backup fails and force is set, continue anyway
+      if (!force) {
+        return core::pipeline::unexpected("cannot create backup");
       }
     }
   }
@@ -283,16 +316,31 @@ auto copy_file(const std::string& srcPath, const std::string& destPath,
   size_t lastSlash = destPath.find_last_of('\\');
   if (lastSlash != std::string::npos) {
     std::string destDir = destPath.substr(0, lastSlash);
-    auto createDirResult = create_directory_recursive(destDir);
-    if (!createDirResult) {
-      return createDirResult;
+    if (!destDir.empty()) {
+      auto createDirResult = create_directory_recursive(destDir);
+      if (!createDirResult) {
+        return createDirResult;
+      }
     }
   }
 
-  // Open destination file
+  // Open destination file - with force, remove existing first
+  if (force && dest_exists) {
+    DeleteFileW(utf8_to_wstring(destPath).c_str());
+  }
+
   std::ofstream dest(destPath, std::ios::binary);
   if (!dest) {
-    return core::pipeline::unexpected("cannot open for writing");
+    if (force) {
+      // Try removing and recreating
+      DeleteFileW(utf8_to_wstring(destPath).c_str());
+      dest.open(destPath, std::ios::binary);
+      if (!dest) {
+        return core::pipeline::unexpected("cannot open for writing");
+      }
+    } else {
+      return core::pipeline::unexpected("cannot open for writing");
+    }
   }
 
   // Copy file content

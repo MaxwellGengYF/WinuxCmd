@@ -79,53 +79,55 @@ auto build_config(const CommandContext<TAC_OPTIONS.size()>& ctx)
   return cfg;
 }
 
-auto run(const Config& cfg) -> int {
-  // Use std::vector to avoid stack overflow (SmallVector with 1024 capacity is
-  // too large for stack)
-  std::vector<std::string> all_lines;
+auto read_and_print_reversed(const std::string& file) -> int {
+  std::vector<std::string> lines;
 
-  for (const auto& file : cfg.files) {
-    if (file == "-") {
-      // Read from stdin
-      std::string line;
-      while (std::getline(std::cin, line)) {
-        all_lines.push_back(line + "\n");
-      }
-    } else {
-      // Read from file
-      std::ifstream f(file, std::ios::binary);
-      if (!f) {
-        auto err = std::string("cannot open '") + file + "' for reading";
-        cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
-        cp::report_error(result, L"tac");
-        return 1;
-      }
+  if (file == "-") {
+    std::string line;
+    while (std::getline(std::cin, line)) {
+      lines.push_back(line + "\n");
+    }
+  } else {
+    std::ifstream f(file, std::ios::binary);
+    if (!f) {
+      auto err = std::string("cannot open '") + file + "' for reading";
+      cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
+      cp::report_error(result, L"tac");
+      return 1;
+    }
 
-      std::string line;
-      while (std::getline(f, line)) {
-        // Skip UTF-8 BOM if present at the beginning of the first line
-        if (all_lines.empty() && line.size() >= 3 &&
-            static_cast<unsigned char>(line[0]) == 0xEF &&
-            static_cast<unsigned char>(line[1]) == 0xBB &&
-            static_cast<unsigned char>(line[2]) == 0xBF) {
-          line = line.substr(3);
-        }
-        all_lines.push_back(line + "\n");
+    bool first_line = true;
+    std::string line;
+    while (std::getline(f, line)) {
+      if (first_line && line.size() >= 3 &&
+          static_cast<unsigned char>(line[0]) == 0xEF &&
+          static_cast<unsigned char>(line[1]) == 0xBB &&
+          static_cast<unsigned char>(line[2]) == 0xBF) {
+        line = line.substr(3);
       }
+      first_line = false;
+      lines.push_back(line + "\n");
+    }
 
-      if (f.fail() && !f.eof()) {
-        cp::Result<int> result = core::pipeline::unexpected("error reading from file");
-        cp::report_error(result, L"tac");
-        return 1;
-      }
+    if (f.fail() && !f.eof()) {
+      cp::Result<int> result = core::pipeline::unexpected("error reading from file");
+      cp::report_error(result, L"tac");
+      return 1;
     }
   }
 
-  // Print lines in reverse order
-  for (auto it = all_lines.rbegin(); it != all_lines.rend(); ++it) {
+  for (auto it = lines.rbegin(); it != lines.rend(); ++it) {
     safePrint(*it);
   }
 
+  return 0;
+}
+
+auto run(const Config& cfg) -> int {
+  for (const auto& file : cfg.files) {
+    int rc = read_and_print_reversed(file);
+    if (rc != 0) return rc;
+  }
   return 0;
 }
 

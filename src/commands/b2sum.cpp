@@ -260,13 +260,149 @@ auto calculate_hash(const std::string& filename, bool text_mode = false)
   return result;
 }
 
+auto run_check(const Config& cfg) -> int {
+  // Read check file
+  std::ifstream check_file(cfg.check_file);
+  if (!check_file) {
+    safeErrorPrint("b2sum: cannot open '");
+    safeErrorPrint(cfg.check_file);
+    safeErrorPrint("' for reading\n");
+    return 1;
+  }
+
+  bool all_ok = true;
+  bool any_failed = false;
+  std::string line;
+  size_t line_num = 0;
+
+  while (std::getline(check_file, line)) {
+    line_num++;
+    // Skip empty lines
+    if (line.empty()) continue;
+    // Trim trailing \r for CRLF files
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+
+    // Parse format: HASH  FILENAME or HASH *FILENAME or BLAKE2 (FILENAME) = HASH
+    std::string expected_hash;
+    std::string filename;
+
+    // Try BSD-style: BLAKE2 (FILENAME) = HASH
+    if (line.find("BLAKE2 (") == 0 || line.find("SHA512 (") == 0) {
+      size_t paren_open = line.find('(');
+      size_t paren_close = line.find(')');
+      size_t eq = line.find("= ");
+      if (paren_open != std::string::npos && paren_close != std::string::npos &&
+          eq != std::string::npos) {
+        filename = line.substr(paren_open + 1, paren_close - paren_open - 1);
+        expected_hash = line.substr(eq + 2);
+        // Trim trailing whitespace from hash
+        while (!expected_hash.empty() && expected_hash.back() == ' ') {
+          expected_hash.pop_back();
+        }
+      } else {
+        if (cfg.warn) {
+          safeErrorPrint("b2sum: warning: improperly formatted line ");
+          safeErrorPrint(std::to_string(line_num));
+          safeErrorPrint("\n");
+        }
+        if (cfg.strict) all_ok = false;
+        continue;
+      }
+    } else {
+      // Try standard format: HASH  FILENAME or HASH *FILENAME
+      size_t space1 = line.find(' ');
+      if (space1 == std::string::npos) {
+        if (cfg.warn) {
+          safeErrorPrint("b2sum: warning: improperly formatted line ");
+          safeErrorPrint(std::to_string(line_num));
+          safeErrorPrint("\n");
+        }
+        if (cfg.strict) all_ok = false;
+        continue;
+      }
+      expected_hash = line.substr(0, space1);
+      // Skip spaces after hash
+      size_t name_start = line.find_first_not_of(' ', space1);
+      if (name_start == std::string::npos) {
+        if (cfg.warn) {
+          safeErrorPrint("b2sum: warning: improperly formatted line ");
+          safeErrorPrint(std::to_string(line_num));
+          safeErrorPrint("\n");
+        }
+        if (cfg.strict) all_ok = false;
+        continue;
+      }
+      // Skip binary marker '*'
+      if (line[name_start] == '*') {
+        filename = line.substr(name_start + 1);
+      } else {
+        filename = line.substr(name_start);
+      }
+    }
+
+    // Verify hash
+    auto actual_result = calculate_hash(filename, cfg.text_mode);
+    if (!actual_result) {
+      safeErrorPrint("b2sum: cannot open '");
+      safeErrorPrint(filename);
+      safeErrorPrint("'\n");
+      any_failed = true;
+      all_ok = false;
+      continue;
+    }
+
+    if (actual_result->size() != expected_hash.size()) {
+      // Try case-insensitive comparison
+      bool mismatch = true;
+      if (actual_result->size() == expected_hash.size()) {
+        mismatch = false;
+        for (size_t i = 0; i < expected_hash.size(); ++i) {
+          char a = std::tolower((*actual_result)[i]);
+          char b = std::tolower(expected_hash[i]);
+          if (a != b) { mismatch = true; break; }
+        }
+      }
+      if (mismatch) {
+        if (!cfg.status) {
+          safeErrorPrint(filename + ": FAILED\n");
+        }
+        any_failed = true;
+        continue;
+      }
+    } else {
+      // Case-insensitive comparison
+      bool match = true;
+      for (size_t i = 0; i < expected_hash.size(); ++i) {
+        if (std::tolower((*actual_result)[i]) != std::tolower(expected_hash[i])) {
+          match = false;
+          break;
+        }
+      }
+      if (!match) {
+        if (!cfg.status) {
+          safeErrorPrint(filename + ": FAILED\n");
+        }
+        any_failed = true;
+        continue;
+      }
+    }
+
+    if (!cfg.status && !cfg.quiet) {
+      safePrintLn(filename + ": OK");
+    }
+  }
+
+  if (any_failed && !cfg.status) {
+    safeErrorPrint("b2sum: WARNING: 1 computed checksum did NOT match\n");
+  }
+
+  if (!all_ok && cfg.strict) return 1;
+  return any_failed ? 1 : 0;
+}
+
 auto run(const Config& cfg) -> int {
   if (cfg.check_mode) {
-    // Check mode (not fully implemented)
-    // strict mode: when implemented, exit non-zero for any invalid input
-    cp::report_custom_error(
-        L"b2sum", L"check mode is not fully implemented in this version");
-    return 1;
+    return run_check(cfg);
   }
 
   bool all_ok = true;
