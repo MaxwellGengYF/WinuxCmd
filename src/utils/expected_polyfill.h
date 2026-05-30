@@ -56,6 +56,18 @@ class Expected {
   const T& value() const& { return std::get<T>(data_); }
   T&& value() && { return std::get<T>(std::move(data_)); }
 
+  template <typename U>
+  T value_or(U&& default_value) const& {
+    if (has_value()) return value();
+    return static_cast<T>(std::forward<U>(default_value));
+  }
+
+  template <typename U>
+  T value_or(U&& default_value) && {
+    if (has_value()) return std::move(value());
+    return static_cast<T>(std::forward<U>(default_value));
+  }
+
   E& error() & { return std::get<E>(data_); }
   const E& error() const& { return std::get<E>(data_); }
   E&& error() && { return std::get<E>(std::move(data_)); }

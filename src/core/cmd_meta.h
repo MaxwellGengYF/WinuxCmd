@@ -28,7 +28,7 @@
 
 namespace cmd::meta {
 // OptionMeta with constexpr support
-enum class OptionType { Bool, Int, String };
+enum class OptionType { Bool, Int, String, OptionalInt, OptionalString, TerminatedString };
 
 struct OptionMeta {
   std::string_view short_name;
