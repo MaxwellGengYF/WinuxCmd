@@ -10,8 +10,8 @@
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
 
-
-
+#include <string>
+#include <Windows.h>
 /**
  * @brief Convert UTF-8 string to wide string
  * @param utf8 UTF-8 string

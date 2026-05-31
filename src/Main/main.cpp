@@ -30,6 +30,9 @@
 #include "readline.h"
 #include "native_completion.h"
 #include "../version/version.h"
+#include <TlHelp32.h>
+#include <clocale>
+#include <unordered_set>
 
 namespace {
 static std::string g_repl_executable_path;
@@ -137,6 +140,7 @@ static std::vector<CompletionItem> getPathCompletions(
 static int printHelp() noexcept {
   safePrintLn(L"WinuxCmd - Windows Compatible Linux Command Set");
   safePrintLn(L"Usage: winuxcmd <command> [options]...");
+  safePrintLn(L"       winuxcmd -c <shell command>");
   safePrintLn(L"");
   safePrintLn(L"Available commands:");
 
@@ -597,6 +601,10 @@ int main(int argc, char *argv[]) noexcept {
   }
   // Automatically set console or pipe output.
   setupConsoleForUnicode();
+  // Always use UTF-8 encoding for this process
+  SetConsoleOutputCP(CP_UTF8);
+  SetConsoleCP(CP_UTF8);
+  std::setlocale(LC_ALL, ".UTF-8");
   detectReplFallbackShell();
   // Get the executable name (stem only)
   std::string self_name = path::get_executable_name(argv[0]);
@@ -606,6 +614,76 @@ int main(int argc, char *argv[]) noexcept {
   args.reserve(argc - 1);
   for (int i = 1; i < argc; ++i) {
     args.emplace_back(argv[i]);
+  }
+
+  // -c <command>: execute a shell command directly and print result
+  if (!args.empty() && args[0] == "-c") {
+    if (args.size() < 2) {
+      safeErrorPrintLn("winuxcmd: -c requires a command to execute");
+      return 1;
+    }
+    // Try built-in command dispatch first; fall back to native shell.
+    //
+    // When the entire command is passed as a single quoted string
+    // (e.g. `winuxcmd -c "ls -la"`), args[1] contains the full command
+    // line.  Tokenise it so that built-in dispatch can see the real
+    // command name and arguments.
+    std::string_view cmd_name = args[1];
+    std::span<std::string_view> cmd_args;
+    if (args.size() > 2) {
+      cmd_args = std::span<std::string_view>(args.data() + 2, args.size() - 2);
+    }
+
+    // Storage that outlives the string_view span built from it.
+    std::vector<std::string> tok_storage;
+    std::vector<std::string_view> tok_views;
+
+    if (cmd_name.find_first_of(" \t") != std::string_view::npos) {
+      // Tokenise the full command line with basic quote support.
+      std::string tok;
+      bool in_sq = false, in_dq = false;
+      for (char c : cmd_name) {
+        if (c == '\'' && !in_dq) {
+          in_sq = !in_sq;
+        } else if (c == '"' && !in_sq) {
+          in_dq = !in_dq;
+        } else if (!in_sq && !in_dq && (c == ' ' || c == '\t')) {
+          if (!tok.empty()) {
+            tok_storage.push_back(std::move(tok));
+            tok.clear();
+          }
+        } else {
+          tok.push_back(c);
+        }
+      }
+      if (!tok.empty()) tok_storage.push_back(std::move(tok));
+
+      // Build string_views pointing into tok_storage.
+      tok_views.reserve(tok_storage.size());
+      for (const auto &s : tok_storage) tok_views.push_back(s);
+
+      if (!tok_views.empty()) {
+        cmd_name = tok_views[0];
+        // Append the original trailing args (if any) after the tokenised ones.
+        for (auto a : cmd_args) {
+          tok_storage.push_back(std::string(a));
+          tok_views.push_back(tok_storage.back());
+        }
+        cmd_args = std::span<std::string_view>(tok_views).subspan(1);
+      }
+    }
+
+    if (CommandRegistry::hasCommand(cmd_name)) {
+      return CommandRegistry::dispatch(cmd_name, cmd_args);
+    }
+
+    // Fall back to native shell with the original (un-tokenised) command line.
+    std::string cmd_line;
+    for (size_t i = 1; i < args.size(); ++i) {
+      if (i > 1) cmd_line.push_back(' ');
+      cmd_line.append(args[i]);
+    }
+    return runNativeFallback(cmd_line);
   }
 
   if (self_name == "winuxcmd") {

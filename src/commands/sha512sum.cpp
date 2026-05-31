@@ -210,11 +210,33 @@ auto calculate_sha512(const std::string& filename, bool text_mode = false)
 
 auto run(const Config& cfg) -> int {
   if (cfg.check_mode) {
-    // Check mode (not fully implemented)
-    // strict mode: when implemented, exit non-zero for any invalid input
-    cp::report_custom_error(
-        L"sha512sum", L"check mode is not fully implemented in this version");
-    return 1;
+    std::ifstream check_file(cfg.check_file);
+    if (!check_file) {
+      cp::report_custom_error(L"sha512sum", L"cannot open '" + std::wstring(cfg.check_file.begin(), cfg.check_file.end()) + L"' for reading");
+      return 1;
+    }
+    bool all_ok = true; int files_checked = 0; int files_failed = 0;
+    std::string line;
+    while (std::getline(check_file, line)) {
+      if (!line.empty() && line.back() == '\r') line.pop_back();
+      if (line.empty()) continue;
+      size_t hash_end = line.find(' ');
+      if (hash_end == std::string::npos || hash_end == 0) { if (cfg.warn) safeErrorPrint("sha512sum: improperly formatted checksum line: "+line+"\n"); if (cfg.strict){all_ok=false;++files_failed;} continue; }
+      std::string expected_hash = line.substr(0, hash_end);
+      size_t file_start = hash_end + 1;
+      while (file_start < line.size() && line[file_start] == ' ') ++file_start;
+      if (file_start < line.size() && line[file_start] == '*') { ++file_start; while (file_start < line.size() && line[file_start] == ' ') ++file_start; }
+      std::string filename = line.substr(file_start);
+      if (filename.empty()) { if (cfg.warn) safeErrorPrint("sha512sum: improperly formatted checksum line: "+line+"\n"); if (cfg.strict){all_ok=false;++files_failed;} continue; }
+      ++files_checked;
+      auto hash_result = calculate_sha512(filename, cfg.text_mode);
+      if (!hash_result) { if (!cfg.status) safeErrorPrint("sha512sum: "+filename+": FAILED open or read\n"); all_ok=false; ++files_failed; continue; }
+      if (*hash_result == expected_hash) { if (!cfg.status && !cfg.quiet) safePrint(filename+": OK\n"); }
+      else { if (!cfg.status) safePrint(filename+": FAILED\n"); all_ok=false; ++files_failed; }
+    }
+    if (files_checked==0) { safeErrorPrint("sha512sum: no properly formatted checksum lines found\n"); return 1; }
+    if (!cfg.status && files_failed > 0) { safeErrorPrint("sha512sum: WARNING: "+std::to_string(files_failed)+" computed checksum"+(files_failed>1?"s":"")+" did NOT match\n"); }
+    return all_ok ? 0 : 1;
   }
 
   bool all_ok = true;
@@ -231,6 +253,8 @@ auto run(const Config& cfg) -> int {
     const char* term = cfg.zero ? "\0" : "\n";
     if (cfg.tag) {
       safePrint("SHA512 (" + file + ") = " + *hash_result + term);
+    } else if (cfg.quiet && !cfg.check_mode) {
+      safePrint(*hash_result + term);
     } else {
       safePrint(*hash_result + "  " + file + term);
     }

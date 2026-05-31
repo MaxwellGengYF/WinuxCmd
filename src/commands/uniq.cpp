@@ -185,8 +185,8 @@ auto parse_group_mode(std::string_view method, GroupMode default_mode,
   if (method == "prepend") return GroupMode::prepend;
   if (method == "append") return GroupMode::append;
   if (method == "both") return GroupMode::both;
-  return cp::unexpected("invalid grouping method '" + std::string(method) +
-                         "'");
+  // Use string literal to avoid dangling string_view from temporary
+  return cp::unexpected("invalid grouping method");
 }
 
 auto build_config(const CommandContext<UNIQ_OPTIONS.size()>& ctx)

@@ -209,11 +209,97 @@ auto calculate_md5(const std::string& filename, bool text_mode = false)
 
 auto run(const Config& cfg) -> int {
   if (cfg.check_mode) {
-    // Check mode (not fully implemented)
-    // strict mode: when implemented, exit non-zero for any invalid input
-    cp::report_custom_error(
-        L"md5sum", L"check mode is not fully implemented in this version");
-    return 1;
+    // Check mode: read hashes from file and verify
+    std::ifstream check_file(cfg.check_file);
+    if (!check_file) {
+      cp::report_custom_error(
+          L"md5sum", L"cannot open '" +
+              std::wstring(cfg.check_file.begin(), cfg.check_file.end()) +
+              L"' for reading");
+      return 1;
+    }
+
+    bool all_ok = true;
+    int files_checked = 0;
+    int files_failed = 0;
+    std::string line;
+
+    while (std::getline(check_file, line)) {
+      // Remove trailing \r
+      if (!line.empty() && line.back() == '\r') line.pop_back();
+      if (line.empty()) continue;
+
+      // Parse: HASH[ *][ ]FILENAME
+      // Hash is at the start, followed by space(s) and filename
+      size_t hash_end = line.find(' ');
+      if (hash_end == std::string::npos || hash_end == 0) {
+        if (cfg.warn) {
+          safeErrorPrint("md5sum: improperly formatted checksum line: " +
+                         line + "\n");
+        }
+        if (cfg.strict) { all_ok = false; ++files_failed; }
+        continue;
+      }
+
+      std::string expected_hash = line.substr(0, hash_end);
+
+      // Skip spaces and optional binary marker '*'
+      size_t file_start = hash_end + 1;
+      while (file_start < line.size() && line[file_start] == ' ') ++file_start;
+      bool binary_marker = false;
+      if (file_start < line.size() && line[file_start] == '*') {
+        binary_marker = true;
+        ++file_start;
+        while (file_start < line.size() && line[file_start] == ' ') ++file_start;
+      }
+
+      std::string filename = line.substr(file_start);
+      if (filename.empty()) {
+        if (cfg.warn) {
+          safeErrorPrint("md5sum: improperly formatted checksum line: " +
+                         line + "\n");
+        }
+        if (cfg.strict) { all_ok = false; ++files_failed; }
+        continue;
+      }
+
+      ++files_checked;
+
+      auto hash_result = calculate_md5(filename, cfg.text_mode);
+      if (!hash_result) {
+        if (!cfg.status) {
+          safeErrorPrint("md5sum: " + filename + ": FAILED open or read\n");
+        }
+        all_ok = false;
+        ++files_failed;
+        continue;
+      }
+
+      if (*hash_result == expected_hash) {
+        if (!cfg.status && !cfg.quiet) {
+          safePrint(filename + ": OK\n");
+        }
+      } else {
+        if (!cfg.status) {
+          safePrint(filename + ": FAILED\n");
+        }
+        all_ok = false;
+        ++files_failed;
+      }
+    }
+
+    if (files_checked == 0) {
+      safeErrorPrint("md5sum: no properly formatted checksum lines found\n");
+      return 1;
+    }
+
+    if (!cfg.status && files_failed > 0) {
+      safeErrorPrint("md5sum: WARNING: " + std::to_string(files_failed) +
+                     " computed checksum" +
+                     (files_failed > 1 ? "s" : "") + " did NOT match\n");
+    }
+
+    return all_ok ? 0 : 1;
   }
 
   bool all_ok = true;
@@ -230,6 +316,8 @@ auto run(const Config& cfg) -> int {
     const char* term = cfg.zero ? "\0" : "\n";
     if (cfg.tag) {
       safePrint("MD5 (" + file + ") = " + *hash_result + term);
+    } else if (cfg.quiet && !cfg.check_mode) {
+      safePrint(*hash_result + term);
     } else {
       safePrint(*hash_result + "  " + file + term);
     }

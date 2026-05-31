@@ -1,4 +1,18 @@
 #pragma once
+
+#include <algorithm>
+#include <cctype>
+#include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
 /*
  *  Copyright (c) 2026 [caomengxuan666]
  *  @author [arookieofc] <2128194521@qq.com>

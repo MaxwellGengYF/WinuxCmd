@@ -81,9 +81,159 @@ struct TimePair {
 };
 
 /**
+ * @brief Parse date string in ISO 8601-like format: YYYY-MM-DD HH:MM:SS [UTC]
+ */
+auto parse_iso_date(const std::string& date_str) -> std::optional<FILETIME> {
+  std::string s = date_str;
+  // Remove leading/trailing whitespace
+  size_t start = s.find_first_not_of(" \t");
+  size_t end = s.find_last_not_of(" \t");
+  if (start == std::string::npos) return std::nullopt;
+  s = s.substr(start, end - start + 1);
+
+  // Check for UTC suffix
+  bool is_utc = false;
+  if (s.size() > 3 && (s.substr(s.size() - 4) == " UTC" ||
+                        s.substr(s.size() - 4) == " GMT")) {
+    is_utc = true;
+    s = s.substr(0, s.size() - 4);
+  } else if (s.size() > 1 && (s.back() == 'Z' || s.back() == 'z')) {
+    is_utc = true;
+    s.pop_back();
+  }
+
+  // Parse YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM:SS
+  int year = 0, month = 1, day = 1, hour = 0, minute = 0, second = 0;
+  char sep = ' ';
+  int n = sscanf(s.c_str(), "%d-%d-%d%c%d:%d:%d", &year, &month, &day, &sep,
+                 &hour, &minute, &second);
+  if (n < 3) {
+    // Try without time
+    n = sscanf(s.c_str(), "%d-%d-%d", &year, &month, &day);
+    if (n < 3) return std::nullopt;
+  }
+
+  if (year < 1 || year > 9999) return std::nullopt;
+  if (month < 1 || month > 12) return std::nullopt;
+  if (day < 1 || day > 31) return std::nullopt;
+  if (hour < 0 || hour > 23) return std::nullopt;
+  if (minute < 0 || minute > 59) return std::nullopt;
+  if (second < 0 || second > 59) return std::nullopt;
+
+  SYSTEMTIME st{};
+  st.wYear = year;
+  st.wMonth = month;
+  st.wDay = day;
+  st.wHour = hour;
+  st.wMinute = minute;
+  st.wSecond = second;
+
+  if (is_utc) {
+    FILETIME ft{};
+    if (!SystemTimeToFileTime(&st, &ft)) return std::nullopt;
+    return ft;
+  }
+
+  // Interpret as local time, convert to UTC
+  TIME_ZONE_INFORMATION tzi{};
+  GetTimeZoneInformation(&tzi);
+  SYSTEMTIME st_utc{};
+  if (!TzSpecificLocalTimeToSystemTime(&tzi, &st, &st_utc)) return std::nullopt;
+  FILETIME ft{};
+  if (!SystemTimeToFileTime(&st_utc, &ft)) return std::nullopt;
+  return ft;
+}
+
+/**
+ * @brief Parse relative date string like "+1 day", "-2 hours"
+ * @param rel_str Relative date string
+ * @param base_time Base FILETIME to apply offset to
+ * @return Resulting FILETIME or nullopt if parsing fails
+ */
+auto parse_relative_date(const std::string& rel_str, const FILETIME& base_time)
+    -> std::optional<FILETIME> {
+  std::string s = rel_str;
+  size_t st = s.find_first_not_of(" \t");
+  size_t en = s.find_last_not_of(" \t");
+  if (st == std::string::npos) return std::nullopt;
+  s = s.substr(st, en - st + 1);
+
+  // Must start with + or -
+  if (s.empty() || (s[0] != '+' && s[0] != '-')) return std::nullopt;
+  bool negative = s[0] == '-';
+
+  // Parse number
+  size_t num_end = 1;
+  while (num_end < s.size() && std::isspace(static_cast<unsigned char>(s[num_end]))) num_end++;
+  size_t num_start = num_end;
+  while (num_end < s.size() && (std::isdigit(static_cast<unsigned char>(s[num_end])) || s[num_end] == '.')) num_end++;
+  if (num_start == num_end) return std::nullopt;
+
+  double value = std::stod(s.substr(num_start, num_end - num_start));
+  if (negative) value = -value;
+
+  // Parse unit
+  while (num_end < s.size() && std::isspace(static_cast<unsigned char>(s[num_end]))) num_end++;
+  std::string unit = s.substr(num_end);
+  // Strip trailing 's' for plural
+  if (!unit.empty() && unit.back() == 's') unit.pop_back();
+  std::transform(unit.begin(), unit.end(), unit.begin(), ::tolower);
+
+  // Convert base FILETIME to SYSTEMTIME (UTC)
+  SYSTEMTIME base_st{};
+  if (!FileTimeToSystemTime(&base_time, &base_st)) return std::nullopt;
+
+  // Convert to ULONGLONG for arithmetic
+  ULARGE_INTEGER uli;
+  uli.LowPart = base_time.dwLowDateTime;
+  uli.HighPart = base_time.dwHighDateTime;
+
+  // FILETIME is in 100-nanosecond intervals
+  // 1 second = 10,000,000
+  const int64_t SECONDS = 10000000LL;
+  const int64_t MINUTES = 60 * SECONDS;
+  const int64_t HOURS = 60 * MINUTES;
+  const int64_t DAYS = 24 * HOURS;
+
+  int64_t offset = 0;
+  if (unit == "second" || unit == "sec") {
+    offset = static_cast<int64_t>(value * SECONDS);
+  } else if (unit == "minute" || unit == "min") {
+    offset = static_cast<int64_t>(value * MINUTES);
+  } else if (unit == "hour" || unit == "hr") {
+    offset = static_cast<int64_t>(value * HOURS);
+  } else if (unit == "day" || unit == "dy") {
+    offset = static_cast<int64_t>(value * DAYS);
+  } else if (unit == "week" || unit == "wk") {
+    offset = static_cast<int64_t>(value * 7 * DAYS);
+  } else if (unit == "month" || unit == "mon") {
+    // Add months to SYSTEMTIME
+    int months = static_cast<int>(value);
+    int new_month = base_st.wMonth + months;
+    while (new_month > 12) { new_month -= 12; base_st.wYear++; }
+    while (new_month < 1) { new_month += 12; base_st.wYear--; }
+    base_st.wMonth = new_month;
+    FILETIME ft{};
+    if (!SystemTimeToFileTime(&base_st, &ft)) return std::nullopt;
+    return ft;
+  } else if (unit == "year" || unit == "yr") {
+    base_st.wYear += static_cast<int>(value);
+    FILETIME ft{};
+    if (!SystemTimeToFileTime(&base_st, &ft)) return std::nullopt;
+    return ft;
+  } else {
+    return std::nullopt;
+  }
+
+  uli.QuadPart += offset;
+  FILETIME result;
+  result.dwLowDateTime = uli.LowPart;
+  result.dwHighDateTime = uli.HighPart;
+  return result;
+}
+
+/**
  * @brief Parse date string in format [[CC]YY]MMDDhhmm[.ss]
- * @param date_str Date string to parse
- * @return FILETIME or nullopt if parsing fails
  */
 auto parse_date_string(const std::string& date_str) -> std::optional<FILETIME> {
   std::string s = date_str;
@@ -316,12 +466,42 @@ auto process_command(const CommandContext<TOUCH_OPTIONS.size()>& ctx)
   bool no_create =
       ctx.get<bool>("--no-create", false) || ctx.get<bool>("-c", false);
 
-  // Parse --date or -t option
+  // Parse --date (-d) or -t option
   std::optional<TimePair> date_times = std::nullopt;
   std::string date_str = ctx.get<std::string>("--date", "");
-  if (date_str.empty()) date_str = ctx.get<std::string>("-t", "");
+  bool used_d_option = !date_str.empty();
+  if (!used_d_option) {
+    date_str = ctx.get<std::string>("-d", "");
+    used_d_option = !date_str.empty();
+  }
+  if (!used_d_option) {
+    date_str = ctx.get<std::string>("-t", "");
+  }
   if (!date_str.empty()) {
-    auto ft = parse_date_string(date_str);
+    std::optional<FILETIME> ft;
+    if (used_d_option) {
+      // Try absolute date first
+      ft = parse_iso_date(date_str);
+      // If that fails and we have a reference file, try relative date
+      if (!ft.has_value()) {
+        std::string ref_path = ctx.get<std::string>("--reference", "");
+        if (ref_path.empty()) ref_path = ctx.get<std::string>("-r", "");
+        if (!ref_path.empty()) {
+          auto ref_times = read_times_from_file(utf8_to_wstring(ref_path));
+          if (ref_times.has_value()) {
+            ft = parse_relative_date(date_str, ref_times->mtime);
+          }
+        }
+        // If no reference file, try relative from current time
+        if (!ft.has_value()) {
+          FILETIME now{};
+          GetSystemTimeAsFileTime(&now);
+          ft = parse_relative_date(date_str, now);
+        }
+      }
+    } else {
+      ft = parse_date_string(date_str);
+    }
     if (!ft.has_value()) {
       safeErrorPrint("touch: invalid date format '");
       safeErrorPrint(date_str);

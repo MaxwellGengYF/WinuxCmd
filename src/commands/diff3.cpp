@@ -201,13 +201,32 @@ auto build_config(const CommandContext<DIFF3_OPTIONS.size()>& ctx)
   cfg.overwrite_overlapping = ctx.get<bool>("-A", false);
   cfg.treat_as_text = ctx.get<bool>("-a", false);
 
-  if (ctx.positionals.size() < 3) {
-    return core::pipeline::unexpected("missing file operands");
+  // Expand wildcards first
+  std::vector<std::string> expanded;
+  for (auto arg : ctx.positionals) {
+    std::string file_arg(arg);
+    if (contains_wildcard(file_arg)) {
+      auto glob_result = glob_expand(file_arg);
+      if (glob_result.expanded && !glob_result.files.empty()) {
+        for (const auto& file : glob_result.files) {
+          expanded.push_back(wstring_to_utf8(file));
+        }
+        continue;
+      }
+    }
+    expanded.push_back(file_arg);
   }
 
-  cfg.mine_file = std::string(ctx.positionals[0]);
-  cfg.older_file = std::string(ctx.positionals[1]);
-  cfg.yours_file = std::string(ctx.positionals[2]);
+  if (expanded.size() < 3) {
+    return core::pipeline::unexpected("missing file operands");
+  }
+  if (expanded.size() > 3) {
+    return core::pipeline::unexpected("extra operand");
+  }
+
+  cfg.mine_file = expanded[0];
+  cfg.older_file = expanded[1];
+  cfg.yours_file = expanded[2];
 
   return cfg;
 }

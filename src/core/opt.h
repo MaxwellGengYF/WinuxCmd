@@ -1,4 +1,16 @@
 #pragma once
+
+#include <array>
+#include <bitset>
+#include <charconv>
+#include <span>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <utility>
+#include <variant>
+#include <vector>
+
 #include "cmd_meta.h"
 /*
  *  Copyright © 2026 [caomengxuan666]
@@ -118,18 +130,30 @@ ParseResult<N> parse_command(
       const cmd::meta::OptionMeta* meta = nullptr;
       std::string_view value;
       std::string_view name = arg;
+      bool has_inline_value = false;
 
-      size_t eq_pos = arg.find('=');
-      bool has_inline_value = eq_pos != std::string_view::npos;
-      if (has_inline_value) {
-        name = arg.substr(0, eq_pos);
-        value = arg.substr(eq_pos + 1);
-      }
-
+      // First try matching the full argument (including '=') as a long option
       for (const auto& m : metas) {
         if (m.long_name == name) {
           meta = &m;
           break;
+        }
+      }
+
+      // If not found and there's an '=', split and try again
+      if (!meta) {
+        size_t eq_pos = arg.find('=');
+        has_inline_value = eq_pos != std::string_view::npos;
+        if (has_inline_value) {
+          name = arg.substr(0, eq_pos);
+          value = arg.substr(eq_pos + 1);
+        }
+
+        for (const auto& m : metas) {
+          if (m.long_name == name) {
+            meta = &m;
+            break;
+          }
         }
       }
 

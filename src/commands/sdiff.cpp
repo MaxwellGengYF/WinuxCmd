@@ -43,11 +43,13 @@ using cmd::meta::OptionType;
 
 auto constexpr SDIFF_OPTIONS =
     std::array{OPTION("-o", "", "output file", STRING_TYPE),
+               OPTION("-s", "--suppress-common-lines",
+                      "do not output common lines"),
                OPTION("-w", "", "ignore all whitespace"),
+               OPTION("-W", "", "ignore all white space"),
                OPTION("-B", "", "ignore changes whose lines are all blank"),
                OPTION("-E", "", "ignore tab expansion"),
-               OPTION("-b", "", "ignore changes in amount of white space"),
-               OPTION("-W", "", "ignore all white space")};
+               OPTION("-b", "", "ignore changes in amount of white space")};
 
 // ======================================================
 // Helper functions
@@ -140,11 +142,14 @@ REGISTER_COMMAND(
     /* copyright */ "Copyright © 2026 WinuxCmd",
     /* options */ SDIFF_OPTIONS) {
   std::string output_file = ctx.get<std::string>("-o", "");
-  bool ignore_whitespace =
-      ctx.get<bool>("-w", false) || ctx.get<bool>("-b", false);
-  bool ignore_all_whitespace = ctx.get<bool>("-W", false);
-  bool ignore_blank = ctx.get<bool>("-B", false);
-  bool ignore_tab_expansion = ctx.get<bool>("-E", false);
+	  bool ignore_whitespace =
+	      ctx.get<bool>("-w", false) || ctx.get<bool>("-b", false);
+	  bool ignore_all_whitespace = ctx.get<bool>("-W", false);
+	  bool ignore_blank = ctx.get<bool>("-B", false);
+	  bool ignore_tab_expansion = ctx.get<bool>("-E", false);
+	  bool suppress_common =
+	      ctx.get<bool>("--suppress-common-lines", false) ||
+	      ctx.get<bool>("-s", false);
 
   if (ctx.positionals.size() < 2) {
     safeErrorPrintLn("sdiff: missing file operands");
@@ -155,18 +160,9 @@ REGISTER_COMMAND(
   std::string file1 = std::string(ctx.positionals[0]);
   std::string file2 = std::string(ctx.positionals[1]);
 
-  // Read files
-  std::vector<std::string> lines1 = read_file_lines(file1);
-  std::vector<std::string> lines2 = read_file_lines(file2);
-
-  if (lines1.empty()) {
-    safeErrorPrintLn("sdiff: cannot read file '" + file1 + "'");
-    return 1;
-  }
-  if (lines2.empty()) {
-    safeErrorPrintLn("sdiff: cannot read file '" + file2 + "'");
-    return 1;
-  }
+	  // Read files (empty files are valid — just produce no output)
+	  std::vector<std::string> lines1 = read_file_lines(file1);
+	  std::vector<std::string> lines2 = read_file_lines(file2);
 
   // Column width (adjustable based on terminal)
   int col_width = 40;
@@ -201,13 +197,15 @@ REGISTER_COMMAND(
         continue;
       }
 
-      if (lines_equal(line1, line2, ignore_whitespace, ignore_all_whitespace,
-                      ignore_tab_expansion)) {
-        // Lines are equal
-        output.push_back(format_line(line1, col_width) + "  " +
-                         format_line(line2, col_width));
-        idx1++;
-        idx2++;
+	      if (lines_equal(line1, line2, ignore_whitespace, ignore_all_whitespace,
+	                      ignore_tab_expansion)) {
+	        // Lines are equal
+	        if (!suppress_common) {
+	          output.push_back(format_line(line1, col_width) + "  " +
+	                           format_line(line2, col_width));
+	        }
+	        idx1++;
+	        idx2++;
       } else {
         // Lines are different
         output.push_back(format_line(line1, col_width, '|') + "  " +

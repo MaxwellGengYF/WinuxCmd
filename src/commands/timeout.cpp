@@ -44,9 +44,10 @@ auto constexpr TIMEOUT_OPTIONS = std::array{
            STRING_TYPE),
     OPTION("-k", "--kill-after",
            "also send a KILL signal if COMMAND still running", STRING_TYPE),
-    OPTION("", "--foreground",
+    OPTION("-f", "--foreground",
            "when not running timeout directly from a shell prompt", BOOL_TYPE),
-    OPTION("", "--preserve-status", "exit with the same status as COMMAND",
+    OPTION("-v", "--verbose", "diagnose to stderr", BOOL_TYPE),
+    OPTION("-p", "--preserve-status", "exit with the same status as COMMAND",
            BOOL_TYPE)};
 
 namespace timeout_pipeline {
@@ -58,6 +59,7 @@ struct Config {
   int signal = 15;  // SIGTERM
   bool foreground = false;
   bool preserve_status = false;
+  bool verbose = false;
   std::string command;
   SmallVector<std::string, 64> args;
 };
@@ -119,7 +121,14 @@ auto build_config(const CommandContext<TIMEOUT_OPTIONS.size()>& ctx)
     try {
       cfg.signal = std::stoi(signal_opt);
     } catch (...) {
-      return core::pipeline::unexpected("invalid signal");
+      // Try signal name lookup
+      if (signal_opt == "TERM" || signal_opt == "SIGTERM") cfg.signal = 15;
+      else if (signal_opt == "KILL" || signal_opt == "SIGKILL") cfg.signal = 9;
+      else if (signal_opt == "INT" || signal_opt == "SIGINT") cfg.signal = 2;
+      else if (signal_opt == "HUP" || signal_opt == "SIGHUP") cfg.signal = 1;
+      else if (signal_opt == "QUIT" || signal_opt == "SIGQUIT") cfg.signal = 3;
+      else if (signal_opt == "STOP" || signal_opt == "SIGSTOP") cfg.signal = 17;
+      else return core::pipeline::unexpected("invalid signal");
     }
   }
 
@@ -135,8 +144,12 @@ auto build_config(const CommandContext<TIMEOUT_OPTIONS.size()>& ctx)
     cfg.kill_after_ms = *duration_result;
   }
 
-  cfg.foreground = ctx.get<bool>("--foreground", false);
-  cfg.preserve_status = ctx.get<bool>("--preserve-status", false);
+	  cfg.foreground = ctx.get<bool>("--foreground", false) ||
+	                   ctx.get<bool>("-f", false);
+	  cfg.preserve_status = ctx.get<bool>("--preserve-status", false) ||
+	                        ctx.get<bool>("-p", false);
+	  cfg.verbose = ctx.get<bool>("--verbose", false) ||
+	                ctx.get<bool>("-v", false);
 
   // Get duration and command from positionals
   if (ctx.positionals.empty()) {
@@ -162,6 +175,11 @@ auto build_config(const CommandContext<TIMEOUT_OPTIONS.size()>& ctx)
 }
 
 auto run(const Config& cfg) -> int {
+  if (cfg.verbose) {
+    safeErrorPrint("timeout: running command '" + cfg.command);
+    for (const auto& a : cfg.args) safeErrorPrint(" " + a);
+    safeErrorPrint("'\n");
+  }
   if (!cfg.command.empty()) {
     // Build command line with fallback to winuxcmd.exe
     std::vector<std::string> all_args;
@@ -193,9 +211,10 @@ auto run(const Config& cfg) -> int {
       return 1;
     }
 
-    // Wait for process to finish or timeout
-    DWORD wait_result =
-        WaitForSingleObject(pi.hProcess, static_cast<DWORD>(cfg.duration_ms));
+	    // Wait for process to finish or timeout (0 means no timeout)
+	    DWORD timeout_ms = (cfg.duration_ms == 0) ? INFINITE
+	                                             : static_cast<DWORD>(cfg.duration_ms);
+	    DWORD wait_result = WaitForSingleObject(pi.hProcess, timeout_ms);
 
     if (wait_result == WAIT_TIMEOUT) {
       // Process timed out, kill it

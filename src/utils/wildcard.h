@@ -1,4 +1,5 @@
 #pragma once
+#include <cwctype>
 #include "utf8.h"
 #include "path.h"
 /*

@@ -89,31 +89,10 @@ namespace dir_pipeline {
 namespace cp = core::pipeline;
 
 auto run(const CommandContext<DIR_OPTIONS.size()>& ctx) -> int {
-  // Build ls arguments with -C (columns) as default
-  SmallVector<std::wstring, 32> ls_args;
-  ls_args.push_back(L"-C");  // Default to columns
-
-  // Check if user explicitly set a format that overrides -C
-  bool has_format_override = false;
+  // Build command line: invoke ls via winuxcmd with -C default
+  std::wstring cmd_line = L"winuxcmd.exe ls -C";
   for (const auto& pos : ctx.positionals) {
-    std::string arg(pos);
-    if (arg == "-l" || arg == "-1" || arg == "-m" || arg == "-x" ||
-        arg == "--long" || arg == "--format=long" ||
-        arg == "--format=single-column" || arg == "--format=commas" ||
-        arg == "--format=across") {
-      has_format_override = true;
-    }
-  }
-
-  // Forward all positionals to ls
-  for (const auto& pos : ctx.positionals) {
-    ls_args.push_back(utf8_to_wstring(std::string(pos)));
-  }
-
-  // Build command line
-  std::wstring cmd_line = L"ls.exe";
-  for (const auto& arg : ls_args) {
-    cmd_line += L" " + arg;
+    cmd_line += L" " + utf8_to_wstring(std::string(pos));
   }
 
   STARTUPINFOW si = {sizeof(si)};

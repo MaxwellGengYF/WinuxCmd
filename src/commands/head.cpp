@@ -107,9 +107,9 @@ auto suffix_multiplier(std::string_view suffix)
     -> std::optional<std::uintmax_t> {
   static constexpr auto kMultipliers =
       make_constexpr_map<std::string_view, std::uintmax_t>(
-          std::array<std::pair<std::string_view, std::uintmax_t>, 25>{
+          std::array<std::pair<std::string_view, std::uintmax_t>, 35>{
               std::pair{std::string_view{"b"}, 512ULL},
-              std::pair{std::string_view{"kB"}, 1000ULL},
+              std::pair{std::string_view{"KB"}, 1000ULL},
               std::pair{std::string_view{"K"}, 1024ULL},
               std::pair{std::string_view{"KiB"}, 1024ULL},
               std::pair{std::string_view{"MB"}, 1000ULL * 1000ULL},
@@ -138,26 +138,24 @@ auto suffix_multiplier(std::string_view suffix)
               std::pair{
                   std::string_view{"EiB"},
                   1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL},
-              std::pair{std::string_view{"Z"}, 1024ULL * 1024ULL * 1024ULL *
-                                                   1024ULL * 1024ULL * 1024ULL *
-                                                   1024ULL},
-              std::pair{std::string_view{"Y"}, 1024ULL * 1024ULL * 1024ULL *
-                                                   1024ULL * 1024ULL * 1024ULL *
-                                                   1024ULL * 1024ULL},
-              std::pair{std::string_view{"R"}, 0ULL},
-              std::pair{std::string_view{"Q"}, 0ULL},
               std::pair{std::string_view{"ZB"}, 0ULL},
-              std::pair{std::string_view{"YB"}, 0ULL}});
+              std::pair{std::string_view{"Z"}, 0ULL},
+              std::pair{std::string_view{"ZiB"}, 0ULL},
+              std::pair{std::string_view{"YB"}, 0ULL},
+              std::pair{std::string_view{"Y"}, 0ULL},
+              std::pair{std::string_view{"YiB"}, 0ULL},
+              std::pair{std::string_view{"RB"}, 0ULL},
+              std::pair{std::string_view{"R"}, 0ULL},
+              std::pair{std::string_view{"RiB"}, 0ULL},
+              std::pair{std::string_view{"QB"}, 0ULL},
+              std::pair{std::string_view{"Q"}, 0ULL},
+              std::pair{std::string_view{"QiB"}, 0ULL}});
 
   if (suffix.empty()) return 1;
 
   if (auto it = kMultipliers.find(suffix); it != kMultipliers.end()) {
     auto mult = it->second;
-    if (mult == 0ULL) return std::nullopt;
-    return mult;
-  }
-  if (suffix == "RB" || suffix == "QB") {
-    return std::nullopt;
+    return mult;  // Return even 0 - caller checks for overflow
   }
 
   return std::nullopt;
@@ -179,8 +177,13 @@ auto parse_numeric_with_suffix(std::string_view text)
   auto mult = suffix_multiplier(text.substr(i));
   if (!mult.has_value()) return std::nullopt;
 
-  if (*mult != 0 &&
-      *parsed > (std::numeric_limits<std::uintmax_t>::max() / *mult)) {
+  if (*mult == 0) {
+    // Oversized suffix (Z, Y, R, Q) only acceptable with value 0
+    if (*parsed == 0) return 0ULL;
+    return std::nullopt;
+  }
+
+  if (*parsed > (std::numeric_limits<std::uintmax_t>::max() / *mult)) {
     return std::nullopt;
   }
 
@@ -190,7 +193,7 @@ auto parse_numeric_with_suffix(std::string_view text)
 auto parse_count_spec(std::string spec_text, std::string_view opt_name)
     -> cp::Result<CountSpec> {
   if (spec_text.empty()) {
-    return core::pipeline::unexpected("invalid number of " + std::string(opt_name));
+    return core::pipeline::unexpected("invalid number of bytes/lines");
   }
 
   CountSpec spec;
@@ -198,13 +201,13 @@ auto parse_count_spec(std::string spec_text, std::string_view opt_name)
     spec.all_but_last = true;
     spec_text = spec_text.substr(1);  // Avoid modifying original string
     if (spec_text.empty()) {
-      return core::pipeline::unexpected("invalid number of " + std::string(opt_name));
+      return core::pipeline::unexpected("invalid number of bytes/lines");
     }
   }
 
   auto parsed = parse_numeric_with_suffix(spec_text);
   if (!parsed.has_value()) {
-    return core::pipeline::unexpected("invalid number of " + std::string(opt_name));
+    return core::pipeline::unexpected("invalid number of bytes/lines");
   }
   spec.value = *parsed;
   return spec;
@@ -309,6 +312,30 @@ auto build_config(const CommandContext<N>& ctx) -> cp::Result<HeadConfig> {
   config.quiet =
       ctx.get<bool>("--quiet", false) || ctx.get<bool>("--silent", false);
   config.verbose = ctx.get<bool>("--verbose", false);
+
+  // Last-wins semantics for -v/-q: find which was specified last
+  if (config.quiet && config.verbose) {
+    // Both specified - determine which came last via occurrence order
+    size_t quiet_pos = 0, verbose_pos = 0;
+    size_t pos = 0;
+    for (const auto& occ : ctx.options.occurrences()) {
+      if (occ.index >= HEAD_OPTIONS.size()) { ++pos; continue; }
+      const auto& meta = (*ctx.metas)[occ.index];
+      if (meta.short_name == "-q" || meta.long_name == "--quiet" ||
+          meta.long_name == "--silent") {
+        quiet_pos = pos;
+      }
+      if (meta.short_name == "-v" || meta.long_name == "--verbose") {
+        verbose_pos = pos;
+      }
+      ++pos;
+    }
+    if (quiet_pos > verbose_pos) {
+      config.verbose = false;  // quiet wins
+    } else {
+      config.quiet = false;    // verbose wins
+    }
+  }
   config.delimiter = ctx.get<bool>("--zero-terminated", false) ? '\0' : '\n';
 
   const std::string bytes_arg = ctx.get<std::string>("--bytes", "");
@@ -319,18 +346,85 @@ auto build_config(const CommandContext<N>& ctx) -> cp::Result<HeadConfig> {
   std::string bytes_spec = bytes_arg.empty() ? bytes_short : bytes_arg;
   std::string lines_spec = lines_arg.empty() ? lines_short : lines_arg;
 
+  // Handle obsolete compact format: -NUMc, -NUM, -NUMb, -NUMk, -NUMq, -NUMv
+  // These appear as unrecognized option occurrences
+  for (const auto& occ : ctx.options.occurrences()) {
+    if (occ.index < HEAD_OPTIONS.size()) continue;  // Skip recognized options
+    if (auto val = std::get_if<std::string>(&occ.value)) {
+      std::string_view token(*val);
+      if (token.size() >= 2 && token[0] == '-') {
+        token = token.substr(1);  // skip '-'
+        // Parse numeric prefix
+        size_t num_end = 0;
+        while (num_end < token.size() &&
+               std::isdigit(static_cast<unsigned char>(token[num_end]))) {
+          ++num_end;
+        }
+        if (num_end > 0) {
+          std::string_view num_str = token.substr(0, num_end);
+          std::string_view suffix = token.substr(num_end);
+          // -NUM alone means lines
+          if (suffix.empty()) {
+            lines_spec = std::string(num_str);
+          } else if (suffix == "c") {
+            bytes_spec = std::string(num_str);
+          } else if (suffix == "b") {
+            // -NUMb means NUM * 512 bytes
+            bytes_spec = std::string(num_str) + "b";
+          } else if (suffix == "k") {
+            // -NUMk means NUM * 1024 bytes
+            bytes_spec = std::string(num_str) + "KiB";
+          } else if (suffix == "q" || suffix == "v") {
+            // -NUMq means -NUM with --quiet, -NUMv means -NUM with --verbose
+            lines_spec = std::string(num_str);
+            if (suffix == "q") {
+              config.quiet = true;
+              config.verbose = false;
+            }
+            if (suffix == "v") {
+              config.verbose = true;
+              config.quiet = false;
+            }
+          }
+        }
+      }
+    }
+  }
+
   if (!bytes_spec.empty()) {
     auto spec = parse_count_spec(bytes_spec, "bytes");
     if (!spec) return core::pipeline::unexpected(spec.error());
     config.by_bytes = true;
     config.spec = *spec;
-    return config;
   }
 
   if (!lines_spec.empty()) {
     auto spec = parse_count_spec(lines_spec, "lines");
     if (!spec) return core::pipeline::unexpected(spec.error());
-    config.spec = *spec;
+    // Last specified wins: only override by_bytes if lines came after bytes
+    if (!bytes_spec.empty()) {
+      // Check occurrence order: which came last?
+      size_t bytes_pos = 0, lines_pos = 0;
+      size_t pos = 0;
+      for (const auto& occ : ctx.options.occurrences()) {
+        if (occ.index >= HEAD_OPTIONS.size()) { ++pos; continue; }
+        const auto& meta = (*ctx.metas)[occ.index];
+        if (meta.short_name == "-c" || meta.long_name == "--bytes") {
+          bytes_pos = pos;
+        }
+        if (meta.short_name == "-n" || meta.long_name == "--lines") {
+          lines_pos = pos;
+        }
+        ++pos;
+      }
+      if (lines_pos > bytes_pos) {
+        config.by_bytes = false;
+        config.spec = *spec;
+      }
+    } else {
+      config.by_bytes = false;
+      config.spec = *spec;
+    }
   }
 
   return config;
@@ -386,12 +480,17 @@ REGISTER_COMMAND(
     const auto& file = files[i];
 
     bool show_header =
-        (config.verbose || (multi && !config.quiet)) && file != "-";
+        (config.verbose || (multi && !config.quiet));
     if (show_header) {
-      if (!first_print) safePrint("\n");
+      if (!first_print) safePrint(std::string(1, config.delimiter));
       safePrint("==> ");
-      safePrint(file);
-      safePrint(" <==\n");
+      if (file == "-") {
+        safePrint("standard input");
+      } else {
+        safePrint(file);
+      }
+      safePrint(" <==");
+      safePrint(std::string(1, config.delimiter));
     }
 
     if (file == "-") {

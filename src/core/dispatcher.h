@@ -78,10 +78,11 @@ inline auto is_legacy_line_count(std::string_view arg) -> bool {
     std::string_view suffix = arg.substr(i);
     // Valid suffixes: c, b, k, K, kB, KiB, M, MB, MiB, G, GB, GiB,
     // T, TB, TiB, P, PB, PiB, E, EB, EiB, Z, ZB, Y, YB
-    static constexpr std::string_view valid_suffixes[] = {
+	    static constexpr std::string_view valid_suffixes[] = {
         "c", "b", "k", "K", "kB", "KiB", "M", "MB", "MiB",
         "G", "GB", "GiB", "T", "TB", "TiB", "P", "PB", "PiB",
-        "E", "EB", "EiB", "Z", "ZB", "Y", "YB"};
+        "E", "EB", "EiB", "Z", "ZB", "Y", "YB",
+        "q", "v", "l", "L"};
     bool suffix_ok = false;
     for (auto s : valid_suffixes) {
       if (suffix == s) { suffix_ok = true; break; }
@@ -105,18 +106,75 @@ inline auto legacy_count_value(std::string_view arg) -> std::string {
   return std::string(arg);
 }
 
+// Extract the suffix character from a legacy count (e.g. 'c' from "-2c")
+inline auto legacy_count_suffix(std::string_view arg) -> char {
+  if (arg.size() < 2) return 0;
+  // arg is like "2c" or "2kB" or "2"
+  for (size_t i = 0; i < arg.size(); ++i) {
+    if (!std::isdigit(static_cast<unsigned char>(arg[i]))) {
+      return arg[i];
+    }
+  }
+  return 0;
+}
+
+// Extract just the numeric part from a legacy count (e.g. "2" from "2c")
+inline auto legacy_count_numeric(std::string_view arg) -> std::string {
+  std::string num;
+  for (auto c : arg) {
+    if (std::isdigit(static_cast<unsigned char>(c)))
+      num += c;
+    else
+      break;
+  }
+  return num;
+}
+struct LegacyRewrite {
+  std::string option;  // "-n" or "-c"
+  std::string value;
+  bool quiet = false;
+  bool verbose = false;
+};
+
 inline auto needs_head_tail_count_rewrite(std::string_view cmdName,
                                    std::span<std::string_view> args)
-    -> std::optional<std::string> {
+    -> std::optional<LegacyRewrite> {
   if (args.empty()) return std::nullopt;
 
   if ((cmdName == "head" || cmdName == "tail") &&
       is_legacy_line_count(args[0])) {
-    return legacy_count_value(args[0]);
+    std::string value = std::string(args[0].substr(1));
+    char suffix = legacy_count_suffix(value);
+    LegacyRewrite lr;
+    if (suffix == 'c') {
+      lr.option = "-c";
+      lr.value = legacy_count_numeric(value);
+    } else if (suffix == 'b') {
+      lr.option = "-c";
+      lr.value = std::string(value);
+    } else if (suffix == 'k' || suffix == 'K') {
+      lr.option = "-c";
+      lr.value = legacy_count_numeric(value) + "KiB";
+    } else if (suffix == 'q') {
+      lr.option = "-n";
+      lr.value = legacy_count_numeric(value);
+      lr.quiet = true;
+    } else if (suffix == 'v') {
+      lr.option = "-n";
+      lr.value = legacy_count_numeric(value);
+      lr.verbose = true;
+    } else {
+      lr.option = "-n";
+      lr.value = value;
+    }
+    return lr;
   }
 
   if (cmdName == "tail" && is_legacy_tail_from_start_count(args[0])) {
-    return std::string(args[0]);
+    LegacyRewrite lr;
+    lr.option = "-n";
+    lr.value = std::string(args[0]);
+    return lr;
   }
 
   return std::nullopt;
@@ -160,13 +218,19 @@ class RegistryImpl {
     std::vector<std::string_view> rewritten_views;
     std::span<std::string_view> effective_args = args;
 
-    if (auto legacy_count = needs_head_tail_count_rewrite(cmdName, args)) {
-      rewritten_storage.reserve(args.size() + 1);
-      rewritten_storage.emplace_back("-n");
-      rewritten_storage.emplace_back(*legacy_count);
-      for (size_t i = 1; i < args.size(); ++i) {
-        rewritten_storage.emplace_back(args[i]);
-      }
+	    if (auto legacy_count = needs_head_tail_count_rewrite(cmdName, args)) {
+	      rewritten_storage.reserve(args.size() + 3);
+	      rewritten_storage.emplace_back(legacy_count->option);
+	      rewritten_storage.emplace_back(legacy_count->value);
+	      if (legacy_count->quiet) {
+	        rewritten_storage.emplace_back("-q");
+	      }
+	      if (legacy_count->verbose) {
+	        rewritten_storage.emplace_back("-v");
+	      }
+	      for (size_t i = 1; i < args.size(); ++i) {
+	        rewritten_storage.emplace_back(args[i]);
+	      }
 
       rewritten_views.reserve(rewritten_storage.size());
       for (const auto &arg : rewritten_storage) {

@@ -136,21 +136,48 @@ auto validate_arguments(const CommandContext<CP_OPTIONS.size()>& ctx)
     target_dir = ctx.get<std::string>("-t", "");
   }
   if (!target_dir.empty()) {
+    // Verify target is an existing directory
+    std::wstring wtarget = utf8_to_wstring(target_dir);
+    DWORD attr = GetFileAttributesW(wtarget.c_str());
+    if (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+      return core::pipeline::unexpected("target '" + target_dir +
+                                        "' is not a directory");
+    }
     destPath = target_dir;
     for (auto arg : ctx.positionals) {
-      sourcePaths.push_back(std::string(arg));
+      std::string file_arg(arg);
+      if (contains_wildcard(file_arg)) {
+        auto glob_result = glob_expand(file_arg);
+        if (glob_result.expanded) {
+          for (const auto& file : glob_result.files) {
+            sourcePaths.push_back(wstring_to_utf8(file));
+          }
+          continue;
+        }
+      }
+      sourcePaths.push_back(file_arg);
     }
-  } else {
-    // Regular case: last argument is destination
-    if (ctx.positionals.size() < 2) {
-      return core::pipeline::unexpected("missing file operand");
-    }
+	  } else {
+	    // Regular case: last argument is destination
+	    if (ctx.positionals.size() < 2) {
+	      return core::pipeline::unexpected("missing file operand");
+	    }
 
-    for (size_t i = 0; i < ctx.positionals.size() - 1; ++i) {
-      sourcePaths.push_back(std::string(ctx.positionals[i]));
-    }
-    destPath = std::string(ctx.positionals.back());
-  }
+	    for (size_t i = 0; i < ctx.positionals.size() - 1; ++i) {
+	      std::string file_arg(ctx.positionals[i]);
+	      if (contains_wildcard(file_arg)) {
+	        auto glob_result = glob_expand(file_arg);
+	        if (glob_result.expanded && !glob_result.files.empty()) {
+	          for (const auto& file : glob_result.files) {
+	            sourcePaths.push_back(wstring_to_utf8(file));
+	          }
+	          continue;
+	        }
+	      }
+	      sourcePaths.push_back(file_arg);
+	    }
+	    destPath = std::string(ctx.positionals.back());
+	  }
 
   if (sourcePaths.empty()) {
     return core::pipeline::unexpected("missing file operand");
@@ -254,12 +281,21 @@ auto copy_file(const std::string& srcPath, const std::string& destPath,
       GetFullPathNameW(wdstAbs.c_str(), MAX_PATH, dstFull, nullptr)) {
     if (_wcsicmp(srcFull, dstFull) == 0) {
       // Source and destination are the same file
-      safeErrorPrint("cp: '");
-      safeErrorPrint(srcPath);
-      safeErrorPrint("' and '");
-      safeErrorPrint(destPath);
-      safeErrorPrint("' are the same file\n");
-      return true;  // Not an error per GNU cp
+      if (force && backup) {
+        // With --force --backup, self-copy just creates a backup
+        std::string backupPath = destPath + suffix;
+        if (!CopyFileW(wsrcAbs.c_str(), utf8_to_wstring(backupPath).c_str(), FALSE)) {
+          return core::pipeline::unexpected("cannot create backup");
+        }
+        return true;
+      } else {
+        safeErrorPrint("cp: '");
+        safeErrorPrint(srcPath);
+        safeErrorPrint("' and '");
+        safeErrorPrint(destPath);
+        safeErrorPrint("' are the same file\n");
+        return core::pipeline::unexpected("source and destination are the same file");
+      }
     }
   }
 
@@ -312,17 +348,21 @@ auto copy_file(const std::string& srcPath, const std::string& destPath,
     return core::pipeline::unexpected("cannot open for reading");
   }
 
-  // Create destination directory if it doesn't exist
-  size_t lastSlash = destPath.find_last_of('\\');
-  if (lastSlash != std::string::npos) {
-    std::string destDir = destPath.substr(0, lastSlash);
-    if (!destDir.empty()) {
-      auto createDirResult = create_directory_recursive(destDir);
-      if (!createDirResult) {
-        return createDirResult;
-      }
-    }
-  }
+	  // Check that destination parent directory exists (do NOT auto-create)
+	  size_t lastSlash = destPath.find_last_of('\\');
+	  if (lastSlash != std::string::npos) {
+	    std::string destDir = destPath.substr(0, lastSlash);
+	    if (!destDir.empty()) {
+	      std::wstring wdestDir = utf8_to_wstring(destDir);
+	      DWORD attr = GetFileAttributesW(wdestDir.c_str());
+	      if (attr == INVALID_FILE_ATTRIBUTES ||
+	          !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+	        return core::pipeline::unexpected(
+	            "cannot create regular file '" + destPath +
+	            "': No such file or directory");
+	      }
+	    }
+	  }
 
   // Open destination file - with force, remove existing first
   if (force && dest_exists) {
@@ -354,16 +394,41 @@ auto copy_file(const std::string& srcPath, const std::string& destPath,
   dest.close();
   src.close();
 
-  if (verbose) {
-    // OPTIMIZED: Avoid wstring concatenation
-    safePrint("'");
-    safePrint(srcPath);
-    safePrint("' -> '");
-    safePrint(destPath);
-    safePrint("'\n");
-  }
+	  if (verbose) {
+	    // OPTIMIZED: Avoid wstring concatenation
+	    safePrint("'");
+	    safePrint(srcPath);
+	    safePrint("' -> '");
+	    safePrint(destPath);
+	    safePrint("'\n");
+	  }
 
-  return true;
+	  // Preserve timestamps if -p or --preserve is set
+	  bool preserve = ctx.get<bool>("-p", false) ||
+	                  ctx.get<bool>("-a", false) ||
+	                  ctx.get<bool>("--archive", false);
+	  if (preserve) {
+	    std::wstring wsrc = utf8_to_wstring(srcPath);
+	    std::wstring wdst = utf8_to_wstring(destPath);
+	    HANDLE hSrc = CreateFileW(wsrc.c_str(), FILE_READ_ATTRIBUTES,
+	                               FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+	                               nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	    if (hSrc != INVALID_HANDLE_VALUE) {
+	      FILETIME ct{}, la{}, lm{};
+	      if (GetFileTime(hSrc, &ct, &la, &lm)) {
+	        HANDLE hDst = CreateFileW(wdst.c_str(), FILE_WRITE_ATTRIBUTES,
+	                                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+	                                  nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	        if (hDst != INVALID_HANDLE_VALUE) {
+	          SetFileTime(hDst, nullptr, &la, &lm);
+	          CloseHandle(hDst);
+	        }
+	      }
+	      CloseHandle(hSrc);
+	    }
+	  }
+
+	  return true;
 }
 
 // ----------------------------------------------
@@ -488,6 +553,7 @@ auto process_source_paths(
   bool recursive = ctx.get<bool>("--recursive", false);
   recursive |= ctx.get<bool>("-r", false);
   recursive |= ctx.get<bool>("-R", false);
+  recursive |= ctx.get<bool>("-a", false) || ctx.get<bool>("--archive", false);
   bool success = true;
 
   for (const auto& srcPath : sourcePaths) {

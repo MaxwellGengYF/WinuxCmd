@@ -37,6 +37,7 @@ using cmd::meta::OptionType;
 auto constexpr CHOWN_OPTIONS = std::array{
     OPTION("-R", "--recursive", "operate on files and directories recursively"),
     OPTION("-v", "--verbose", "output a diagnostic for every file processed"),
+    OPTION("", "--reference", "use RFILE's owner and group", STRING_TYPE),
 };
 
 namespace chown_pipeline {
@@ -58,21 +59,32 @@ auto build_config(const CommandContext<CHOWN_OPTIONS.size()>& ctx)
       ctx.get<bool>("-R", false) || ctx.get<bool>("--recursive", false);
   cfg.verbose = ctx.get<bool>("-v", false);
 
+  std::string reference = ctx.get<std::string>("--reference", "");
+  bool has_reference = !reference.empty();
+
   if (ctx.positionals.empty()) {
     return core::pipeline::unexpected("missing operand");
   }
 
-  std::string owner_group(ctx.positionals[0]);
-  size_t colon_pos = owner_group.find(':');
-  if (colon_pos != std::string::npos) {
-    cfg.owner = owner_group.substr(0, colon_pos);
-    cfg.group = owner_group.substr(colon_pos + 1);
-    cfg.has_group = true;
+  size_t file_start = 0;
+  if (has_reference) {
+    // With --reference, all positionals are files
+    file_start = 0;
+    cfg.owner = "reference";  // Not actually used on Windows
   } else {
-    cfg.owner = owner_group;
+    std::string owner_group(ctx.positionals[0]);
+    size_t colon_pos = owner_group.find(':');
+    if (colon_pos != std::string::npos) {
+      cfg.owner = owner_group.substr(0, colon_pos);
+      cfg.group = owner_group.substr(colon_pos + 1);
+      cfg.has_group = true;
+    } else {
+      cfg.owner = owner_group;
+    }
+    file_start = 1;
   }
 
-  for (size_t i = 1; i < ctx.positionals.size(); ++i) {
+  for (size_t i = file_start; i < ctx.positionals.size(); ++i) {
     std::string file_arg(ctx.positionals[i]);
     if (contains_wildcard(file_arg)) {
       auto glob_result = glob_expand(file_arg);
@@ -87,40 +99,64 @@ auto build_config(const CommandContext<CHOWN_OPTIONS.size()>& ctx)
   }
 
   if (cfg.files.empty()) {
-    return core::pipeline::unexpected("missing operand after '" + owner_group + "'");
+    if (has_reference) {
+      return core::pipeline::unexpected("missing operand after '" + reference + "'");
+    }
+    return core::pipeline::unexpected("missing operand after '" + std::string(ctx.positionals[0]) + "'");
   }
 
   return cfg;
 }
 
 auto process_file(const std::string& path, const Config& cfg) -> int {
-  std::wstring wpath = utf8_to_wstring(path);
+	  std::wstring wpath = utf8_to_wstring(path);
 
-  DWORD attr = GetFileAttributesW(wpath.c_str());
-  if (attr == INVALID_FILE_ATTRIBUTES) {
-    safeErrorPrint("chown: cannot access '" + path +
-                   "': No such file or directory\n");
-    return 1;
-  }
+	  DWORD attr = GetFileAttributesW(wpath.c_str());
+	  if (attr == INVALID_FILE_ATTRIBUTES) {
+	    safeErrorPrint("chown: cannot access '" + path +
+	                   "': No such file or directory\n");
+	    return 1;
+	  }
 
-  // On Windows, chown requires administrator privileges
-  // Report the current state and note that actual ownership change is not
-  // supported
-  if (cfg.verbose) {
-    if (cfg.has_group && !cfg.group.empty()) {
-      safePrint("changing ownership of '" + path + "'");
-      safePrint(" to " + cfg.owner + ":" + cfg.group);
-      safePrint("\n");
-    } else {
-      safePrint("changing ownership of '" + path + "'");
-      safePrint(" to " + cfg.owner);
-      safePrint("\n");
-    }
-  }
+	  // On Windows, chown requires administrator privileges
+	  // Report the current state and note that actual ownership change is not
+	  // supported
+	  if (cfg.verbose) {
+	    if (cfg.has_group && !cfg.group.empty()) {
+	      safePrint("changing ownership of '" + path + "'");
+	      safePrint(" to " + cfg.owner + ":" + cfg.group);
+	      safePrint("\n");
+	    } else {
+	      safePrint("changing ownership of '" + path + "'");
+	      safePrint(" to " + cfg.owner);
+	      safePrint("\n");
+	    }
+	  }
 
-  // Note: Actual ownership change requires administrator privileges
-  // and is not implemented in this version
-  return 0;
+	  // Note: Actual ownership change requires administrator privileges
+	  // and is not implemented in this version
+	  return 0;
+}
+
+/// Check if a user/group name exists on Windows
+static auto user_exists(const std::string& name) -> bool {
+	  if (name.empty()) return false;
+	  // Skip reference owner (set when --reference is used)
+	  if (name == "reference") return true;
+	  std::wstring wname = utf8_to_wstring(name);
+	  DWORD sidSize = 0;
+	  DWORD domainSize = 0;
+	  SID_NAME_USE sidType;
+	  // First call to get required buffer sizes
+	  LookupAccountNameW(nullptr, wname.c_str(), nullptr, &sidSize,
+	                     nullptr, &domainSize, &sidType);
+	  if (GetLastError() == ERROR_NONE_MAPPED ||
+	      GetLastError() == ERROR_INVALID_PARAMETER) {
+	    return false;
+	  }
+	  // Even if buffer too small, the account exists
+	  return (GetLastError() == ERROR_INSUFFICIENT_BUFFER ||
+	          GetLastError() == ERROR_SUCCESS);
 }
 
 auto process_recursive(const std::string& path, const Config& cfg) -> int {
@@ -187,11 +223,21 @@ REGISTER_COMMAND(
     return 1;
   }
 
-  const auto& cfg = *cfg_result;
+	  const auto& cfg = *cfg_result;
 
-  int exit_code = 0;
+	  // Validate user/group exists (except for --reference form)
+	  if (cfg.owner != "reference" && !user_exists(cfg.owner)) {
+	    safeErrorPrint("chown: invalid user: '" + cfg.owner + "'\n");
+	    return 1;
+	  }
+	  if (cfg.has_group && !cfg.group.empty() && !user_exists(cfg.group)) {
+	    safeErrorPrint("chown: invalid group: '" + cfg.group + "'\n");
+	    return 1;
+	  }
 
-  for (const auto& file : cfg.files) {
+	  int exit_code = 0;
+
+	  for (const auto& file : cfg.files) {
     int result;
     if (cfg.recursive) {
       result = process_recursive(file, cfg);

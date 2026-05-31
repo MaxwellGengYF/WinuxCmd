@@ -42,7 +42,15 @@ using cmd::meta::OptionType;
 auto constexpr PR_OPTIONS = std::array{
     OPTION("+PAGE", "", "begin printing with page PAGE [default 1]",
            STRING_TYPE),
-    OPTION("-COLUMN", "", "produce COLUMN-column output", STRING_TYPE),
+    OPTION("-1", "", "1 column", BOOL_TYPE),
+    OPTION("-2", "", "2 columns", BOOL_TYPE),
+    OPTION("-3", "", "3 columns", BOOL_TYPE),
+    OPTION("-4", "", "4 columns", BOOL_TYPE),
+    OPTION("-5", "", "5 columns", BOOL_TYPE),
+    OPTION("-6", "", "6 columns", BOOL_TYPE),
+    OPTION("-7", "", "7 columns", BOOL_TYPE),
+    OPTION("-8", "", "8 columns", BOOL_TYPE),
+    OPTION("-9", "", "9 columns", BOOL_TYPE),
     OPTION("-a", "", "produce multi-column output", BOOL_TYPE),
     OPTION("-d", "", "double-space the output", BOOL_TYPE),
     OPTION("-e", "--expand", "expand input TABs", STRING_TYPE),
@@ -214,12 +222,11 @@ auto build_config(const CommandContext<PR_OPTIONS.size()>& ctx)
     }
   }
 
-  auto col_opt = ctx.get<std::string>("-COLUMN", "");
-  if (!col_opt.empty()) {
-    try {
-      cfg.columns = std::stoi(col_opt);
-    } catch (...) {
-      return core::pipeline::unexpected("invalid column count");
+  for (int i = 1; i <= 9; ++i) {
+    std::string opt_name = "-" + std::to_string(i);
+    if (ctx.get<bool>(opt_name, false)) {
+      cfg.columns = i;
+      break;
     }
   }
 

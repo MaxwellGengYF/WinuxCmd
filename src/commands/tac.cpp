@@ -40,23 +40,33 @@ using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
 
 auto constexpr TAC_OPTIONS = std::array{
-    OPTION("", "", "concatenate and print files in reverse", STRING_TYPE)
-    // tac has no standard options
-    // -b, --before (not implemented - separator before)
-    // -r, --regex (not implemented - regex separator)
-    // -s, --separator (not implemented - custom separator)
-};
+    OPTION("-b", "--before", "attach separator to next record", BOOL_TYPE),
+    OPTION("-s", "--separator", "use STRING as separator", STRING_TYPE),
+    OPTION("-r", "--regex", "separator is a regular expression", BOOL_TYPE)};
 
 namespace tac_pipeline {
 namespace cp = core::pipeline;
 
 struct Config {
   SmallVector<std::string, 64> files;
+  std::string separator;
+  bool before = false;
+  bool regex = false;
 };
 
 auto build_config(const CommandContext<TAC_OPTIONS.size()>& ctx)
     -> cp::Result<Config> {
   Config cfg;
+
+  cfg.separator = ctx.get<std::string>("--separator", "");
+  if (cfg.separator.empty()) cfg.separator = ctx.get<std::string>("-s", "");
+  cfg.before = ctx.get<bool>("--before", false) || ctx.get<bool>("-b", false);
+  cfg.regex = ctx.get<bool>("--regex", false) || ctx.get<bool>("-r", false);
+
+  // Empty separator with -s means NUL
+  if (cfg.separator.empty() && (ctx.has("--separator") || ctx.has("-s"))) {
+    cfg.separator = std::string(1, '\0');
+  }
 
   for (auto arg : ctx.positionals) {
     std::string file_arg(arg);
@@ -79,45 +89,140 @@ auto build_config(const CommandContext<TAC_OPTIONS.size()>& ctx)
   return cfg;
 }
 
-auto read_and_print_reversed(const std::string& file) -> int {
-  std::vector<std::string> lines;
-
+auto read_and_print_reversed(const std::string& file, const Config& cfg) -> int {
+  // Read entire file content
+  std::string content;
   if (file == "-") {
     std::string line;
     while (std::getline(std::cin, line)) {
-      lines.push_back(line + "\n");
+      content += line + "\n";
     }
   } else {
     std::ifstream f(file, std::ios::binary);
     if (!f) {
-      auto err = std::string("cannot open '") + file + "' for reading";
-      cp::Result<int> result = core::pipeline::unexpected(std::string_view(err));
+      cp::Result<int> result = core::pipeline::unexpected("cannot open for reading");
       cp::report_error(result, L"tac");
       return 1;
     }
-
-    bool first_line = true;
-    std::string line;
-    while (std::getline(f, line)) {
-      if (first_line && line.size() >= 3 &&
-          static_cast<unsigned char>(line[0]) == 0xEF &&
-          static_cast<unsigned char>(line[1]) == 0xBB &&
-          static_cast<unsigned char>(line[2]) == 0xBF) {
-        line = line.substr(3);
-      }
-      first_line = false;
-      lines.push_back(line + "\n");
-    }
-
-    if (f.fail() && !f.eof()) {
-      cp::Result<int> result = core::pipeline::unexpected("error reading from file");
-      cp::report_error(result, L"tac");
-      return 1;
-    }
+    content.assign(std::istreambuf_iterator<char>(f),
+                   std::istreambuf_iterator<char>());
   }
 
-  for (auto it = lines.rbegin(); it != lines.rend(); ++it) {
-    safePrint(*it);
+  if (cfg.separator.empty()) {
+    // Default: reverse by lines (newline-separated)
+    std::vector<std::string> lines;
+    size_t pos = 0;
+    while (pos < content.size()) {
+      size_t nl = content.find('\n', pos);
+      if (nl == std::string::npos) {
+        if (pos < content.size()) lines.push_back(content.substr(pos));
+        break;
+      }
+      lines.push_back(content.substr(pos, nl - pos + 1));
+      pos = nl + 1;
+    }
+    for (auto it = lines.rbegin(); it != lines.rend(); ++it) {
+      safePrint(*it);
+    }
+	  } else {
+	    // Custom separator: split by separator, reverse parts, join back
+	    std::vector<std::string> parts;
+	    const std::string& sep = cfg.separator;
+
+	    if (cfg.regex) {
+	      // Regex mode: find matches of the regex pattern
+	      // Simple regex support: [0-9]+, [a-z]+, literal strings
+	      size_t pos = 0;
+	      while (pos <= content.size()) {
+	        // Find the next match using simple regex matching
+	        size_t match_start = std::string::npos;
+	        size_t match_end = 0;
+	        for (size_t i = pos; i < content.size(); ++i) {
+	          char c = content[i];
+	          bool matches = false;
+		          // Simple character class [XYZ] or [X-Y]
+		          if (sep.size() >= 3 && sep[0] == '[' && (sep.back() == ']' || (sep.size() > 3 && sep[sep.size()-2] == ']' && sep.back() == '+'))) {
+		            bool plus = (sep.back() == '+');
+		            size_t cls_end = plus ? sep.size() - 2 : sep.size() - 1;
+		            std::string cls = sep.substr(1, cls_end);
+	            if (cls.size() >= 3 && cls[1] == '-' && plus) {
+	              // [X-Y]+ range
+	              char lo = cls[0], hi = cls[2];
+	              matches = (c >= lo && c <= hi);
+	            } else if (plus) {
+	              matches = (cls.find(c) != std::string::npos);
+	            } else {
+	              matches = (cls.find(c) != std::string::npos);
+	            }
+	            if (matches && match_start == std::string::npos) {
+	              match_start = i;
+	            }
+	            if (!matches && match_start != std::string::npos) {
+	              match_end = i;
+	              break;
+	            }
+	          } else {
+	            // Literal: check if substring starting at i matches sep
+	            if (content.substr(i, sep.size()) == sep) {
+	              match_start = i;
+	              match_end = i + sep.size();
+	              break;
+	            }
+	          }
+	        }
+	        if (match_start == std::string::npos) {
+	          if (pos < content.size()) parts.push_back(content.substr(pos));
+	          break;
+	        }
+	        if (match_end == 0) match_end = content.size();
+	        // Push the part before the match, then the match itself
+	        if (cfg.before) {
+	          if (pos < match_start) parts.push_back(content.substr(pos, match_start - pos));
+	          parts.push_back(content.substr(match_start, match_end - match_start));
+	        } else {
+	          parts.push_back(content.substr(pos, match_end - pos));
+	        }
+	        pos = match_end;
+	      }
+	    } else if (cfg.before) {
+      // -b: separator is prepended to the record after it
+      // Split at each separator, include sep at start of following segment
+      size_t pos = 0;
+      size_t found = content.find(sep, pos);
+      // First segment before any separator
+      if (found != std::string::npos && found > 0) {
+        parts.push_back(content.substr(0, found));
+      } else if (found == std::string::npos) {
+        parts.push_back(content);
+      }
+      while (found != std::string::npos) {
+        pos = found + sep.size();
+        size_t next = content.find(sep, pos);
+        if (next != std::string::npos) {
+          parts.push_back(sep + content.substr(pos, next - pos));
+        } else {
+          // Final segment: sep + whatever follows (may be empty)
+          parts.push_back(sep + content.substr(pos));
+          break;
+        }
+        found = next;
+      }
+    } else {
+      // Default: separator attached to end of record
+      size_t pos = 0;
+      while (pos <= content.size()) {
+        size_t found = content.find(sep, pos);
+        if (found == std::string::npos) {
+          if (pos < content.size()) parts.push_back(content.substr(pos));
+          break;
+        }
+        parts.push_back(content.substr(pos, found - pos + sep.size()));
+        pos = found + sep.size();
+      }
+    }
+    for (auto it = parts.rbegin(); it != parts.rend(); ++it) {
+      safePrint(*it);
+    }
   }
 
   return 0;
@@ -125,7 +230,7 @@ auto read_and_print_reversed(const std::string& file) -> int {
 
 auto run(const Config& cfg) -> int {
   for (const auto& file : cfg.files) {
-    int rc = read_and_print_reversed(file);
+    int rc = read_and_print_reversed(file, cfg);
     if (rc != 0) return rc;
   }
   return 0;

@@ -53,23 +53,50 @@ namespace cp = core::pipeline;
 struct Config {
   bool no_create = false;
   int64_t size = 0;
+  bool relative = false;
+  bool round_up = false;
+  bool round_down = false;
   std::string reference_file;
   SmallVector<std::string, 64> files;
 };
 
-auto parse_size(const std::string& size_str) -> cp::Result<int64_t> {
+struct SizeSpec {
+  int64_t value = 0;
+  bool relative = false;
+  bool round_up = false;
+  bool round_down = false;
+};
+
+auto parse_size(const std::string& size_str) -> cp::Result<SizeSpec> {
   try {
-    // Support: +N, -N, N, NKB, NMB, NG, etc.
+    // Support: +N, -N, N, %N, /N, NKB, NMB, NG, etc.
     std::string s = size_str;
     bool relative = false;
     bool negative = false;
+    enum { NONE, PLUS, MINUS, ROUND_UP, ROUND_DOWN } mode = NONE;
 
     if (!s.empty() && s[0] == '+') {
       relative = true;
+      mode = PLUS;
       s = s.substr(1);
     } else if (!s.empty() && s[0] == '-') {
       relative = true;
       negative = true;
+      mode = MINUS;
+      s = s.substr(1);
+    } else if (!s.empty() && s[0] == '<') {
+      // <N: at most mode (not yet implemented)
+      s = s.substr(1);
+    } else if (!s.empty() && s[0] == '>') {
+      // >N: at least mode (not yet implemented)
+      s = s.substr(1);
+    } else if (!s.empty() && s[0] == '%') {
+      // %N: round up to multiple of N
+      mode = ROUND_UP;
+      s = s.substr(1);
+    } else if (!s.empty() && s[0] == '/') {
+      // /N: round down to multiple of N
+      mode = ROUND_DOWN;
       s = s.substr(1);
     }
 
@@ -132,7 +159,12 @@ auto parse_size(const std::string& size_str) -> cp::Result<int64_t> {
     }
     value *= multiplier;
 
-    return value;
+    SizeSpec spec;
+    spec.value = value;
+    spec.relative = (mode == PLUS || mode == MINUS);
+    spec.round_up = (mode == ROUND_UP);
+    spec.round_down = (mode == ROUND_DOWN);
+    return spec;
   } catch (...) {
     return core::pipeline::unexpected("invalid size format");
   }
@@ -160,14 +192,18 @@ auto build_config(const CommandContext<TRUNCATE_OPTIONS.size()>& ctx)
     } else {
       return core::pipeline::unexpected("specify --size or --reference");
     }
-  } else {
+  }
+  if (!size_opt.empty()) {
     auto size_result = parse_size(size_opt);
     if (!size_result) {
-      return core::pipeline::unexpected(size_result.error());
+      cp::report_error(size_result, L"truncate");
+      return core::pipeline::unexpected("invalid size");
     }
-    cfg.size = *size_result;
+    cfg.size = size_result->value;
+    cfg.relative = size_result->relative;
+    cfg.round_up = size_result->round_up;
+    cfg.round_down = size_result->round_down;
   }
-
   for (auto arg : ctx.positionals) {
     std::string file_arg(arg);
     if (contains_wildcard(file_arg)) {
@@ -194,6 +230,7 @@ auto run(const Config& cfg) -> int {
 
   for (const auto& file : cfg.files) {
     int64_t target_size = cfg.size;
+    bool has_relative = cfg.relative;
 
     // If using reference file, get its size
     if (!cfg.reference_file.empty()) {
@@ -250,6 +287,24 @@ auto run(const Config& cfg) -> int {
 
       int64_t current_size = in_file.tellg();
       in_file.seekg(0);
+
+      // Apply relative adjustment
+      if (has_relative) {
+        target_size = current_size + cfg.size;
+        if (target_size < 0) target_size = 0;
+      }
+
+      // Apply round-up/down adjustment
+      if (cfg.round_up && cfg.size > 0) {
+        int64_t remainder = current_size % cfg.size;
+        if (remainder != 0) {
+          target_size = current_size + (cfg.size - remainder);
+        } else {
+          target_size = current_size;
+        }
+      } else if (cfg.round_down && cfg.size > 0) {
+        target_size = (current_size / cfg.size) * cfg.size;
+      }
 
       // Read content to preserve
       std::string content;

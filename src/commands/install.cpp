@@ -81,6 +81,7 @@ struct Config {
   bool verbose = false;
   bool create_leading_dirs = false;
   bool no_target_directory = false;
+  bool compare = false;
   bool preserve_context = false;
   bool default_context = false;
   std::string backup_suffix = "~";
@@ -102,11 +103,12 @@ auto build_config(const CommandContext<INSTALL_OPTIONS.size()>& ctx)
                             ctx.get<bool>("-p", false);
   cfg.strip = ctx.get<bool>("--strip", false) || ctx.get<bool>("-s", false);
   cfg.verbose = ctx.get<bool>("--verbose", false) || ctx.get<bool>("-v", false);
-  cfg.create_leading_dirs = ctx.get<bool>("-D", false);
-  cfg.no_target_directory = ctx.get<bool>("-T", false) ||
-                            ctx.get<bool>("--no-target-directory", false);
-  cfg.preserve_context = ctx.get<bool>("--preserve-context", false);
-  cfg.default_context = ctx.get<bool>("-Z", false);
+  	  cfg.create_leading_dirs = ctx.get<bool>("-D", false);
+	  cfg.compare =
+	      ctx.get<bool>("-C", false) || ctx.get<bool>("-c", false);
+	  cfg.no_target_directory = ctx.get<bool>("-T", false) ||
+	                            ctx.get<bool>("--no-target-directory", false);
+	  cfg.default_context = ctx.get<bool>("-Z", false);
 
   auto group_opt = ctx.get<std::string>("--group", "");
   if (group_opt.empty()) {
@@ -142,29 +144,71 @@ auto build_config(const CommandContext<INSTALL_OPTIONS.size()>& ctx)
   }
   cfg.target_dir = target_opt;
 
-  for (auto arg : ctx.positionals) {
-    std::string file_arg(arg);
-    if (contains_wildcard(file_arg)) {
-      auto glob_result = glob_expand(file_arg);
-      if (glob_result.expanded) {
-        for (const auto& file : glob_result.files) {
-          cfg.sources.push_back(wstring_to_utf8(file));
-        }
-        continue;
-      }
-    }
-    cfg.sources.push_back(file_arg);
-  }
+	  // Parse positionals: first N-1 are sources (wildcard expanded),
+	  // the last one is the DEST (literal, not wildcard expanded)
+	  if (cfg.directory_mode) {
+	    // -d mode: all positionals are directory names to create
+	    for (auto arg : ctx.positionals) {
+	      cfg.sources.push_back(std::string(arg));
+	    }
+	  } else if (!cfg.target_dir.empty()) {
+	    // -t DIR SOURCE...: target is specified separately, all positionals are sources
+	    for (auto arg : ctx.positionals) {
+	      std::string file_arg(arg);
+	      if (contains_wildcard(file_arg)) {
+	        auto glob_result = glob_expand(file_arg);
+	        if (glob_result.expanded) {
+	          for (const auto& file : glob_result.files) {
+	            cfg.sources.push_back(wstring_to_utf8(file));
+	          }
+	          continue;
+	        }
+	      }
+	      cfg.sources.push_back(file_arg);
+	    }
+	  } else {
+	    // SOURCE... DEST: last positional is the destination (literal)
+	    for (size_t i = 0; i + 1 < ctx.positionals.size(); ++i) {
+	      std::string file_arg(ctx.positionals[i]);
+	      if (contains_wildcard(file_arg)) {
+	        auto glob_result = glob_expand(file_arg);
+	        if (glob_result.expanded) {
+	          for (const auto& file : glob_result.files) {
+	            cfg.sources.push_back(wstring_to_utf8(file));
+	          }
+	          continue;
+	        }
+	      }
+	      cfg.sources.push_back(file_arg);
+	    }
+	    // Push destination as-is (literal)
+	    if (!ctx.positionals.empty()) {
+	      cfg.sources.push_back(std::string(ctx.positionals.back()));
+	    }
+	  }
 
-  if (cfg.sources.empty()) {
-    return core::pipeline::unexpected("missing file operand");
-  }
+	  if (cfg.sources.empty()) {
+	    return core::pipeline::unexpected("missing file operand");
+	  }
 
-  if (!cfg.target_dir.empty()) {
-    cfg.sources.push_back(cfg.target_dir);
-  }
+	  // Validate: -t requires target directory to exist (unless -D)
+	  if (!cfg.target_dir.empty() && !cfg.create_leading_dirs) {
+	    DWORD attrs = GetFileAttributesA(cfg.target_dir.c_str());
+	    if (attrs == INVALID_FILE_ATTRIBUTES ||
+	        !(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+	      safeErrorPrint("install: target '" + cfg.target_dir +
+	                     "' is not a directory\n");
+	      return core::pipeline::unexpected("target is not a directory");
+	    }
+	  }
 
-  return cfg;
+	  // Validate: -t and -T conflict
+	  if (!cfg.target_dir.empty() && cfg.no_target_directory) {
+	    return core::pipeline::unexpected(
+	        "cannot combine --target-directory (-t) and --no-target-directory (-T)");
+	  }
+
+	  return cfg;
 }
 
 auto run(const Config& cfg) -> int {
@@ -175,45 +219,69 @@ auto run(const Config& cfg) -> int {
         safePrint(dir);
         safePrintLn("'");
       }
-
-      if (!CreateDirectoryA(dir.c_str(), NULL)) {
-        DWORD error = GetLastError();
-        if (error != ERROR_ALREADY_EXISTS) {
-          safePrint("install: cannot create directory '");
-          safePrint(dir);
-          safePrintLn("'");
-          return 1;
-        }
+      // Create directory with parents if needed
+      std::error_code ec;
+      std::filesystem::create_directories(
+          std::filesystem::path(utf8_to_wstring(dir)), ec);
+      if (ec) {
+        safePrint("install: cannot create directory '");
+        safePrint(dir);
+        safePrintLn("'");
+        return 1;
       }
     }
     return 0;
   }
 
-  if (cfg.sources.size() < 2) {
+  if (cfg.sources.size() < 2 && cfg.target_dir.empty()) {
     return 1;
   }
 
-  SmallVector<std::string, 64> sources = cfg.sources;
-  std::string target = sources.back();
-  sources.pop_back();
+  // Determine the target directory
+  SmallVector<std::string, 64> sources;
+  std::string target;
+  bool target_is_dir = false;
+
+  if (!cfg.target_dir.empty()) {
+    // -t DIR mode: all sources are file sources, target_dir is the directory
+    for (size_t i = 0; i < cfg.sources.size(); ++i) {
+      sources.push_back(cfg.sources[i]);
+    }
+    target = cfg.target_dir;
+    // Create target directory if -D is set
+    if (cfg.create_leading_dirs) {
+      std::error_code ec;
+      std::filesystem::create_directories(
+          std::filesystem::path(utf8_to_wstring(target)), ec);
+    }
+    DWORD attrs = GetFileAttributesA(target.c_str());
+    target_is_dir = (attrs != INVALID_FILE_ATTRIBUTES) &&
+                    (attrs & FILE_ATTRIBUTE_DIRECTORY);
+  } else {
+    // SOURCE... DEST mode
+    for (size_t i = 0; i + 1 < cfg.sources.size(); ++i) {
+      sources.push_back(cfg.sources[i]);
+    }
+    target = cfg.sources.back();
+    DWORD attrs = GetFileAttributesA(target.c_str());
+    target_is_dir = !cfg.no_target_directory &&
+                    (attrs != INVALID_FILE_ATTRIBUTES) &&
+                    (attrs & FILE_ATTRIBUTE_DIRECTORY);
+    if (!target_is_dir && sources.size() > 1) {
+      safeErrorPrint("install: target '" + target +
+                     "' is not a directory\n");
+      return 1;
+    }
+  }
 
   if (cfg.no_target_directory && sources.size() > 1) {
     safePrintLn("install: too many sources for -T/--no-target-directory");
     return 1;
   }
 
-  DWORD attrs = GetFileAttributesA(target.c_str());
-  bool target_is_dir = !cfg.no_target_directory &&
-                       (attrs != INVALID_FILE_ATTRIBUTES) &&
-                       (attrs & FILE_ATTRIBUTE_DIRECTORY);
-  if (!target_is_dir && sources.size() > 1) {
-    target_is_dir = true;
-  }
-
   for (const auto& source : sources) {
     std::string dest = target;
-
-    if (target_is_dir) {
+    if (target_is_dir || sources.size() > 1) {
       size_t last_slash = source.find_last_of("/\\");
       std::string filename = (last_slash != std::string::npos)
                                  ? source.substr(last_slash + 1)
@@ -225,7 +293,7 @@ auto run(const Config& cfg) -> int {
     }
 
     if (cfg.create_leading_dirs) {
-      std::filesystem::path dest_path(dest);
+      std::filesystem::path dest_path(utf8_to_wstring(dest));
       auto parent = dest_path.parent_path();
       if (!parent.empty()) {
         std::error_code ec;
@@ -233,16 +301,30 @@ auto run(const Config& cfg) -> int {
       }
     }
 
+    // Compare mode: skip if destination exists and content is identical
+    if (cfg.compare) {
+      std::ifstream src_file(source, std::ios::binary);
+      std::ifstream dst_file(dest, std::ios::binary);
+      if (src_file && dst_file) {
+        std::string src_content((std::istreambuf_iterator<char>(src_file)),
+                                 std::istreambuf_iterator<char>());
+        std::string dst_content((std::istreambuf_iterator<char>(dst_file)),
+                                 std::istreambuf_iterator<char>());
+        if (src_content == dst_content) {
+          continue;  // Skip identical files
+        }
+      }
+    }
+
     if (cfg.backup) {
       DWORD dest_attrs = GetFileAttributesA(dest.c_str());
       if (dest_attrs != INVALID_FILE_ATTRIBUTES) {
         std::string backup_path = dest + cfg.backup_suffix;
-        if (MoveFileExA(dest.c_str(), backup_path.c_str(),
-                        MOVEFILE_REPLACE_EXISTING)) {
-          if (cfg.verbose) {
-            safePrint("created backup: ");
-            safePrintLn(backup_path);
-          }
+        MoveFileExA(dest.c_str(), backup_path.c_str(),
+                    MOVEFILE_REPLACE_EXISTING);
+        if (cfg.verbose) {
+          safePrint("created backup: ");
+          safePrintLn(backup_path);
         }
       }
     }
@@ -261,6 +343,26 @@ auto run(const Config& cfg) -> int {
       safePrint(dest);
       safePrintLn("'");
       return 1;
+    }
+
+    // Preserve timestamps if -p
+    if (cfg.preserve_timestamps) {
+      HANDLE hSrc = CreateFileA(source.c_str(), FILE_READ_ATTRIBUTES,
+                                 FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                                 FILE_ATTRIBUTE_NORMAL, nullptr);
+      if (hSrc != INVALID_HANDLE_VALUE) {
+        FILETIME ct, la, lm;
+        if (GetFileTime(hSrc, &ct, &la, &lm)) {
+          HANDLE hDst = CreateFileA(dest.c_str(), FILE_WRITE_ATTRIBUTES,
+                                     FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+                                     FILE_ATTRIBUTE_NORMAL, nullptr);
+          if (hDst != INVALID_HANDLE_VALUE) {
+            SetFileTime(hDst, nullptr, &la, &lm);
+            CloseHandle(hDst);
+          }
+        }
+        CloseHandle(hSrc);
+      }
     }
   }
 

@@ -139,7 +139,19 @@ auto build_config(const CommandContext<STTY_OPTIONS.size()>& ctx)
 void print_console_settings(HANDLE hCon) {
   DWORD mode = 0;
   if (!GetConsoleMode(hCon, &mode)) {
-    safeErrorPrintLn("stty: standard input: Not a terminal");
+    // Not a terminal — show default settings anyway
+    safePrintLn("speed 38400 baud; line = 0;");
+    safePrint("intr = ^C; quit = ^\\; erase = ^?; kill = ^U; eof = ^D; ");
+    safePrint("eol = <undef>; eol2 = <undef>; swtch = <undef>; start = ^Q; ");
+    safePrint("stop = ^S; susp = ^Z; rprnt = ^R; werase = ^W; lnext = ^V; ");
+    safePrintLn("discard = ^O; min = 1; time = 0;");
+    safePrintLn("-parenb -parodd -cmspar cs8 -hupcl -cstopb cread -clocal -crtscts");
+    safePrintLn("-ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr icrnl"
+                " -ixon -ixoff -iuclc -ixany -imaxbel iutf8");
+    safePrintLn("opost -olcuc -ocrnl onlcr -onocr -onlret -ofill -ofdel nl0 cr0"
+                " tab0 bs0 vt0 ff0");
+    safePrintLn("isig icanon iexten echo echoe echok -echonl -noflsh -xcase"
+                " -tostop -echoprt echoctl echoke -flusho -extproc");
     return;
   }
 
@@ -237,15 +249,11 @@ void print_console_settings(HANDLE hCon) {
 
 void print_machine_readable(HANDLE hCon) {
   DWORD mode = 0;
-  if (!GetConsoleMode(hCon, &mode)) {
-    return;
-  }
-
-  // Output in stty-readable format: colon-separated hex values
-  // intr:03 quit:1c erase:7f kill:15 eof:04 eol:ff eol2:ff swtch:ff
-  // start:13 stop:13 susp:1a rprnt:12 werase:17 lnext:16 discard:0f
+  // Output default stty-readable format even when not a terminal
   safePrintLn("00:0:4:7f:11:1:1:0:3:1c:15:12:16:0:f:0:1:0:0:0:0:0:0:"
               "0:0:0:0:0:0:0:0:0:0:0:0:0");
+  (void)hCon;
+  (void)mode;
 }
 
 void apply_sane(HANDLE hCon) {

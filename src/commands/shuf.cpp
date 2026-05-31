@@ -46,7 +46,11 @@ auto constexpr SHUF_OPTIONS = std::array{
     OPTION("-n", "--head-count", "output at most COUNT lines", STRING_TYPE),
     OPTION("-r", "--repeat", "output lines can be repeated", BOOL_TYPE),
     OPTION("-z", "--zero-terminated", "line delimiter is NUL, not newline",
-           BOOL_TYPE)};
+           BOOL_TYPE),
+    OPTION("-o", "--output", "write result to FILE instead of stdout",
+           STRING_TYPE),
+    OPTION("", "--random-source", "get random bytes from FILE",
+           STRING_TYPE)};
 
 namespace shuf_pipeline {
 namespace cp = core::pipeline;
@@ -57,6 +61,8 @@ struct Config {
   bool repeat = false;
   bool zero_terminated = false;
   std::string input_range;
+  std::string output_file;
+  std::string random_source;
   SmallVector<std::string, 64> files;
   SmallVector<std::string, 64> echo_args;
 };
@@ -66,8 +72,11 @@ auto build_config(const CommandContext<SHUF_OPTIONS.size()>& ctx)
   Config cfg;
   cfg.echo_mode = ctx.get<bool>("--echo", false) || ctx.get<bool>("-e", false);
   cfg.repeat = ctx.get<bool>("--repeat", false) || ctx.get<bool>("-r", false);
-  cfg.zero_terminated =
-      ctx.get<bool>("--zero-terminated", false) || ctx.get<bool>("-z", false);
+	  cfg.zero_terminated =
+	      ctx.get<bool>("--zero-terminated", false) || ctx.get<bool>("-z", false);
+	  cfg.output_file = ctx.get<std::string>("--output", "");
+	  if (cfg.output_file.empty()) cfg.output_file = ctx.get<std::string>("-o", "");
+	  cfg.random_source = ctx.get<std::string>("--random-source", "");
 
   auto range_opt = ctx.get<std::string>("--input-range", "");
   if (range_opt.empty()) {
@@ -116,6 +125,8 @@ auto build_config(const CommandContext<SHUF_OPTIONS.size()>& ctx)
 auto run(const Config& cfg) -> int {
   SmallVector<std::string, 1024> lines;
 
+  // Read input first (before opening output file, in case they're the same)
+
   if (cfg.echo_mode) {
     // Echo mode: treat each ARG as an input line
     for (const auto& arg : cfg.echo_args) {
@@ -146,12 +157,18 @@ auto run(const Config& cfg) -> int {
     }
 
     for (const auto& file : files) {
-      if (file == "-") {
-        std::string line;
-        while (std::getline(std::cin, line)) {
-          lines.push_back(line);
-        }
-      } else {
+	      if (file == "-") {
+	        std::string line;
+	        if (cfg.zero_terminated) {
+	          while (std::getline(std::cin, line, '\0')) {
+	            lines.push_back(line);
+	          }
+	        } else {
+	          while (std::getline(std::cin, line)) {
+	            lines.push_back(line);
+	          }
+	        }
+	      } else {
         std::ifstream f(file, std::ios::binary);
         if (!f) {
           auto err = std::string("cannot open '") + file + "' for reading";
@@ -160,17 +177,24 @@ auto run(const Config& cfg) -> int {
           return 1;
         }
 
-        std::string line;
-        while (std::getline(f, line)) {
-          // Skip UTF-8 BOM if present at the beginning of the first line
-          if (lines.empty() && line.size() >= 3 &&
-              static_cast<unsigned char>(line[0]) == 0xEF &&
-              static_cast<unsigned char>(line[1]) == 0xBB &&
-              static_cast<unsigned char>(line[2]) == 0xBF) {
-            line = line.substr(3);
-          }
-          lines.push_back(line);
-        }
+	        std::string line;
+	        if (cfg.zero_terminated) {
+	          // Read NUL-delimited records
+	          char delim = '\0';
+	          while (std::getline(f, line, delim)) {
+	            lines.push_back(line);
+	          }
+	        } else {
+	          while (std::getline(f, line)) {
+	            if (lines.empty() && line.size() >= 3 &&
+	                static_cast<unsigned char>(line[0]) == 0xEF &&
+	                static_cast<unsigned char>(line[1]) == 0xBB &&
+	                static_cast<unsigned char>(line[2]) == 0xBF) {
+	              line = line.substr(3);
+	            }
+	            lines.push_back(line);
+	          }
+	        }
 
         if (f.fail() && !f.eof()) {
           cp::Result<int> result = core::pipeline::unexpected("error reading from file");
@@ -181,41 +205,77 @@ auto run(const Config& cfg) -> int {
     }
   }
 
-  if (lines.empty()) {
-    return 0;
-  }
+	  if (lines.empty()) return 0;
 
-  // Shuffle using Fisher-Yates algorithm
-  std::random_device rd;
-  std::mt19937 g(rd());
+	  // Open output file now (after reading input)
+	  std::ofstream out_file;
+	  if (!cfg.output_file.empty()) {
+	    out_file.open(cfg.output_file, std::ios::binary | std::ios::trunc);
+	    if (!out_file) {
+	      safeErrorPrint("shuf: cannot open '" + cfg.output_file +
+	                     "' for writing\n");
+	      return 1;
+	    }
+	  }
+
+	  // Initialize random generator
+	  std::mt19937 g;
+	  if (!cfg.random_source.empty()) {
+	    std::ifstream src(cfg.random_source, std::ios::binary);
+	    if (src) {
+	      std::string seed_data((std::istreambuf_iterator<char>(src)),
+	                            std::istreambuf_iterator<char>());
+	      std::seed_seq seed(seed_data.begin(), seed_data.end());
+	      g.seed(seed);
+	    } else {
+	      std::random_device rd;
+	      g.seed(rd());
+	    }
+	  } else {
+	    std::random_device rd;
+	    g.seed(rd());
+	  }
 
   for (int i = lines.size() - 1; i > 0; --i) {
     std::uniform_int_distribution<int> dist(0, i);
     int j = dist(g);
     std::swap(lines[i], lines[j]);
   }
+	  // Output shuffled lines to buffer
+	  std::string output_buffer;
+	  int output_count =
+	      (cfg.head_count >= 0)
+	          ? std::min(cfg.head_count, static_cast<int>(lines.size()))
+	          : static_cast<int>(lines.size());
 
-  // Output shuffled lines
-  int output_count =
-      (cfg.head_count >= 0)
-          ? std::min(cfg.head_count, static_cast<int>(lines.size()))
-          : static_cast<int>(lines.size());
+	  if (cfg.repeat) {
+	    std::uniform_int_distribution<int> dist(0, lines.size() - 1);
+	    int count = (cfg.head_count >= 0) ? cfg.head_count : output_count;
+	    for (int i = 0; i < count; ++i) {
+	      int idx = dist(g);
+	      output_buffer += lines[idx];
+	      output_buffer += cfg.zero_terminated ? '\0' : '\n';
+	    }
+	  } else {
+	    for (int i = 0; i < output_count; ++i) {
+	      output_buffer += lines[i];
+	      output_buffer += cfg.zero_terminated ? '\0' : '\n';
+	    }
+	  }
 
-  for (int i = 0; i < output_count; ++i) {
-    safePrint(lines[i]);
-    if (cfg.zero_terminated) {
-      safePrint("\0");
-    } else {
-      safePrintLn("");
-    }
-  }
+	  if (!cfg.output_file.empty()) {
+	    out_file << output_buffer;
+	    out_file.close();
+	  } else {
+	    safePrint(output_buffer);
+	  }
 
-  return 0;
-}
+	  return 0;
+	}
 
-}  // namespace shuf_pipeline
+	}  // namespace shuf_pipeline
 
-REGISTER_COMMAND(
+	REGISTER_COMMAND(
     shuf, "shuf", "shuf [OPTION]... [FILE]",
     "Shuffle randomize lines.\n"
     "\n"

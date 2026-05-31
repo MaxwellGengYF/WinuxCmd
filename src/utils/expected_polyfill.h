@@ -17,22 +17,22 @@ struct Unexpected {
 };
 
 template <std::size_t N>
-auto unexpected(const char (&s)[N]) -> Unexpected<std::string_view> {
-  return Unexpected<std::string_view>(std::string_view(s, N - 1));
+auto unexpected(const char (&s)[N]) -> core::pipeline::Unexpected<std::string> {
+  return core::pipeline::Unexpected<std::string>(std::string(s, N - 1));
 }
 
-inline auto unexpected(const char* s) -> Unexpected<std::string_view> {
-  return Unexpected<std::string_view>(std::string_view(s));
-}
-
-template <typename E>
-auto unexpected(const E& e) -> Unexpected<std::remove_cv_t<std::remove_reference_t<E>>> {
-  return Unexpected<std::remove_cv_t<std::remove_reference_t<E>>>(e);
+inline auto unexpected(const char* s) -> core::pipeline::Unexpected<std::string> {
+  return core::pipeline::Unexpected<std::string>(std::string(s));
 }
 
 template <typename E>
-auto unexpected(E&& e) -> Unexpected<std::remove_cv_t<std::remove_reference_t<E>>> {
-  return Unexpected<std::remove_cv_t<std::remove_reference_t<E>>>(std::forward<E>(e));
+auto unexpected(const E& e) -> core::pipeline::Unexpected<std::remove_cv_t<std::remove_reference_t<E>>> {
+  return core::pipeline::Unexpected<std::remove_cv_t<std::remove_reference_t<E>>>(e);
+}
+
+template <typename E>
+auto unexpected(E&& e) -> core::pipeline::Unexpected<std::remove_cv_t<std::remove_reference_t<E>>> {
+  return core::pipeline::Unexpected<std::remove_cv_t<std::remove_reference_t<E>>>(std::forward<E>(e));
 }
 
 template <typename T, typename E>

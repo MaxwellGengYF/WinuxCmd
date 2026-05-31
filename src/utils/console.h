@@ -11,6 +11,9 @@
 /// @License: MIT
 /// @Copyright: Copyright © 2026 WinuxCmd
 
+#include <fcntl.h>
+#include <io.h>
+
 #define WIN32_LEAN_AND_MEAN
 
 

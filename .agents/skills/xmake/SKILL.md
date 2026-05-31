@@ -9,7 +9,6 @@ Primary build system for this project.
 ## Requirements
 
 - XMake 3.0.6+
-- Optional: CUDA Toolkit, Vulkan SDK, LLVM 20, Rust
 
 ## Quick Start
 
@@ -55,6 +54,23 @@ xmake project -k compile_commands --lsp=clangd .vscode
 | `xmake run <target>` | Run target |
 | `xmake -l` | List targets |
 | `xmake install -o <dir>` | Install to directory |
+
+## Targets
+
+| Target | Kind | Condition | Description |
+|--------|------|-----------|-------------|
+| `winuxcmd-core` | static | — | Core library: utils, core, container, version, ffi, tools |
+| `winuxcmd-commands` | static | — | Commands library, depends on `winuxcmd-core` |
+| `winuxcmd` | binary | — | Main executable, depends on `winuxcmd-commands`, `winuxcmd-core` |
+| `winuxcore` | shared | `build_ffi` | FFI shared library, depends on `winuxcmd-commands` |
+| `test_main` | static | `enable_tests` | Test framework entry point |
+| `winux-test-lib` | static | `enable_tests` | Test framework library (excludes `test_main.cpp`) |
+| `winux-test` | binary | `enable_tests` | Test runner binary, depends on `winux-test-lib` |
+| `winuxcmd-tests` | binary | `enable_tests` | Unit tests binary, depends on `winux-test-lib`, `test_main` |
+| `container_module` | static | — | Container examples static library |
+| `constexpr_map_example` | binary | — | Constexpr map example |
+| `small_vector_example` | binary | — | Small vector example |
+| `ffi_example` | binary | `build_ffi` | FFI example (C), depends on `winuxcore` |
 
 ## Common Issues
 

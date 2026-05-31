@@ -66,13 +66,14 @@ auto constexpr WC_OPTIONS = std::array{
     OPTION("-m", "--chars", "print the character counts"),
     OPTION("-l", "--lines", "print the newline counts"),
     OPTION(
-        "--files0-from", "",
+        "", "--files0-from",
         "read input from the files specified by NUL-terminated names in file F",
         STRING_TYPE),
     OPTION("-L", "--max-line-length", "print the maximum display width"),
     OPTION("-w", "--words", "print the word counts"),
-    OPTION("--total", "", "when to print a line with total counts",
-           STRING_TYPE)};
+    OPTION("", "--total", "when to print a line with total counts",
+           STRING_TYPE),
+    OPTION("", "--debug", "print debugging information", BOOL_TYPE)};
 
 // ======================================================
 // Pipeline components
@@ -139,53 +140,65 @@ auto validate_arguments(std::span<const std::string_view> args)
  * @param path Path to the file to count
  * @return A Result containing the count result
  */
-auto count_file(const std::string& path) -> cp::Result<CountResult> {
-  CountResult result;
-  result.filename = path;
+	auto count_file(const std::string& path) -> cp::Result<CountResult> {
+	  CountResult result;
+	  result.filename = path;
 
-  std::ifstream file(path, std::ios::binary);
-  if (!file) {
-    return core::pipeline::unexpected("cannot open file '" + path + "'");
-  }
+	  std::ifstream file(path, std::ios::binary);
+	  if (!file) {
+	    return core::pipeline::unexpected("cannot open file '" + path + "'");
+	  }
 
-  std::string line;
-  std::uintmax_t current_line_length = 0;
-  bool in_word = false;
+	  std::string line;
+	  std::uintmax_t current_line_length = 0;
+	  bool in_word = false;
 
-  char c;
-  while (file.get(c)) {
-    result.bytes++;
-    result.chars++;
+	  char c;
+	  while (file.get(c)) {
+	    result.bytes++;
 
-    if (c == '\n') {
-      result.lines++;
-      if (current_line_length > result.max_line_length) {
-        result.max_line_length = current_line_length;
-      }
-      current_line_length = 0;
-      in_word = false;
-    } else if (std::isspace(static_cast<unsigned char>(c))) {
-      current_line_length++;
-      in_word = false;
-    } else {
-      current_line_length++;
-      if (!in_word) {
-        result.words++;
-        in_word = true;
-      }
-    }
-  }
+	    // UTF-8 codepoint counting: only count non-continuation bytes
+	    // Continuation bytes are 10xxxxxx (0x80-0xBF)
+	    if ((static_cast<unsigned char>(c) & 0xC0) != 0x80) {
+	      result.chars++;
+	    }
 
-  // Check for final line without newline
-  if (current_line_length > 0) {
-    result.lines++;
-    if (current_line_length > result.max_line_length) {
-      result.max_line_length = current_line_length;
-    }
-  }
+	    if (c == '\n') {
+	      result.lines++;
+	      if (current_line_length > result.max_line_length) {
+	        result.max_line_length = current_line_length;
+	      }
+	      current_line_length = 0;
+	      in_word = false;
+		    } else if (c == '\t') {
+		      // Tab: advance to next tab stop (every 8 columns)
+		      current_line_length = ((current_line_length + 8) / 8) * 8;
+		      in_word = false;
+		    } else if (c == '\t') {
+		      // Tab: advance to next tab stop (every 8 columns)
+		      current_line_length = ((current_line_length + 8) / 8) * 8;
+		      in_word = false;
+		    } else if (std::isspace(static_cast<unsigned char>(c))) {
+		      current_line_length++;
+		      in_word = false;
+		    } else {
+		      current_line_length++;
+	      if (!in_word) {
+	        result.words++;
+	        in_word = true;
+	      }
+	    }
+	  }
 
-  return result;
-}
+	  // GNU wc does NOT count an incomplete final line (no trailing newline)
+	  // as a line. Lines are defined by newline characters only.
+	  // Only update max_line_length for the final incomplete line, not lines count.
+	  if (current_line_length > result.max_line_length) {
+	    result.max_line_length = current_line_length;
+	  }
+
+	  return result;
+	}
 
 // ----------------------------------------------
 // 4. Count stdin contents
@@ -198,47 +211,53 @@ auto count_file(const std::string& path) -> cp::Result<CountResult> {
  *
  * @return A Result containing the count result
  */
-auto count_stdin() -> cp::Result<CountResult> {
-  CountResult result;
-  result.filename = "-";
+	auto count_stdin() -> cp::Result<CountResult> {
+	  CountResult result;
+	  result.filename = "-";
 
-  std::uintmax_t current_line_length = 0;
-  bool in_word = false;
+	  std::uintmax_t current_line_length = 0;
+	  bool in_word = false;
 
-  char c;
-  while (std::cin.get(c)) {
-    result.bytes++;
-    result.chars++;
+	  char c;
+	  while (std::cin.get(c)) {
+	    result.bytes++;
 
-    if (c == '\n') {
-      result.lines++;
-      if (current_line_length > result.max_line_length) {
-        result.max_line_length = current_line_length;
-      }
-      current_line_length = 0;
-      in_word = false;
-    } else if (std::isspace(static_cast<unsigned char>(c))) {
-      current_line_length++;
-      in_word = false;
-    } else {
-      current_line_length++;
-      if (!in_word) {
-        result.words++;
-        in_word = true;
-      }
-    }
-  }
+	    // UTF-8 codepoint counting: only count non-continuation bytes
+	    // Continuation bytes are 10xxxxxx (0x80-0xBF)
+	    if ((static_cast<unsigned char>(c) & 0xC0) != 0x80) {
+	      result.chars++;
+	    }
 
-  // Check for final line without newline
-  if (current_line_length > 0) {
-    result.lines++;
-    if (current_line_length > result.max_line_length) {
-      result.max_line_length = current_line_length;
-    }
-  }
+		    if (c == '\n') {
+		      result.lines++;
+		      if (current_line_length > result.max_line_length) {
+		        result.max_line_length = current_line_length;
+		      }
+		      current_line_length = 0;
+		      in_word = false;
+		    } else if (c == '\t') {
+		      current_line_length = ((current_line_length + 8) / 8) * 8;
+		      in_word = false;
+		    } else if (std::isspace(static_cast<unsigned char>(c))) {
+		      current_line_length++;
+		      in_word = false;
+		    } else {
+		      current_line_length++;
+		      if (!in_word) {
+		        result.words++;
+		        in_word = true;
+		      }
+		    }
+		  }
 
-  return result;
-}
+		  // GNU wc does NOT count an incomplete final line (no trailing newline)
+		  // as a line. Only update max_line_length for the final incomplete line.
+		  if (current_line_length > result.max_line_length) {
+		    result.max_line_length = current_line_length;
+		  }
+
+		  return result;
+		}
 
 // ----------------------------------------------
 // 5. Main pipeline
@@ -345,13 +364,64 @@ REGISTER_COMMAND(
     WC_OPTIONS) {
   using namespace wc_pipeline;
 
-  auto result = process_command(ctx);
-  if (!result) {
-    cp::report_error(result, L"wc");
-    return 1;
+  // Check for --files0-from option
+  std::string files0 = ctx.get<std::string>("--files0-from", "");
+  SmallVector<std::string, 64> files0_paths;
+  if (!files0.empty()) {
+    // --files0-from disallows file operands
+    if (!ctx.positionals.empty()) {
+      safeErrorPrint("wc: --files0-from disallows file operands\n");
+      return 1;
+    }
+    // Read NUL-terminated filenames from the specified file (or stdin)
+    std::string content;
+    if (files0 == "-") {
+      content.assign(std::istreambuf_iterator<char>(std::cin),
+                     std::istreambuf_iterator<char>());
+    } else {
+      std::ifstream f(files0, std::ios::binary);
+      if (!f) {
+        safeErrorPrint("wc: cannot open '" + files0 + "' for reading\n");
+        return 1;
+      }
+      content.assign(std::istreambuf_iterator<char>(f),
+                     std::istreambuf_iterator<char>());
+    }
+    // Split by NUL
+    size_t pos = 0;
+    while (pos < content.size()) {
+      size_t nul = content.find('\0', pos);
+      if (nul == std::string::npos) {
+        if (pos < content.size())
+          files0_paths.push_back(content.substr(pos));
+        break;
+      }
+      if (nul > pos)
+        files0_paths.push_back(content.substr(pos, nul - pos));
+      pos = nul + 1;
+    }
   }
 
-  auto count_results = *result;
+	  auto result = process_command(ctx);
+	  if (!result) {
+	    cp::report_error(result, L"wc");
+	    return 1;
+	  }
+
+	  auto count_results = *result;
+
+	  // If --files0-from was used, process those files
+	  if (!files0_paths.empty()) {
+	    count_results.clear();
+	    for (const auto& path : files0_paths) {
+	      auto file_result = count_file(path);
+	      if (!file_result) {
+	        cp::report_error(file_result, L"wc");
+	        return 1;
+	      }
+	      count_results.push_back(*file_result);
+	    }
+	  }
 
   // Determine which counts to print
   bool print_lines =
@@ -362,8 +432,14 @@ REGISTER_COMMAND(
       ctx.get<bool>("--chars", false) || ctx.get<bool>("-m", false);
   bool print_bytes =
       ctx.get<bool>("--bytes", false) || ctx.get<bool>("-c", false);
-  bool print_max_line_length =
-      ctx.get<bool>("--max-line-length", false) || ctx.get<bool>("-L", false);
+	  bool print_max_line_length =
+	      ctx.get<bool>("--max-line-length", false) || ctx.get<bool>("-L", false);
+	  bool debug = ctx.get<bool>("--debug", false);
+
+	  if (debug) {
+	    safeErrorPrint("wc: debug: line count implementation using "
+	                   "byte-by-byte scanning\n");
+	  }
 
   // If no options specified, print lines, words, and bytes
   if (!print_lines && !print_words && !print_chars && !print_bytes &&
@@ -440,7 +516,8 @@ REGISTER_COMMAND(
       offset--;
     }
 
-    if (!(result.filename == "-" && count_results.size() == 1)) {
+    	    if (!(result.filename == "-" && count_results.size() == 1) &&
+	        !result.filename.empty()) {
       if (offset > 0) {
         buf[offset++] = ' ';
       }
@@ -456,8 +533,9 @@ REGISTER_COMMAND(
     safePrintLn(std::string_view(buf, offset));
   };
 
-  if (total_when == "only") {
-    print_result(total_result);
+	  if (total_when == "only") {
+	    total_result.filename = "";  // suppress "total" label
+	    print_result(total_result);
   } else {
     for (const auto& result : count_results) {
       print_result(result);

@@ -26,7 +26,9 @@
  *  - CopyrightYear: 2026
  */
 
-
+#include <optional>
+#include <string>
+#include <istream>
 namespace {
 enum class EncodingHint { Utf8, Utf16Le, Utf16Be };
 

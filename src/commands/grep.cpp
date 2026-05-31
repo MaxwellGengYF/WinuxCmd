@@ -2,7 +2,7 @@
  *  Copyright © 2026 [caomengxuan666]
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the “Software”), to
+ *  of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
  * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
  * sell copies of the Software, and to permit persons to whom the Software is
@@ -11,7 +11,7 @@
  *  The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
  *
- *  THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
@@ -43,79 +43,6 @@ using cmd::meta::OptionType;
 
 /**
  * @brief GREP command options definition
- *
- * This array defines all the options supported by the grep command.
- * Each option is described with its short form, long form, and description.
- * The implementation status is also indicated for each option.
- *
- * @par Options:
- *
- * - @a -E, @a --extended-regexp: PATTERNS are extended regular expressions
- * [IMPLEMENTED]
- * - @a -F, @a --fixed-strings: PATTERNS are strings [IMPLEMENTED]
- * - @a -G, @a --basic-regexp: PATTERNS are basic regular expressions
- * [IMPLEMENTED]
- * - @a -P, @a --perl-regexp: PATTERNS are Perl regular expressions [NOT
- * SUPPORT]
- * - @a -e, @a --regexp: Use PATTERNS for matching [IMPLEMENTED]
- * - @a -f, @a --file: Take PATTERNS from FILE [IMPLEMENTED]
- * - @a -i, @a --ignore-case: Ignore case distinctions in patterns and data
- * [IMPLEMENTED]
- * - @a --no-ignore-case: Do not ignore case distinctions (default)
- * [IMPLEMENTED]
- * - @a -w, @a --word-regexp: Match only whole words [IMPLEMENTED]
- * - @a -x, @a --line-regexp: Match only whole lines [IMPLEMENTED]
- * - @a -z, @a --null-data: A data line ends in 0 byte, not newline
- * [IMPLEMENTED]
- * - @a -s, @a --no-messages: Suppress error messages [IMPLEMENTED]
- * - @a -v, @a --invert-match: Select non-matching lines [IMPLEMENTED]
- * - @a -m, @a --max-count: Stop after NUM selected lines [IMPLEMENTED]
- * - @a -b, @a --byte-offset: Print the byte offset with output lines
- * [IMPLEMENTED]
- * - @a -n, @a --line-number: Print line number with output lines [IMPLEMENTED]
- * - @a --line-buffered: Flush output on every line [IMPLEMENTED]
- * - @a -H, @a --with-filename: Print file name with output lines [IMPLEMENTED]
- * - @a -h, @a --no-filename: Suppress the file name prefix on output
- * [IMPLEMENTED]
- * - @a --label: Use LABEL as the standard input file name prefix [IMPLEMENTED]
- * - @a -o, @a --only-matching: Show only nonempty parts of lines that match
- * [IMPLEMENTED]
- * - @a -q, @a --quiet: Suppress all normal output [IMPLEMENTED]
- * - @a --silent: Suppress all normal output [IMPLEMENTED]
- * - @a --binary-files: Assume that binary files are TYPE [NOT SUPPORT]
- * - @a -a, @a --text: Equivalent to --binary-files=text [NOT SUPPORT]
- * - @a -I: Equivalent to --binary-files=without-match [NOT SUPPORT]
- * - @a -d, @a --directories: How to handle directories: read, recurse, skip
- * [IMPLEMENTED]
- * - @a -D, @a --devices: How to handle devices/FIFOs/sockets [NOT SUPPORT]
- * - @a -r, @a --recursive: Like --directories=recurse [IMPLEMENTED]
- * - @a -R, @a --dereference-recursive: Like -r but follow symlinks
- *
- * [IMPLEMENTED]
- * - @a --include: Search only files that match GLOB
- * [IMPLEMENTED]
- * - @a --exclude: Skip files that match GLOB [IMPLEMENTED]
- * - @a --exclude-from: Skip files from patterns in FILE [NOT SUPPORT]
- * - @a --exclude-dir: Skip directories that match GLOB [IMPLEMENTED]
- * - @a
- * -L, @a --files-without-match: Print only names of FILEs with no selected
- * lines [IMPLEMENTED]
- * - @a -l, @a --files-with-matches: Print only names of FILEs with selected
- * lines [IMPLEMENTED]
- * - @a -c, @a --count: Print only a count of selected lines per FILE
- * [IMPLEMENTED]
- * - @a -T, @a --initial-tab: Make tabs line up (if needed) [IMPLEMENTED]
- * - @a -Z, @a --null: Print 0 byte after FILE name [IMPLEMENTED]
- * - @a -B, @a --before-context: Print NUM lines of leading context
- * [IMPLEMENTED]
- * - @a -A, @a --after-context: Print NUM lines of trailing context
- * [IMPLEMENTED]
- * - @a -C, @a --context: Print NUM lines of output context [IMPLEMENTED]
- * - @a --group-separator: Print separator between groups [IMPLEMENTED]
- * - @a --no-group-separator: Do not print group separator [IMPLEMENTED]
- * - @a --color: Highlight matching strings [IMPLEMENTED]
- * - @a --colour: Highlight matching strings [IMPLEMENTED]
- * - @a -U, @a --binary: Do not strip CR at EOL [IMPLEMENTED]
  */
 auto constexpr GREP_OPTIONS = std::array{
     OPTION("-E", "--extended-regexp",
@@ -146,21 +73,18 @@ auto constexpr GREP_OPTIONS = std::array{
            "show only nonempty parts of lines that match"),
     OPTION("-q", "--quiet", "suppress all normal output"),
     OPTION("", "--silent", "suppress all normal output"),
-    OPTION("", "--binary-files",
-           "assume that binary files are TYPE [NOT SUPPORT]", STRING_TYPE),
-    OPTION("-a", "--text", "equivalent to --binary-files=text [NOT SUPPORT]"),
-    OPTION("-I", "",
-           "equivalent to --binary-files=without-match [NOT SUPPORT]"),
+    OPTION("", "--binary-files", "assume that binary files are TYPE", STRING_TYPE),
+    OPTION("-a", "--text", "equivalent to --binary-files=text"),
+    OPTION("-I", "", "equivalent to --binary-files=without-match"),
     OPTION("-d", "--directories",
            "how to handle directories: read, recurse, skip", STRING_TYPE),
     OPTION("-D", "--devices",
-           "how to handle devices/FIFOs/sockets [NOT SUPPORT]", STRING_TYPE),
+           "how to handle devices/FIFOs/sockets: read, skip", STRING_TYPE),
     OPTION("-r", "--recursive", "like --directories=recurse"),
     OPTION("-R", "--dereference-recursive", "like -r but follow symlinks"),
     OPTION("", "--include", "search only files that match GLOB", STRING_TYPE),
     OPTION("", "--exclude", "skip files that match GLOB", STRING_TYPE),
-    OPTION("", "--exclude-from",
-           "skip files from patterns in FILE [NOT SUPPORT]", STRING_TYPE),
+    OPTION("", "--exclude-from", "skip files from patterns in FILE", STRING_TYPE),
     OPTION("", "--exclude-dir", "skip directories that match GLOB",
            STRING_TYPE),
     OPTION("-L", "--files-without-match",
@@ -181,17 +105,18 @@ auto constexpr GREP_OPTIONS = std::array{
     OPTION(
         "", "--color",
         "highlight matching strings; WHEN can be 'always', 'never', or 'auto'",
-        STRING_TYPE),
+        OPTIONAL_STRING_TYPE),
     OPTION(
         "", "--colour",
         "highlight matching strings; WHEN can be 'always', 'never', or 'auto'",
-        STRING_TYPE),
+        OPTIONAL_STRING_TYPE),
     OPTION("-U", "--binary", "do not strip CR at EOL")};
 
 namespace grep_pipeline {
 namespace cp = core::pipeline;
 
 enum class PatternMode { BasicRegex, ExtendedRegex, Fixed };
+enum class ColorMode { Never, Auto, Always };
 
 struct MatchPiece {
   size_t begin = 0;
@@ -202,6 +127,11 @@ struct Pattern {
   std::string raw;
   std::string lowered;
   std::optional<std::regex> regex;
+};
+
+struct FilterRule {
+  bool is_include;
+  std::string pattern;
 };
 
 struct Config {
@@ -232,13 +162,15 @@ struct Config {
   bool has_error = false;
   int before_context = 0;
   int after_context = 0;
+  ColorMode color_mode = ColorMode::Never;
   bool color = false;
-  std::string include;
-  std::string exclude;
-  std::string exclude_dir;
+  std::vector<FilterRule> filter_rules;
+  std::vector<std::string> exclude_dir_patterns;
   std::string group_separator = "--";
   bool no_group_separator = false;
   bool initial_tab = false;
+  std::string devices = "read";
+  std::string binary_files = "binary";
 };
 
 auto to_lower_ascii(std::string_view s) -> std::string {
@@ -251,10 +183,10 @@ auto to_lower_ascii(std::string_view s) -> std::string {
 }
 
 auto split_lines(std::string_view s) -> std::vector<std::string> {
+  if (s.empty()) return {};
   std::vector<std::string> parts;
-  parts.reserve(s.size() / 40);  // Reserve for ~40 chars per line
   size_t start = 0;
-  while (start <= s.size()) {
+  while (start < s.size()) {
     size_t pos = s.find('\n', start);
     if (pos == std::string_view::npos) {
       parts.emplace_back(s.substr(start));
@@ -262,6 +194,7 @@ auto split_lines(std::string_view s) -> std::vector<std::string> {
     }
     parts.emplace_back(s.substr(start, pos - start));
     start = pos + 1;
+    if (start == s.size()) break;
   }
   return parts;
 }
@@ -269,7 +202,7 @@ auto split_lines(std::string_view s) -> std::vector<std::string> {
 auto split_records(std::string_view s, char delim)
     -> std::vector<std::pair<size_t, size_t>> {
   std::vector<std::pair<size_t, size_t>> out;
-  out.reserve(s.size() / 40);  // Reserve for ~40 chars per record
+  out.reserve(s.size() / 40);
   size_t start = 0;
   for (size_t i = 0; i < s.size(); ++i) {
     if (s[i] == delim) {
@@ -328,20 +261,40 @@ auto load_patterns_from_file(const std::string& path)
   return split_lines(buf);
 }
 
+auto load_exclude_patterns_from_file(const std::string& path)
+    -> cp::Result<std::vector<std::string>> {
+  auto lines = load_patterns_from_file(path);
+  if (!lines) return lines;
+  std::vector<std::string> result;
+  for (const auto& line : *lines) {
+    if (!line.empty()) result.push_back(line);
+  }
+  return result;
+}
+
 auto is_unsupported_used(const CommandContext<GREP_OPTIONS.size()>& ctx)
     -> std::optional<std::string> {
   if (ctx.get<bool>("--perl-regexp", false) || ctx.get<bool>("-P", false))
     return "--perl-regexp is [NOT SUPPORT]";
-  if (!ctx.get<std::string>("--binary-files", "").empty() ||
-      ctx.get<bool>("--text", false) || ctx.get<bool>("-a", false) ||
-      ctx.get<bool>("-I", false))
-    return "binary file mode options are [NOT SUPPORT]";
-  if (!ctx.get<std::string>("--devices", "").empty() ||
-      !ctx.get<std::string>("-D", "").empty())
-    return "--devices is [NOT SUPPORT]";
-  if (!ctx.get<std::string>("--exclude-from", "").empty())
-    return "--exclude-from is [NOT SUPPORT]";
   return std::nullopt;
+}
+
+template <size_t N>
+auto last_occurrence_index(const CommandContext<N>& ctx,
+                           std::initializer_list<std::string_view> names)
+    -> std::optional<size_t> {
+  std::optional<size_t> result;
+  for (const auto& occ : ctx.options.occurrences()) {
+    if (occ.index >= N) continue;
+    const auto& meta = (*ctx.metas)[occ.index];
+    for (auto name : names) {
+      if (meta.long_name == name || meta.short_name == name) {
+        result = occ.index;
+        break;
+      }
+    }
+  }
+  return result;
 }
 
 auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
@@ -352,17 +305,28 @@ auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
     return core::pipeline::unexpected(*unsupported);
   }
 
-  cfg.mode = PatternMode::BasicRegex;
-  if (ctx.get<bool>("--fixed-strings", false) || ctx.get<bool>("-F", false))
-    cfg.mode = PatternMode::Fixed;
-  if (ctx.get<bool>("--extended-regexp", false) || ctx.get<bool>("-E", false))
-    cfg.mode = PatternMode::ExtendedRegex;
-  if (ctx.get<bool>("--basic-regexp", false) || ctx.get<bool>("-G", false))
-    cfg.mode = PatternMode::BasicRegex;
+  // Regexp mode: last option wins
+  if (auto last_idx = last_occurrence_index(
+          ctx, {"-G", "--basic-regexp", "-E", "--extended-regexp", "-F",
+                "--fixed-strings"});
+      last_idx.has_value()) {
+    const auto& meta = (*ctx.metas)[*last_idx];
+    if (meta.short_name == "-G" || meta.long_name == "--basic-regexp")
+      cfg.mode = PatternMode::BasicRegex;
+    else if (meta.short_name == "-E" || meta.long_name == "--extended-regexp")
+      cfg.mode = PatternMode::ExtendedRegex;
+    else
+      cfg.mode = PatternMode::Fixed;
+  }
 
-  cfg.ignore_case =
-      ctx.get<bool>("--ignore-case", false) || ctx.get<bool>("-i", false);
-  if (ctx.get<bool>("--no-ignore-case", false)) cfg.ignore_case = false;
+  // Ignore case: last option wins
+  if (auto last_idx = last_occurrence_index(
+          ctx, {"-i", "--ignore-case", "--no-ignore-case"});
+      last_idx.has_value()) {
+    const auto& meta = (*ctx.metas)[*last_idx];
+    cfg.ignore_case =
+        (meta.short_name == "-i" || meta.long_name == "--ignore-case");
+  }
 
   cfg.word_regexp =
       ctx.get<bool>("--word-regexp", false) || ctx.get<bool>("-w", false);
@@ -380,10 +344,22 @@ auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
       ctx.get<bool>("--byte-offset", false) || ctx.get<bool>("-b", false);
   cfg.line_number =
       ctx.get<bool>("--line-number", false) || ctx.get<bool>("-n", false);
-  cfg.with_filename =
-      ctx.get<bool>("--with-filename", false) || ctx.get<bool>("-H", false);
-  cfg.no_filename =
-      ctx.get<bool>("--no-filename", false) || ctx.get<bool>("-h", false);
+
+  // Filename prefix: last option wins
+  if (auto last_idx = last_occurrence_index(
+          ctx, {"-H", "--with-filename", "-h", "--no-filename"});
+      last_idx.has_value()) {
+    const auto& meta = (*ctx.metas)[*last_idx];
+    cfg.with_filename =
+        (meta.short_name == "-H" || meta.long_name == "--with-filename");
+    cfg.no_filename = !cfg.with_filename;
+  } else {
+    cfg.with_filename =
+        ctx.get<bool>("--with-filename", false) || ctx.get<bool>("-H", false);
+    cfg.no_filename =
+        ctx.get<bool>("--no-filename", false) || ctx.get<bool>("-h", false);
+  }
+
   cfg.label = ctx.get<std::string>("--label", "");
   cfg.only_matching =
       ctx.get<bool>("--only-matching", false) || ctx.get<bool>("-o", false);
@@ -409,6 +385,7 @@ auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
   if (cfg.directories.empty())
     cfg.directories = cfg.recursive ? "recurse" : "read";
 
+  // Context: last option wins per side
   cfg.before_context = ctx.get<int>("-B", 0);
   cfg.after_context = ctx.get<int>("-A", 0);
   int context = ctx.get<int>("-C", 0);
@@ -416,54 +393,126 @@ auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
     cfg.before_context = context;
     cfg.after_context = context;
   }
+  for (const auto& occ : ctx.options.occurrences()) {
+    if (occ.index >= GREP_OPTIONS.size()) continue;
+    const auto& meta = (*ctx.metas)[occ.index];
+    if (meta.short_name == "-B" || meta.long_name == "--before-context") {
+      cfg.before_context = std::get<int>(occ.value);
+    } else if (meta.short_name == "-A" || meta.long_name == "--after-context") {
+      cfg.after_context = std::get<int>(occ.value);
+    } else if (meta.short_name == "-C" || meta.long_name == "--context") {
+      int v = std::get<int>(occ.value);
+      cfg.before_context = v;
+      cfg.after_context = v;
+    }
+  }
 
-  std::string color_opt = ctx.get<std::string>("--color", "");
-  if (color_opt.empty()) color_opt = ctx.get<std::string>("--colour", "");
-  cfg.color = (color_opt == "always" || color_opt == "auto");
+  // Color: last option wins
+  std::string color_val = ctx.get<std::string>("--color", "");
+  if (color_val.empty()) color_val = ctx.get<std::string>("--colour", "");
+  if (!color_val.empty() || ctx.has("--color") || ctx.has("--colour")) {
+    if (color_val.empty() || color_val == "auto")
+      cfg.color_mode = ColorMode::Auto;
+    else if (color_val == "always")
+      cfg.color_mode = ColorMode::Always;
+    else if (color_val == "never")
+      cfg.color_mode = ColorMode::Never;
+    else
+      return core::pipeline::unexpected("invalid color mode: " + color_val);
+  }
+  cfg.color = (cfg.color_mode == ColorMode::Always) ||
+              (cfg.color_mode == ColorMode::Auto && isTerminalSupportsColor());
 
-  cfg.include = ctx.get<std::string>("--include", "");
-  cfg.exclude = ctx.get<std::string>("--exclude", "");
-  cfg.exclude_dir = ctx.get<std::string>("--exclude-dir", "");
+  // Devices
+  cfg.devices = ctx.get<std::string>("--devices", "");
+  if (cfg.devices.empty()) cfg.devices = ctx.get<std::string>("-D", "");
+  if (cfg.devices.empty()) cfg.devices = "read";
+  if (cfg.devices != "read" && cfg.devices != "skip")
+    return core::pipeline::unexpected("invalid devices action: " + cfg.devices);
+
+  // Binary files
+  cfg.binary_files = ctx.get<std::string>("--binary-files", "");
+  if (ctx.get<bool>("-I", false))
+    cfg.binary_files = "without-match";
+  else if (ctx.get<bool>("-a", false) || ctx.get<bool>("--text", false))
+    cfg.binary_files = "text";
+  if (cfg.binary_files.empty()) cfg.binary_files = "binary";
+  if (cfg.binary_files != "binary" && cfg.binary_files != "without-match" &&
+      cfg.binary_files != "text")
+    return core::pipeline::unexpected("invalid binary-files mode: " + cfg.binary_files);
+
+  // Exclude-dir
+  auto exclude_dirs = ctx.get_all<std::string>("--exclude-dir");
+  for (auto p : exclude_dirs) {
+    if (!p.empty() && p.back() == '/')
+      p.pop_back();
+    cfg.exclude_dir_patterns.push_back(p);
+  }
+
+  // Filter rules (include/exclude/exclude-from) in order
+  for (const auto& occ : ctx.options.occurrences()) {
+    if (occ.index >= GREP_OPTIONS.size()) continue;
+    const auto& meta = (*ctx.metas)[occ.index];
+    if (meta.long_name == "--include") {
+      cfg.filter_rules.push_back(
+          {true, std::get<std::string>(occ.value)});
+    } else if (meta.long_name == "--exclude") {
+      cfg.filter_rules.push_back(
+          {false, std::get<std::string>(occ.value)});
+    } else if (meta.long_name == "--exclude-from") {
+      auto path = std::get<std::string>(occ.value);
+      auto patterns = load_exclude_patterns_from_file(path);
+      if (!patterns)
+        return core::pipeline::unexpected(patterns.error());
+      for (const auto& pat : *patterns) {
+        cfg.filter_rules.push_back({false, pat});
+      }
+    }
+  }
 
   cfg.group_separator = ctx.get<std::string>("--group-separator", "--");
   cfg.no_group_separator = ctx.get<bool>("--no-group-separator", false);
   cfg.initial_tab =
       ctx.get<bool>("--initial-tab", false) || ctx.get<bool>("-T", false);
 
-  SmallVector<std::string, 32> raw_patterns;
-  std::string p_e = ctx.get<std::string>("--regexp", "");
-  if (p_e.empty()) p_e = ctx.get<std::string>("-e", "");
-  if (!p_e.empty()) {
-    auto from_e = split_lines(p_e);
-    for (const auto& p : from_e) raw_patterns.push_back(p);
+  // Collect patterns from -e / --regexp
+  std::vector<std::string> patterns_raw;
+  auto regexp_occurrences = ctx.string_occurrences({"-e", "--regexp"});
+  for (const auto& occ : regexp_occurrences) {
+    if (occ.value.empty()) {
+      patterns_raw.push_back("");
+    } else {
+      auto lines = split_lines(occ.value);
+      for (const auto& line : lines) {
+        patterns_raw.push_back(line);
+      }
+    }
   }
 
-  std::string p_file = ctx.get<std::string>("--file", "");
-  if (p_file.empty()) p_file = ctx.get<std::string>("-f", "");
-  if (!p_file.empty()) {
-    auto file_patterns = load_patterns_from_file(p_file);
-    if (!file_patterns) return core::pipeline::unexpected(file_patterns.error());
-    for (const auto& p : *file_patterns) raw_patterns.push_back(p);
+  // Collect patterns from -f / --file
+  auto file_occurrences = ctx.string_occurrences({"-f", "--file"});
+  for (const auto& occ : file_occurrences) {
+    auto file_patterns = load_patterns_from_file(occ.value);
+    if (!file_patterns)
+      return core::pipeline::unexpected(file_patterns.error());
+    for (const auto& line : *file_patterns) {
+      patterns_raw.push_back(line);
+    }
   }
 
   std::vector<std::string> positionals;
   for (auto p : ctx.positionals) positionals.emplace_back(p);
 
-  if (raw_patterns.empty()) {
+  if (patterns_raw.empty()) {
     if (positionals.empty()) {
       return core::pipeline::unexpected("missing PATTERNS");
     }
     auto split = split_lines(positionals.front());
-    for (const auto& p : split) raw_patterns.push_back(p);
-    positionals.erase(positionals.begin(),
-                      positionals.begin() + 1);  // Remove first element
+    for (const auto& p : split) patterns_raw.push_back(p);
+    positionals.erase(positionals.begin(), positionals.begin() + 1);
   }
 
-  if (raw_patterns.empty()) {
-    return core::pipeline::unexpected("missing PATTERNS");
-  }
-
-  for (const auto& rp : raw_patterns) {
+  for (const auto& rp : patterns_raw) {
     auto c = compile_pattern(cfg.mode, cfg.ignore_case, rp);
     if (!c) return core::pipeline::unexpected(c.error());
     cfg.patterns.push_back(*c);
@@ -476,6 +525,13 @@ auto build_config(const CommandContext<GREP_OPTIONS.size()>& ctx)
     } else {
       cfg.files.push_back("-");
     }
+  }
+
+  // Warn and ignore context when --only-matching is used with context
+  if (cfg.only_matching && (cfg.before_context > 0 || cfg.after_context > 0)) {
+    safeErrorPrint("grep: warning: context is ignored with --only-matching\n");
+    cfg.before_context = 0;
+    cfg.after_context = 0;
   }
 
   return cfg;
@@ -496,6 +552,15 @@ auto collect_matches_in_line(std::string_view line, const Config& cfg)
   std::string lowered_line;
 
   for (const auto& p : cfg.patterns) {
+    if (p.raw.empty()) {
+      if (cfg.line_regexp) {
+        out.push_back(MatchPiece{0, line.size()});
+      } else {
+        out.push_back(MatchPiece{0, 0});
+      }
+      continue;
+    }
+
     if (cfg.mode == PatternMode::Fixed) {
       if (cfg.line_regexp) {
         bool eq = cfg.ignore_case ? (to_lower_ascii(line) == p.lowered)
@@ -544,7 +609,7 @@ auto collect_matches_in_line(std::string_view line, const Config& cfg)
          it != std::sregex_iterator(); ++it) {
       auto pos = static_cast<size_t>(it->position());
       auto len = static_cast<size_t>(it->length());
-      if (len == 0) continue;
+      if (len == 0 && !p.raw.empty()) continue;
       MatchPiece m{pos, pos + len};
       if (!cfg.word_regexp || word_boundary_ok(line, m.begin, m.end)) {
         out.push_back(m);
@@ -566,8 +631,8 @@ auto collect_matches_in_line(std::string_view line, const Config& cfg)
 }
 
 auto append_prefix(std::string& out, const Config& cfg, bool show_filename,
-                   std::string_view display_name, size_t line_no, size_t offset)
-    -> void {
+                   std::string_view display_name, size_t line_no, size_t offset,
+                   char sep = ':') -> void {
   if (show_filename) {
     if (cfg.color) {
       out.append("\033[1;35m");
@@ -588,7 +653,7 @@ auto append_prefix(std::string& out, const Config& cfg, bool show_filename,
       auto s = std::to_string(line_no);
       out.append(s);
     }
-    out.push_back(':');
+    out.push_back(sep);
   }
   if (cfg.byte_offset) {
     auto s = std::to_string(offset);
@@ -670,16 +735,24 @@ auto process_selected_record(std::string_view line, bool had_delim,
   return true;
 }
 
+struct ScanResult {
+  bool any_selected = false;
+  size_t selected_count = 0;
+};
+
 auto scan_text(const std::string& text, std::string_view display_name,
-               bool show_filename, Config& cfg) -> std::pair<bool, size_t> {
+               bool show_filename, Config& cfg, bool is_binary) -> ScanResult {
   const char delim = cfg.null_data ? '\0' : '\n';
   auto records = split_records(text, delim);
 
-  bool any_selected = false;
-  size_t selected_count = 0;
+  ScanResult result;
   bool use_context = (cfg.before_context > 0 || cfg.after_context > 0) &&
                      !cfg.count_only && !cfg.files_with_matches &&
                      !cfg.files_without_match;
+
+  if (is_binary && cfg.binary_files == "without-match") {
+    return result;
+  }
 
   if (!use_context) {
     for (size_t i = 0; i < records.size(); ++i) {
@@ -688,21 +761,38 @@ auto scan_text(const std::string& text, std::string_view display_name,
       bool had_delim = !whole.empty() && whole.back() == delim;
       std::string_view line =
           had_delim ? whole.substr(0, whole.size() - 1) : whole;
-      if (!process_selected_record(line, had_delim, display_name, show_filename,
-                                   i + 1, b, cfg, selected_count))
-        continue;
-      any_selected = true;
 
-      if (cfg.quiet) return {true, selected_count};
+      // For binary files with default handling, just detect match without printing
+      if (cfg.binary_files == "binary" && is_binary) {
+        auto matches = collect_matches_in_line(line, cfg);
+        bool is_match = !matches.empty();
+        bool selected = cfg.invert_match ? !is_match : is_match;
+        if (selected) {
+          result.any_selected = true;
+          ++result.selected_count;
+          if (cfg.quiet) return result;
+          if (cfg.max_count >= 0 &&
+              static_cast<int>(result.selected_count) >= cfg.max_count)
+            break;
+        }
+        continue;
+      }
+
+      if (!process_selected_record(line, had_delim, display_name, show_filename,
+                                   i + 1, b, cfg, result.selected_count))
+        continue;
+      result.any_selected = true;
+
+      if (cfg.quiet) return result;
 
       if (cfg.max_count >= 0 &&
-          static_cast<int>(selected_count) >= cfg.max_count)
+          static_cast<int>(result.selected_count) >= cfg.max_count)
         break;
     }
-    return {any_selected, selected_count};
+    return result;
   }
 
-  std::vector<std::pair<size_t, size_t>> match_indices;
+  std::vector<size_t> match_indices;
   for (size_t i = 0; i < records.size(); ++i) {
     const auto [b, e] = records[i];
     std::string_view whole(text.data() + b, e - b);
@@ -713,42 +803,53 @@ auto scan_text(const std::string& text, std::string_view display_name,
     bool is_match = !matches.empty();
     bool selected = cfg.invert_match ? !is_match : is_match;
     if (selected) {
-      match_indices.push_back({i, i});
-      ++selected_count;
-      if (cfg.quiet) return {true, selected_count};
+      match_indices.push_back(i);
+      ++result.selected_count;
+      if (cfg.quiet) {
+        result.any_selected = true;
+        return result;
+      }
+      if (cfg.binary_files == "binary" && is_binary) {
+        result.any_selected = true;
+        return result;
+      }
       if (cfg.max_count >= 0 &&
-          static_cast<int>(selected_count) >= cfg.max_count)
+          static_cast<int>(result.selected_count) >= cfg.max_count)
         break;
     }
   }
 
   if (match_indices.empty()) {
-    return {false, 0};
+    return result;
   }
 
-  std::vector<std::pair<size_t, size_t>> groups;
-  size_t group_start = match_indices[0].first;
-  size_t group_end = match_indices[0].first;
-  for (size_t i = 1; i < match_indices.size(); ++i) {
-    size_t idx = match_indices[i].first;
-    if (idx <= group_end + 1) {
-      group_end = idx;
-    } else {
-      groups.push_back({group_start, group_end});
-      group_start = idx;
-      group_end = idx;
+  result.any_selected = true;
+  if (cfg.binary_files == "binary" && is_binary) {
+    return result;
+  }
+
+  std::vector<std::pair<size_t, size_t>> ranges;
+  for (size_t idx : match_indices) {
+    size_t start = (idx >= static_cast<size_t>(cfg.before_context))
+                       ? idx - cfg.before_context
+                       : 0;
+    size_t end = idx + cfg.after_context;
+    if (end >= records.size()) end = records.size() - 1;
+    ranges.push_back({start, end});
+  }
+
+  std::vector<std::pair<size_t, size_t>> merged;
+  std::sort(ranges.begin(), ranges.end());
+  for (const auto& [s, e] : ranges) {
+    if (merged.empty() || s > merged.back().second + 1) {
+      merged.push_back({s, e});
+    } else if (e > merged.back().second) {
+      merged.back().second = e;
     }
   }
-  groups.push_back({group_start, group_end});
 
   bool first_group = true;
-  for (const auto& [gs, ge] : groups) {
-    size_t start = (gs >= static_cast<size_t>(cfg.before_context))
-                       ? gs - cfg.before_context
-                       : 0;
-    size_t end = ge + cfg.after_context;
-    if (end >= records.size()) end = records.size() - 1;
-
+  for (const auto& [gs, ge] : merged) {
     if (!first_group) {
       if (!cfg.no_group_separator) {
         safePrint(cfg.group_separator);
@@ -757,104 +858,45 @@ auto scan_text(const std::string& text, std::string_view display_name,
     }
     first_group = false;
 
-    for (size_t i = start; i <= end; ++i) {
+    for (size_t i = gs; i <= ge; ++i) {
       const auto [b, e] = records[i];
       std::string_view whole(text.data() + b, e - b);
       bool had_delim = !whole.empty() && whole.back() == delim;
       std::string_view line =
           had_delim ? whole.substr(0, whole.size() - 1) : whole;
 
-      bool is_in_match_group = (i >= gs && i <= ge);
-      if (is_in_match_group) {
-        auto matches = collect_matches_in_line(line, cfg);
-        bool is_match = !matches.empty();
-        bool selected = cfg.invert_match ? !is_match : is_match;
-        if (selected) {
-          std::string line_buf;
-          line_buf.reserve(line.size() + 128);
-          append_prefix(line_buf, cfg, show_filename, display_name, i + 1, b);
-          if (cfg.initial_tab) line_buf.push_back('\t');
-          append_line_with_color(line_buf, line, matches, cfg.color);
-          if (had_delim) {
-            line_buf.append(1, delim);
-          } else {
-            line_buf.append(cfg.null_data ? "\0" : "\n");
-          }
-          safePrint(line_buf);
+      bool is_match_line = false;
+      for (size_t mi : match_indices) {
+        if (mi == i) {
+          is_match_line = true;
+          break;
         }
+      }
+
+      std::string line_buf;
+      line_buf.reserve(line.size() + 128);
+      if (is_match_line) {
+        append_prefix(line_buf, cfg, show_filename, display_name, i + 1, b,
+                      ':');
+        if (cfg.initial_tab) line_buf.push_back('\t');
+        auto matches = collect_matches_in_line(line, cfg);
+        append_line_with_color(line_buf, line, matches, cfg.color);
       } else {
-        std::string line_buf;
-        line_buf.reserve(line.size() + 128);
-        append_prefix(line_buf, cfg, show_filename, display_name, i + 1, b);
+        append_prefix(line_buf, cfg, show_filename, display_name, i + 1, b,
+                      '-');
         if (cfg.initial_tab) line_buf.push_back('\t');
         line_buf.append(line);
-        if (had_delim) {
-          line_buf.append(1, delim);
-        } else {
-          line_buf.append(cfg.null_data ? "\0" : "\n");
-        }
-        safePrint(line_buf);
       }
-    }
-  }
-
-  any_selected = !match_indices.empty();
-  return {any_selected, selected_count};
-}
-
-auto scan_stream(std::istream& in, std::string_view display_name,
-                 bool show_filename, Config& cfg) -> std::pair<bool, size_t> {
-  const char delim = cfg.null_data ? '\0' : '\n';
-  std::array<char, 64 * 1024> chunk{};
-  std::string pending;
-  pending.reserve(chunk.size() * 2);
-
-  size_t base_offset = 0;
-  size_t line_no = 1;
-  bool any_selected = false;
-  size_t selected_count = 0;
-
-  while (in) {
-    in.read(chunk.data(), static_cast<std::streamsize>(chunk.size()));
-    std::streamsize got = in.gcount();
-    if (got <= 0) break;
-
-    pending.append(chunk.data(), static_cast<size_t>(got));
-
-    size_t start = 0;
-    for (size_t i = 0; i < pending.size(); ++i) {
-      if (pending[i] != delim) continue;
-
-      std::string_view line(pending.data() + start, i - start);
-      size_t offset = base_offset + start;
-      if (process_selected_record(line, true, display_name, show_filename,
-                                  line_no, offset, cfg, selected_count)) {
-        any_selected = true;
-        if (cfg.quiet) return {true, selected_count};
-        if (cfg.max_count >= 0 &&
-            static_cast<int>(selected_count) >= cfg.max_count) {
-          return {any_selected, selected_count};
-        }
+      if (had_delim) {
+        line_buf.append(1, delim);
+      } else {
+        line_buf.append(cfg.null_data ? "\0" : "\n");
       }
-
-      ++line_no;
-      start = i + 1;
-    }
-
-    if (start > 0) {
-      base_offset += start;
-      pending.erase(0, start);
+      safePrint(line_buf);
     }
   }
 
-  if (!pending.empty()) {
-    if (process_selected_record(pending, false, display_name, show_filename,
-                                line_no, base_offset, cfg, selected_count)) {
-      any_selected = true;
-    }
-  }
-
-  return {any_selected, selected_count};
+  return result;
 }
 
 auto read_file_binary(const std::string& path) -> cp::Result<std::string> {
@@ -866,6 +908,40 @@ auto read_file_binary(const std::string& path) -> cp::Result<std::string> {
                      std::istreambuf_iterator<char>());
 }
 
+auto file_is_binary(const std::string& content) -> bool {
+  return content.find('\0') != std::string::npos;
+}
+
+auto should_include_file(const std::string& basename, const std::string& fullname,
+                           const Config& cfg) -> bool {
+  if (cfg.filter_rules.empty()) return true;
+
+  bool included = true;
+  bool any_match = false;
+  bool first_is_include = cfg.filter_rules.front().is_include;
+
+  for (const auto& rule : cfg.filter_rules) {
+    const std::string& target = rule.is_include ? basename : fullname;
+    if (wildcard_match(rule.pattern, target)) {
+      included = rule.is_include;
+      any_match = true;
+    }
+  }
+
+  if (!any_match) {
+    return !first_is_include;
+  }
+  return included;
+}
+
+auto should_exclude_dir(const std::string& dirname, const Config& cfg)
+    -> bool {
+  for (const auto& pat : cfg.exclude_dir_patterns) {
+    if (wildcard_match(pat, dirname)) return true;
+  }
+  return false;
+}
+
 auto gather_files_for_input(const Config& cfg, std::vector<std::string>& out)
     -> cp::Result<void> {
   for (const auto& f : cfg.files) {
@@ -874,17 +950,55 @@ auto gather_files_for_input(const Config& cfg, std::vector<std::string>& out)
       continue;
     }
 
-    // Smart glob expansion for wildcard patterns
     if (contains_wildcard(f)) {
       auto glob_result = glob_expand(f);
-      if (glob_result.expanded) {
-        // Pattern was expanded, add all matched files
+      if (glob_result.expanded && !glob_result.files.empty()) {
         for (const auto& file : glob_result.files) {
-          out.push_back(wstring_to_utf8(file));
+          auto utf8 = wstring_to_utf8(file);
+          std::error_code ec;
+          bool is_dir = std::filesystem::is_directory(utf8, ec);
+          if (is_dir) {
+            if (cfg.directories == "skip") continue;
+            if (cfg.directories == "recurse") {
+              std::string dirname =
+                  std::filesystem::path(utf8).filename().string();
+              if (should_exclude_dir(dirname, cfg)) continue;
+              auto options =
+                  std::filesystem::directory_options::skip_permission_denied;
+              if (cfg.dereference_recursive) {
+                options |=
+                    std::filesystem::directory_options::follow_directory_symlink;
+              }
+              std::filesystem::recursive_directory_iterator it(utf8, options);
+              const std::filesystem::recursive_directory_iterator end;
+              for (; it != end; ++it) {
+                const auto& e = *it;
+                if (e.is_directory()) {
+                  std::string dname = e.path().filename().string();
+                  if (should_exclude_dir(dname, cfg)) {
+                    it.disable_recursion_pending();
+                  }
+                  continue;
+                }
+                if (e.is_regular_file()) {
+                  std::string filepath = e.path().string();
+                  std::string filename = e.path().filename().string();
+                  if (!should_include_file(filename, filename, cfg)) continue;
+                  out.push_back(filepath);
+                }
+              }
+            } else {
+              return core::pipeline::unexpected("'" + utf8 + "' is a directory");
+            }
+          } else {
+            std::string filename =
+                std::filesystem::path(utf8).filename().string();
+            if (!should_include_file(filename, utf8, cfg)) continue;
+            out.push_back(utf8);
+          }
         }
         continue;
       }
-      // If expansion failed, fall through to normal processing
     }
 
     std::error_code ec;
@@ -895,18 +1009,8 @@ auto gather_files_for_input(const Config& cfg, std::vector<std::string>& out)
     }
 
     if (!is_dir) {
-      if (!cfg.include.empty()) {
-        std::string filename = std::filesystem::path(f).filename().string();
-        if (!wildcard_match(cfg.include, filename)) {
-          continue;
-        }
-      }
-      if (!cfg.exclude.empty()) {
-        std::string filename = std::filesystem::path(f).filename().string();
-        if (wildcard_match(cfg.exclude, filename)) {
-          continue;
-        }
-      }
+      std::string filename = std::filesystem::path(f).filename().string();
+      if (!should_include_file(filename, f, cfg)) continue;
       out.push_back(f);
       continue;
     }
@@ -914,6 +1018,9 @@ auto gather_files_for_input(const Config& cfg, std::vector<std::string>& out)
     if (cfg.directories == "skip") continue;
 
     if (cfg.directories == "recurse") {
+      std::string dirname = std::filesystem::path(f).filename().string();
+      if (should_exclude_dir(dirname, cfg)) continue;
+
       auto options = std::filesystem::directory_options::skip_permission_denied;
       if (cfg.dereference_recursive) {
         options |= std::filesystem::directory_options::follow_directory_symlink;
@@ -923,9 +1030,8 @@ auto gather_files_for_input(const Config& cfg, std::vector<std::string>& out)
       for (; it != end; ++it) {
         const auto& e = *it;
         if (e.is_directory()) {
-          std::string dirname = e.path().filename().string();
-          if (!cfg.exclude_dir.empty() &&
-              wildcard_match(cfg.exclude_dir, dirname)) {
+          std::string dname = e.path().filename().string();
+          if (should_exclude_dir(dname, cfg)) {
             it.disable_recursion_pending();
           }
           continue;
@@ -933,12 +1039,7 @@ auto gather_files_for_input(const Config& cfg, std::vector<std::string>& out)
         if (e.is_regular_file()) {
           std::string filepath = e.path().string();
           std::string filename = e.path().filename().string();
-          if (!cfg.include.empty() && !wildcard_match(cfg.include, filename)) {
-            continue;
-          }
-          if (!cfg.exclude.empty() && wildcard_match(cfg.exclude, filename)) {
-            continue;
-          }
+          if (!should_include_file(filename, filename, cfg)) continue;
           out.push_back(filepath);
         }
       }
@@ -972,17 +1073,17 @@ auto process(Config& cfg) -> int {
   bool any_selected_global = false;
 
   for (const auto& input : inputs) {
-    std::pair<bool, size_t> scan_result{false, 0};
+    ScanResult scan_result;
     auto display_name = record_name_for_output(input, cfg);
-
-    bool use_context = (cfg.before_context > 0 || cfg.after_context > 0) &&
-                       !cfg.count_only && !cfg.files_with_matches &&
-                       !cfg.files_without_match;
+    bool is_binary = false;
 
     if (input == "-") {
-      scan_result = scan_stream(std::cin, display_name, show_filename, cfg);
-    } else if (use_context) {
-      // Read entire file for context support
+      std::string content((std::istreambuf_iterator<char>(std::cin)),
+                          std::istreambuf_iterator<char>());
+      is_binary = file_is_binary(content);
+      scan_result =
+          scan_text(content, display_name, show_filename, cfg, is_binary);
+    } else {
       auto content = read_file_binary(input);
       if (!content) {
         cfg.has_error = true;
@@ -993,22 +1094,23 @@ auto process(Config& cfg) -> int {
         }
         continue;
       }
-      scan_result = scan_text(*content, display_name, show_filename, cfg);
-    } else {
-      std::ifstream in(input, std::ios::binary);
-      if (!in.is_open()) {
-        cfg.has_error = true;
-        if (!cfg.no_messages && !cfg.quiet) {
-          safeErrorPrint("grep: ");
-          safeErrorPrint("cannot open '" + input + "'");
-          safeErrorPrint("\n");
-        }
-        continue;
-      }
-      scan_result = scan_stream(in, display_name, show_filename, cfg);
+      is_binary = file_is_binary(*content);
+      scan_result =
+          scan_text(*content, display_name, show_filename, cfg, is_binary);
     }
 
     auto [any_selected, selected_count] = scan_result;
+
+    // Binary file match diagnostic
+    if (any_selected && is_binary && cfg.binary_files == "binary") {
+      if (!cfg.quiet) {
+        safeErrorPrint(display_name);
+        safeErrorPrint(": binary file matches\n");
+      }
+      any_selected_global = true;
+      continue;
+    }
+
     any_selected_global = any_selected_global || any_selected;
 
     if (!cfg.quiet) {

@@ -29,7 +29,20 @@
 
 
 namespace core::pipeline {
-using Error = std::string_view;
+struct Error {
+  std::string message;
+  Error() = default;
+  Error(const char* s) : message(s) {}
+  Error(std::string_view sv) : message(sv) {}
+  Error(const std::string& s) : message(s) {}
+  Error(std::string&& s) : message(std::move(s)) {}
+  operator std::string_view() const { return message; }
+};
+
+// Helper to safely convert error to wstring
+inline std::wstring error_to_wstring(const Error& e) {
+  return utf8_to_wstring(e.message);
+}
 
 template <typename T>
 using Result = Expected<T, Error>;
@@ -38,7 +51,7 @@ template <typename T>
 void report_error(const Result<T>& result, std::wstring_view command_name) {
   if (!result) {
     const auto& error_msg = result.error();
-    std::wstring wmsg(error_msg.begin(), error_msg.end());
+    std::wstring wmsg = error_to_wstring(error_msg);
     safeErrorPrint(std::wstring(command_name) + L": " + wmsg + L"\n");
   }
 }

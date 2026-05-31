@@ -84,7 +84,7 @@ constexpr auto RM_OPTIONS = std::array{
     OPTION("-r", "--recursive", "remove directories and their contents recursively"),
     OPTION("-R", "--recursive", "remove directories and their contents recursively"),
     OPTION("-v", "--verbose", "explain what is being done"),
-    OPTION("", "--interactive", "prompt according to WHEN: never, once (-I), or always (-i)"),
+    OPTION("", "--interactive", "prompt according to WHEN: never, once (-I), or always (-i)", STRING_TYPE),
     OPTION("", "--one-file-system", "when removing a hierarchy recursively, skip any directory that is on a file system different from that of the corresponding command line argument"),
     OPTION("", "--no-preserve-root", "do not treat '/' specially"),
     OPTION("", "--preserve-root", "do not remove '/' (default)")};
@@ -184,6 +184,50 @@ auto get_volume_root(const std::wstring& path) -> std::wstring {
   return volume;
 }
 
+struct InteractiveSettings {
+  bool force = false;
+  bool always_interactive = false;
+  bool never_interactive = false;
+  bool ask_once = false;
+};
+
+auto compute_interactive_settings(const CommandContext<RM_OPTIONS.size()>& ctx)
+    -> InteractiveSettings {
+  InteractiveSettings settings;
+  settings.force = ctx.get<bool>("--force", false) || ctx.get<bool>("-f", false);
+  std::string interactive_mode = ctx.get<std::string>("--interactive", "");
+  settings.always_interactive =
+      ctx.get<bool>("-i", false) || interactive_mode == "always";
+  settings.never_interactive = interactive_mode == "never";
+  settings.ask_once = ctx.get<bool>("-I", false) || interactive_mode == "once";
+
+  // Last option wins: -i/-I and -f override each other based on order
+  if (settings.force && (settings.always_interactive || settings.ask_once)) {
+    size_t fi_pos = 0, i_pos = 0, I_pos = 0;
+    size_t pos = 0;
+    for (const auto& occ : ctx.options.occurrences()) {
+      if (occ.index >= RM_OPTIONS.size()) {
+        ++pos;
+        continue;
+      }
+      const auto& meta = (*ctx.metas)[occ.index];
+      if (meta.short_name == "-f" || meta.long_name == "--force") fi_pos = pos;
+      if (meta.short_name == "-i") i_pos = pos;
+      if (meta.short_name == "-I") I_pos = pos;
+      ++pos;
+    }
+    size_t max_int = std::max(i_pos, I_pos);
+    if (fi_pos > max_int) {
+      settings.always_interactive = false;  // -f wins
+      settings.ask_once = false;
+    } else {
+      settings.force = false;  // -i or -I wins
+    }
+  }
+
+  return settings;
+}
+
 auto confirm_bulk_remove(size_t path_count, bool recursive) -> bool {
   safeErrorPrint("rm: remove ");
   safeErrorPrint(std::to_string(path_count));
@@ -204,18 +248,22 @@ auto confirm_bulk_remove(size_t path_count, bool recursive) -> bool {
  * false on error
  */
 auto remove_path(const std::string& path,
-                 const CommandContext<RM_OPTIONS.size()>& ctx) -> bool {
+                 const CommandContext<RM_OPTIONS.size()>& ctx,
+                 const InteractiveSettings& settings) -> bool {
   // Use extended-length path to bypass Windows reserved device names
   // (nul, con, prn, aux, com0-9, lpt0-9) which would otherwise redirect
   // file operations to the corresponding device instead of the actual file.
   std::wstring wpath = to_extended_path(utf8_to_wstring(path));
   DWORD attr = GetFileAttributesW(wpath.c_str());
 
-  bool force = ctx.get<bool>("--force", false) || ctx.get<bool>("-f", false);
-  bool interactive =
-      ctx.get<bool>("--interactive", false) || ctx.get<bool>("-i", false);
+  bool force = settings.force;
+  bool always_interactive = settings.always_interactive;
+  bool never_interactive = settings.never_interactive;
+
   bool recursive = ctx.get<bool>("--recursive", false) ||
                    ctx.get<bool>("-r", false) || ctx.get<bool>("-R", false);
+  bool remove_empty_dirs =
+      ctx.get<bool>("--dir", false) || ctx.get<bool>("-d", false);
   bool verbose =
       ctx.get<bool>("--verbose", false) || ctx.get<bool>("-v", false);
   bool one_file_system = ctx.get<bool>("--one-file-system", false);
@@ -242,7 +290,7 @@ auto remove_path(const std::string& path,
     }
   }
 
-  if (interactive) {
+  	  if (always_interactive && !force) {
     // OPTIMIZED: Avoid wstring concatenation
     safeErrorPrint("rm: remove '");
     safeErrorPrint(path);
@@ -254,13 +302,29 @@ auto remove_path(const std::string& path,
     }
   }
 
-  if ((attr & FILE_ATTRIBUTE_DIRECTORY) && !recursive) {
-    // OPTIMIZED: Avoid wstring concatenation
-    safeErrorPrint("rm: cannot remove '");
-    safeErrorPrint(path);
-    safeErrorPrint("': Is a directory\n");
-    return false;
-  }
+	  if ((attr & FILE_ATTRIBUTE_DIRECTORY) && !recursive && !remove_empty_dirs) {
+	    // OPTIMIZED: Avoid wstring concatenation
+	    safeErrorPrint("rm: cannot remove '");
+	    safeErrorPrint(path);
+	    safeErrorPrint("': Is a directory\n");
+	    return false;
+	  }
+
+	  if ((attr & FILE_ATTRIBUTE_DIRECTORY) && remove_empty_dirs && !recursive) {
+	    // -d: remove empty directory
+	    if (!RemoveDirectoryW(wpath.c_str())) {
+	      safeErrorPrint("rm: cannot remove '");
+	      safeErrorPrint(path);
+	      safeErrorPrint("': Directory not empty\n");
+	      return false;
+	    }
+	    if (verbose) {
+	      safePrint("removed directory '");
+	      safePrint(path);
+	      safePrint("'\n");
+	    }
+	    return true;
+	  }
 
   if (attr & FILE_ATTRIBUTE_DIRECTORY) {
     // Recursive function to delete directory with post-order traversal
@@ -410,11 +474,12 @@ auto remove_path(const std::string& path,
  * @return Result with success status
  */
 auto process_paths(const std::vector<std::string>& paths,
-                   const CommandContext<RM_OPTIONS.size()>& ctx)
+                   const CommandContext<RM_OPTIONS.size()>& ctx,
+                   const InteractiveSettings& settings)
     -> cp::Result<bool> {
   bool success = true;
   for (const auto& path : paths) {
-    if (!remove_path(path, ctx)) {
+    if (!remove_path(path, ctx, settings)) {
       success = false;
     }
   }
@@ -431,7 +496,16 @@ auto process_command(const CommandContext<RM_OPTIONS.size()>& ctx)
   std::vector<std::string> paths;
   bool recursive = ctx.get<bool>("--recursive", false) ||
                    ctx.get<bool>("-r", false) || ctx.get<bool>("-R", false);
-  bool ask_once = ctx.get<bool>("-I", false);
+  auto settings = compute_interactive_settings(ctx);
+
+  std::string interactive_mode = ctx.get<std::string>("--interactive", "");
+  if (!interactive_mode.empty() && interactive_mode != "never" &&
+      interactive_mode != "once" && interactive_mode != "always") {
+    safeErrorPrint("rm: invalid argument '" + interactive_mode +
+                   "' for '--interactive'\n");
+    safeErrorPrint("Valid arguments are: never, once, always\n");
+    return core::pipeline::unexpected("invalid argument");
+  }
   for (auto arg : ctx.positionals) {
     std::string file_arg(arg);
     if (contains_wildcard(file_arg)) {
@@ -446,14 +520,19 @@ auto process_command(const CommandContext<RM_OPTIONS.size()>& ctx)
     paths.push_back(file_arg);
   }
 
+  if (paths.empty() && settings.force) {
+    return cp::Result<bool>{true};  // --force with no operands succeeds silently
+  }
+
   return check_paths(paths).and_then(
       [&](const std::vector<std::string>& valid_paths) {
-        if (ask_once && (recursive || valid_paths.size() > 3)) {
+        if (settings.ask_once && !settings.force &&
+            (recursive || valid_paths.size() > 3)) {
           if (!confirm_bulk_remove(valid_paths.size(), recursive)) {
             return cp::Result<bool>{true};
           }
         }
-        return process_paths(valid_paths, ctx);
+        return process_paths(valid_paths, ctx, settings);
       });
 }
 }  // namespace rm_pipeline

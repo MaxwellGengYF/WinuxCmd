@@ -419,6 +419,8 @@ auto run(const Config& cfg) -> int {
     const char* term = cfg.zero ? "\0" : "\n";
     if (cfg.tag) {
       safePrint("BLAKE2 (" + file + ") = " + *hash_result + term);
+    } else if (cfg.quiet && !cfg.check_mode) {
+      safePrint(*hash_result + term);
     } else {
       safePrint(*hash_result + "  " + file + term);
     }

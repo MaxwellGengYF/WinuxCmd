@@ -78,19 +78,10 @@ namespace vdir_pipeline {
 namespace cp = core::pipeline;
 
 auto run(const CommandContext<VDIR_OPTIONS.size()>& ctx) -> int {
-  // Build ls arguments with -l (long) as default
-  SmallVector<std::wstring, 32> ls_args;
-  ls_args.push_back(L"-l");  // Default to long format
-
-  // Forward all positionals to ls
+  // Build command line: invoke ls via winuxcmd with -l (long) default
+  std::wstring cmd_line = L"winuxcmd.exe ls -l";
   for (const auto& pos : ctx.positionals) {
-    ls_args.push_back(utf8_to_wstring(std::string(pos)));
-  }
-
-  // Build command line
-  std::wstring cmd_line = L"ls.exe";
-  for (const auto& arg : ls_args) {
-    cmd_line += L" " + arg;
+    cmd_line += L" " + utf8_to_wstring(std::string(pos));
   }
 
   STARTUPINFOW si = {sizeof(si)};

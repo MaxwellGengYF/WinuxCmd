@@ -44,10 +44,13 @@ using cmd::meta::OptionType;
 auto constexpr OD_OPTIONS =
     std::array{OPTION("-A", "", "select input base", STRING_TYPE),
                OPTION("-c", "", "select ASCII output"),
+               OPTION("-d", "", "select decimal 2-byte units"),
                OPTION("-j", "", "skip bytes", STRING_TYPE),
                OPTION("-N", "", "limit bytes", STRING_TYPE),
+               OPTION("-o", "", "select octal 2-byte units"),
                OPTION("-t", "", "select output type", STRING_TYPE),
                OPTION("-v", "", "write all input data"),
+               OPTION("-w", "", "bytes per line", STRING_TYPE),
                OPTION("-x", "", "select hexadecimal 2-byte units"),
                OPTION("", "--traditional",
                       "accept arguments in traditional form (e.g., od -x file)")};
@@ -78,6 +81,8 @@ std::vector<OutputType> parse_output_type(const std::string& type_str) {
     types.push_back(OutputType::SHORT_HEX);
   } else if (type_str == "d") {
     types.push_back(OutputType::INT_DECIMAL);
+  } else if (type_str == "o") {
+    types.push_back(OutputType::BYTE_OCTAL);
   } else if (type_str == "f") {
     types.push_back(OutputType::FLOAT_DOUBLE);
   }
@@ -162,6 +167,14 @@ std::string format_int_decimal(const unsigned char* data) {
   return std::to_string(value);
 }
 
+// Format short as decimal
+std::string format_short_decimal(const unsigned char* data) {
+  unsigned short value = static_cast<unsigned short>(data[0] | (data[1] << 8));
+  char buf[16];
+  sprintf_s(buf, sizeof(buf), "%05d", value);
+  return buf;
+}
+
 // Format ASCII character
 std::string format_ascii(unsigned char c) {
   if (c >= 32 && c < 127) {
@@ -202,10 +215,14 @@ const char* get_address_format(const std::string& base) {
 // Dump data using specified format
 void dump_data(const std::vector<unsigned char>& data, size_t offset,
                const std::vector<OutputType>& types, bool show_all,
-               const std::string& address_base = "o") {
-  const size_t bytes_per_line = 16;
+               const std::string& address_base = "o",
+               size_t bytes_per_line = 16) {
   const char* addr_fmt = get_address_format(address_base);
   size_t pos = 0;
+
+  // Default to hex bytes if no types specified
+  OutputType primary_type = OutputType::BYTE_HEX;
+  if (!types.empty()) primary_type = types[0];
 
   while (pos < data.size()) {
     // Print offset
@@ -215,28 +232,72 @@ void dump_data(const std::vector<unsigned char>& data, size_t offset,
       safePrint(offset_buf);
     }
 
-    // Print bytes in hex
-    for (size_t i = 0; i < bytes_per_line; ++i) {
-      if (pos + i < data.size()) {
-        safePrint(" " + format_byte_hex(data[pos + i]));
-      } else {
-        safePrint("   ");
-      }
+    // Print data based on output type
+    size_t count = std::min(bytes_per_line, data.size() - pos);
+
+    switch (primary_type) {
+      case OutputType::BYTE_OCTAL:
+        for (size_t i = 0; i < bytes_per_line; ++i) {
+          if (pos + i < data.size()) {
+            safePrint(" " + format_byte_octal(data[pos + i]));
+          } else {
+            safePrint("     ");
+          }
+        }
+        break;
+      case OutputType::BYTE_HEX:
+        for (size_t i = 0; i < bytes_per_line; ++i) {
+          if (pos + i < data.size()) {
+            safePrint(" " + format_byte_hex(data[pos + i]));
+          } else {
+            safePrint("   ");
+          }
+        }
+        break;
+      case OutputType::SHORT_HEX:
+        for (size_t i = 0; i < bytes_per_line; i += 2) {
+          if (pos + i + 1 < data.size()) {
+            safePrint(" " + format_short_hex(&data[pos + i]));
+          } else if (pos + i < data.size()) {
+            safePrint(" " + format_byte_hex(data[pos + i]) + "  ");
+          } else {
+            safePrint("     ");
+          }
+        }
+        break;
+      case OutputType::INT_DECIMAL:
+        for (size_t i = 0; i < bytes_per_line; i += 2) {
+          if (pos + i + 1 < data.size()) {
+            safePrint(" " + format_short_decimal(&data[pos + i]));
+          } else if (pos + i < data.size()) {
+            safePrint(" " + format_byte_octal(data[pos + i]) + "  ");
+          } else {
+            safePrint("       ");
+          }
+        }
+        break;
+      case OutputType::ASCII:
+        safePrint("  ");
+        for (size_t i = 0; i < count; ++i) {
+          safePrint(format_ascii(data[pos + i]));
+        }
+        break;
+      default:
+        for (size_t i = 0; i < bytes_per_line; ++i) {
+          if (pos + i < data.size()) {
+            safePrint(" " + format_byte_hex(data[pos + i]));
+          } else {
+            safePrint("   ");
+          }
+        }
+        break;
     }
 
-    safePrint("  ");
-
-    // Print ASCII representation
-    for (size_t i = 0; i < bytes_per_line && pos + i < data.size(); ++i) {
-      unsigned char c = data[pos + i];
-      safePrint((c >= 32 && c < 127) ? std::string(1, c) : ".");
-    }
-
-    safePrintLn("\n");
+    safePrintLn("");
     pos += bytes_per_line;
 
     // Skip identical lines if not showing all
-    if (!show_all && pos < data.size()) {
+    if (!show_all && pos < data.size() && primary_type != OutputType::ASCII) {
       size_t next_pos = pos;
       while (next_pos + bytes_per_line <= data.size()) {
         bool same = true;
@@ -253,9 +314,7 @@ void dump_data(const std::vector<unsigned char>& data, size_t offset,
 
       if (next_pos > pos) {
         if (addr_fmt[0] != '\0') {
-          char buf[32];
-          sprintf_s(buf, sizeof(buf), "*\n", addr_fmt, offset + next_pos);
-          safePrint(buf);
+          safePrint("*\n");
           char addr_buf[16];
           sprintf_s(addr_buf, sizeof(addr_buf), addr_fmt, offset + next_pos);
           safePrint(addr_buf);
@@ -312,20 +371,37 @@ REGISTER_COMMAND(
     /* options */ OD_OPTIONS) {
   // Parse options
   std::string input_base = ctx.get<std::string>("-A", "o");
-  size_t skip_bytes = ctx.get<bool>("-j", false)
-                          ? parse_offset(ctx.get<std::string>("-j", ""))
-                          : 0;
-  size_t limit_bytes = ctx.get<bool>("-N", false)
-                           ? parse_offset(ctx.get<std::string>("-N", ""))
-                           : 0;
+  size_t skip_bytes = 0;
+  if (ctx.has("-j")) {
+    skip_bytes = parse_offset(ctx.get<std::string>("-j", ""));
+  }
+  size_t limit_bytes = 0;
+  if (ctx.has("-N")) {
+    limit_bytes = parse_offset(ctx.get<std::string>("-N", ""));
+  }
   std::string output_type = ctx.get<std::string>("-t", "o2");
   bool show_all = ctx.get<bool>("-v", false);
   bool hex_short = ctx.get<bool>("-x", false);
+  bool oct_short = ctx.get<bool>("-o", false);
+  bool dec_short = ctx.get<bool>("-d", false);
+  bool ascii_out = ctx.get<bool>("-c", false);
+
+  size_t bytes_per_line = 16;
+  if (ctx.has("-w")) {
+    bytes_per_line = parse_offset(ctx.get<std::string>("-w", "16"));
+    if (bytes_per_line == 0) bytes_per_line = 16;
+  }
 
   // Default output type
   std::vector<OutputType> types = parse_output_type(output_type);
   if (hex_short) {
     types = {OutputType::SHORT_HEX};
+  } else if (oct_short) {
+    types = {OutputType::BYTE_OCTAL};
+  } else if (dec_short) {
+    types = {OutputType::INT_DECIMAL};
+  } else if (ascii_out) {
+    types = {OutputType::ASCII};
   }
 
   // Read input
@@ -398,7 +474,7 @@ REGISTER_COMMAND(
       safePrint("\n");
     }
   } else {
-    dump_data(data, skip_bytes, types, show_all, input_base);
+    dump_data(data, skip_bytes, types, show_all, input_base, bytes_per_line);
   }
 
   return 0;
