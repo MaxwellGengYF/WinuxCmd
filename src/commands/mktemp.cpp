@@ -95,8 +95,22 @@ auto run(const Config& cfg) -> int {
   // Determine temp directory
   std::string temp_dir = cfg.tmpdir;
   if (temp_dir.empty()) {
-    // Use current directory for tests
-    temp_dir = ".";
+    // Use system temp directory
+    wchar_t wtemp[MAX_PATH];
+    DWORD len = GetTempPathW(MAX_PATH, wtemp);
+    if (len > 0 && len < MAX_PATH) {
+      temp_dir = wstring_to_utf8(std::wstring(wtemp));
+      // Convert backslashes to forward slashes for POSIX compatibility
+      for (char& c : temp_dir) {
+        if (c == '\\') c = '/';
+      }
+      // Remove trailing slash if present
+      if (!temp_dir.empty() && (temp_dir.back() == '/' || temp_dir.back() == '\\')) {
+        temp_dir.pop_back();
+      }
+    } else {
+      temp_dir = ".";
+    }
   }
 
   // Process template
@@ -176,12 +190,12 @@ auto run(const Config& cfg) -> int {
     }
   }
 
-  // Print just the filename (not full path)
-  size_t last_slash = temp_file.find_last_of("/\\");
-  std::string filename_only = (last_slash != std::string::npos)
-                                  ? temp_file.substr(last_slash + 1)
-                                  : temp_file;
-  safePrintLn(filename_only);
+  // Print full path (POSIX style)
+  std::string out_path = temp_file;
+  for (char& c : out_path) {
+    if (c == '\\') c = '/';
+  }
+  safePrintLn(out_path);
   return 0;
 }
 

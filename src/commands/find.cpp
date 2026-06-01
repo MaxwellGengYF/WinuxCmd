@@ -212,7 +212,8 @@ auto tokenize_expression(
       }
     }
     // Operators or non-global primaries start the expression
-    if (arg == "!" || arg == "(" || arg == ")" || is_known_option(arg, metas)) {
+    if (arg == "!" || arg == "(" || arg == ")" || arg == "\\(" || arg == "\\)" ||
+        is_known_option(arg, metas)) {
       break;
     }
     // Otherwise it's a path
@@ -223,10 +224,13 @@ auto tokenize_expression(
   // Parse expression tokens
   while (i < raw_args.size()) {
     auto arg = raw_args[i];
-    if (arg == "!" || arg == "(" || arg == ")" ||
-        arg == "-o" || arg == "-or" || arg == "-a" || arg == "-and" ||
-        arg == "-not") {
-      tokens.push_back({TokenType::Operator, std::string(arg)});
+    std::string norm_arg = std::string(arg);
+    if (norm_arg == "\\(") norm_arg = "(";
+    if (norm_arg == "\\)") norm_arg = ")";
+    if (norm_arg == "!" || norm_arg == "(" || norm_arg == ")" ||
+        norm_arg == "-o" || norm_arg == "-or" || norm_arg == "-a" || norm_arg == "-and" ||
+        norm_arg == "-not") {
+      tokens.push_back({TokenType::Operator, norm_arg});
       ++i;
     } else if (arg == "-exec" || arg == "-ok") {
       std::vector<std::string> exec_args;
