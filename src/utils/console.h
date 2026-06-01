@@ -38,6 +38,12 @@ constexpr auto COLOR_SOURCE =
 constexpr auto COLOR_MEDIA =
     L"\033[01;35m";  ///< Media: .jpg, .mp4 (bold magenta)
 
+// Capture handles — MUST be global (not in anonymous namespace) so that
+// set_output_capture_handles() in main.cpp affects safePrint() in every TU.
+inline HANDLE g_capture_stdout_write = nullptr;
+inline HANDLE g_capture_stderr_write = nullptr;
+inline bool g_capture_active = false;
+
 namespace {
 thread_local HANDLE g_cached_stdout = INVALID_HANDLE_VALUE;
 thread_local HANDLE g_cached_stderr = INVALID_HANDLE_VALUE;
@@ -47,11 +53,6 @@ thread_local bool g_stderr_pipe_closed = false;
 thread_local bool g_stdout_is_console = false;
 thread_local bool g_stderr_is_console = false;
 thread_local bool g_console_checked = false;
-
-// Capture handles (set by daemon when capturing)
-HANDLE g_capture_stdout_write = nullptr;
-HANDLE g_capture_stderr_write = nullptr;
-bool g_capture_active = false;
 
 HANDLE getStdOut() {
   if (g_capture_active && g_capture_stdout_write) {
@@ -90,8 +91,9 @@ inline void set_output_capture_handles(HANDLE stdout_handle,
   g_capture_stdout_write = stdout_handle;
   g_capture_stderr_write = stderr_handle;
   g_capture_active = active;
-  // Invalidate cache to force re-evaluation
+  // Invalidate caches to force re-evaluation
   g_handles_valid = false;
+  g_console_checked = false;
 }
 
 // Exported function to invalidate cached handles (call after SetStdHandle)
@@ -115,9 +117,10 @@ inline bool isConsoleHandle(HANDLE h) {
   return GetConsoleMode(h, &mode) != 0;
 }
 
-// Cached console check - only calls GetConsoleMode once per thread
+// Cached console check - only calls GetConsoleMode once per thread.
+// When capture is active, always re-evaluate because the handles change.
 inline bool isStdoutConsole() {
-  if (!g_console_checked) {
+  if (g_capture_active || !g_console_checked) {
     g_stdout_is_console = isConsoleHandle(getStdOut());
     g_stderr_is_console = isConsoleHandle(getStdErr());
     g_console_checked = true;
@@ -126,7 +129,7 @@ inline bool isStdoutConsole() {
 }
 
 inline bool isStderrConsole() {
-  if (!g_console_checked) {
+  if (g_capture_active || !g_console_checked) {
     g_stdout_is_console = isConsoleHandle(getStdOut());
     g_stderr_is_console = isConsoleHandle(getStdErr());
     g_console_checked = true;

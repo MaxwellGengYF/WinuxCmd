@@ -239,7 +239,7 @@ auto tokenize_expression(
       ++i;
       while (i < raw_args.size()) {
         auto a = std::string(raw_args[i]);
-        if (a == ";") {
+        if (a == ";" || a == "\\;") {
           terminated = true;
           ++i;
           break;

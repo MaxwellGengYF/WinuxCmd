@@ -72,6 +72,16 @@ xmake project -k compile_commands --lsp=clangd .vscode
 | `small_vector_example` | binary | — | Small vector example |
 | `ffi_example` | binary | `build_ffi` | FFI example (C), depends on `winuxcore` |
 
+## `scripts/build.py`
+
+Convenience wrapper: see [`build_py_usage.md`](build_py_usage.md) for full usage.
+
+```bash
+python scripts/build.py                    # release, auto-detect
+python scripts/build.py -m debug -c        # debug + clean cache
+python scripts/build.py --copy-to ./dist   # build + copy artifacts
+```
+
 ## Common Issues
 
 ### Build Flags

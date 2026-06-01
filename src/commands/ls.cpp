@@ -2219,7 +2219,7 @@ auto list_directory_recursive(const std::string &path,
 }
 
 auto print_ls_error(const std::string &message) -> void {
-  safePrintLn(std::wstring(L"ls: ") +
+  safeErrorPrintLn(std::wstring(L"ls: ") +
               std::wstring(message.begin(), message.end()));
 }
 
@@ -2253,7 +2253,7 @@ auto expand_path_operands(const std::vector<std::string> &paths)
       continue;
     }
 
-    safePrintLn(std::wstring(L"ls: cannot access '") +
+    safeErrorPrintLn(std::wstring(L"ls: cannot access '") +
                 std::wstring(path.begin(), path.end()) +
                 L"': No such file or directory");
     success = false;
