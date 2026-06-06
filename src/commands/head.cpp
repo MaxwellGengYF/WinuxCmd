@@ -29,6 +29,7 @@
 #include "../core/core.h"
 #include "../utils/utils.h"
 #include "../container/container.h"
+#include <sstream>
 
 using cmd::meta::OptionMeta;
 using cmd::meta::OptionType;
@@ -508,8 +509,15 @@ REGISTER_COMMAND(
         any_error = true;
         continue;
       }
-
-      output_head(input, config);
+      std::string decoded;
+      if (config.delimiter == '\0') {
+        decoded = std::string((std::istreambuf_iterator<char>(input)),
+                              std::istreambuf_iterator<char>());
+      } else {
+        decoded = read_text_stream(input);
+      }
+      std::istringstream decoded_stream(decoded);
+      output_head(decoded_stream, config);
       if (input.bad()) {
         safeErrorPrint("head: error reading '");
         safeErrorPrint(file);

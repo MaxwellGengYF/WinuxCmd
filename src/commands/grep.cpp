@@ -904,8 +904,7 @@ auto read_file_binary(const std::string& path) -> cp::Result<std::string> {
   if (!in.is_open()) {
     return core::pipeline::unexpected("cannot open '" + path + "'");
   }
-  return std::string((std::istreambuf_iterator<char>(in)),
-                     std::istreambuf_iterator<char>());
+  return read_text_stream(in);
 }
 
 auto file_is_binary(const std::string& content) -> bool {
@@ -1078,8 +1077,7 @@ auto process(Config& cfg) -> int {
     bool is_binary = false;
 
     if (input == "-") {
-      std::string content((std::istreambuf_iterator<char>(std::cin)),
-                          std::istreambuf_iterator<char>());
+      std::string content = read_text_stream(std::cin);
       is_binary = file_is_binary(content);
       scan_result =
           scan_text(content, display_name, show_filename, cfg, is_binary);

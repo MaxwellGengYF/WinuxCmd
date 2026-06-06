@@ -113,7 +113,16 @@ inline std::wstring build_fallback_cmdline(const Range &args) {
 
   std::wstring cmdline = quote_arg_for_cmdline(exe_path);
   if (exe_path != wfirst) {
-    cmdline += L" " + quote_arg_for_cmdline(wfirst);
+    // Strip executable extension so winuxcmd.exe dispatcher can find the command
+    std::wstring cmd_name = wfirst;
+    if (cmd_name.ends_with(L".exe") || cmd_name.ends_with(L".com") ||
+        cmd_name.ends_with(L".bat") || cmd_name.ends_with(L".cmd")) {
+      size_t dot = cmd_name.rfind(L'.');
+      if (dot != std::wstring::npos) {
+        cmd_name = cmd_name.substr(0, dot);
+      }
+    }
+    cmdline += L" " + quote_arg_for_cmdline(cmd_name);
   }
   for (size_t i = 1; i < args.size(); ++i) {
     cmdline += L" " + quote_arg_for_cmdline(utf8_to_wstring(std::string(args[i])));

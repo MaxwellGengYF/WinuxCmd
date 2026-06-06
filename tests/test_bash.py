@@ -586,7 +586,7 @@ class TestComplexBashCommands:
         assert "hello" in r.stdout
 
     def test_pipe_ls_to_head(self) -> None:
-        r = run_bash("ls / | head -1")
+        r = run_bash("ls . | head -1")
         assert r.returncode == 0
         assert len(r.stdout.strip()) > 0
 
@@ -678,10 +678,9 @@ class TestComplexBashCommands:
         assert "0" in r.stdout
 
     def test_exit_code_failure_check(self) -> None:
-        r = run_bash("false; echo $")
-        # Note: $? is special; in double-quoted bash -c it may be consumed.
-        # Use a safer form.
-        r = run_bash("bash -c 'false; echo $?'")
+        # Use single quotes so $? is passed literally to the inner shell
+        # (run_bash wraps in double quotes which would expand $? early).
+        r = run_c_raw("bash -c 'false; echo $?'")
         assert r.returncode == 0
         assert "1" in r.stdout
 
@@ -948,3 +947,5 @@ class TestComplexBashCommands:
         r = run_bash("echo 'a;b'")
         assert r.returncode == 0
         assert "a;b" in r.stdout
+
+

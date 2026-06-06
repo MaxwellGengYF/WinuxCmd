@@ -3833,11 +3833,17 @@ int main(int argc, char *argv[]) noexcept {
     }
 
     // Try built-in command dispatch first; fall back to native shell.
-    // Tokenise the processed command line so built-in dispatch can see
-    // the real command name and arguments.
+    // When multiple argv tokens are passed after -c, use them directly so
+    // spaces inside individual arguments are preserved.  Only tokenise when
+    // a single raw command string is provided.
     std::vector<std::string> tok_storage;
     std::vector<std::string_view> tok_views;
-    {
+    if (args.size() > 2) {
+      // Multiple argv tokens — use them verbatim.
+      for (size_t i = 1; i < args.size(); ++i) {
+        tok_storage.emplace_back(args[i]);
+      }
+    } else {
       std::string tok;
       bool in_sq = false, in_dq = false;
       for (char c : cmd_line) {

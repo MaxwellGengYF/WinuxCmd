@@ -35,6 +35,7 @@
 
 #include <chrono>
 #include <deque>
+#include <sstream>
 #include <thread>
 
 using cmd::meta::OptionMeta;
@@ -788,8 +789,15 @@ REGISTER_COMMAND(
         first_print = false;
         continue;
       }
-
-      output_tail(input, config);
+      std::string decoded;
+      if (config.delimiter == '\0') {
+        decoded = std::string((std::istreambuf_iterator<char>(input)),
+                              std::istreambuf_iterator<char>());
+      } else {
+        decoded = read_text_stream(input);
+      }
+      std::istringstream decoded_stream(decoded);
+      output_tail(decoded_stream, config);
       if (input.bad()) {
         safeErrorPrint("tail: error reading '");
         safeErrorPrint(file);

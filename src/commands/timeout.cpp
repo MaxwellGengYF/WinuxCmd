@@ -208,7 +208,14 @@ auto run(const Config& cfg) -> int {
                         &si,            // Pointer to STARTUPINFO structure
                         &pi  // Pointer to PROCESS_INFORMATION structure
                         )) {
-      return 1;
+      DWORD err = GetLastError();
+      switch (err) {
+        case ERROR_FILE_NOT_FOUND:
+        case ERROR_PATH_NOT_FOUND:
+          return 127;
+        default:
+          return 126;
+      }
     }
 
 	    // Wait for process to finish or timeout (0 means no timeout)

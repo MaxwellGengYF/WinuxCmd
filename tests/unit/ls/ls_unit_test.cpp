@@ -326,14 +326,16 @@ TEST(ls, ls_time_sort) {
   // Set old.txt to an older time: 2025-01-01 10:00
   Pipeline touch_old;
   touch_old.set_cwd(tmp.wpath());
-  touch_old.add(L"touch.exe", {L"-d", L"202501011000", L"old.txt"});
-  touch_old.run();
+  touch_old.add(L"touch.exe", {L"-t", L"202501011000", L"old.txt"});
+  auto touch_old_result = touch_old.run();
+  EXPECT_EQ(touch_old_result.exit_code, 0);
 
   // Set new.txt to a newer time: 2025-01-01 12:00
   Pipeline touch_new;
   touch_new.set_cwd(tmp.wpath());
-  touch_new.add(L"touch.exe", {L"-d", L"202501011200", L"new.txt"});
-  touch_new.run();
+  touch_new.add(L"touch.exe", {L"-t", L"202501011200", L"new.txt"});
+  auto touch_new_result = touch_new.run();
+  EXPECT_EQ(touch_new_result.exit_code, 0);
 
   Pipeline p;
   p.set_cwd(tmp.wpath());
@@ -401,13 +403,15 @@ TEST(ls, ls_sort_option_last_wins) {
 
   Pipeline touch_old;
   touch_old.set_cwd(tmp.wpath());
-  touch_old.add(L"touch.exe", {L"-d", L"202501011000", L"big_old.txt"});
-  touch_old.run();
+  touch_old.add(L"touch.exe", {L"-t", L"202501011000", L"big_old.txt"});
+  auto touch_old_result = touch_old.run();
+  EXPECT_EQ(touch_old_result.exit_code, 0);
 
   Pipeline touch_new;
   touch_new.set_cwd(tmp.wpath());
-  touch_new.add(L"touch.exe", {L"-d", L"202501011200", L"small_new.txt"});
-  touch_new.run();
+  touch_new.add(L"touch.exe", {L"-t", L"202501011200", L"small_new.txt"});
+  auto touch_new_result = touch_new.run();
+  EXPECT_EQ(touch_new_result.exit_code, 0);
 
   Pipeline size_last;
   size_last.set_cwd(tmp.wpath());
@@ -493,13 +497,15 @@ TEST(ls, ls_access_time_sort) {
 
   Pipeline touch_old;
   touch_old.set_cwd(tmp.wpath());
-  touch_old.add(L"touch.exe", {L"-a", L"-d", L"202501011000", L"old.txt"});
-  touch_old.run();
+  touch_old.add(L"touch.exe", {L"-a", L"-t", L"202501011000", L"old.txt"});
+  auto touch_old_result = touch_old.run();
+  EXPECT_EQ(touch_old_result.exit_code, 0);
 
   Pipeline touch_new;
   touch_new.set_cwd(tmp.wpath());
-  touch_new.add(L"touch.exe", {L"-a", L"-d", L"202501011200", L"new.txt"});
-  touch_new.run();
+  touch_new.add(L"touch.exe", {L"-a", L"-t", L"202501011200", L"new.txt"});
+  auto touch_new_result = touch_new.run();
+  EXPECT_EQ(touch_new_result.exit_code, 0);
 
   Pipeline p;
   p.set_cwd(tmp.wpath());
