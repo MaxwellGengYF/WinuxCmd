@@ -19,7 +19,7 @@ $ConflictedAliases = @(
     "mv", "ps", "pwd", "rm", "rmdir", "sleep", "sort", "tee", "type", "man"
 )
 
-# Aliases with AllScope that cannot be removed - users must use .exe extension
+# Aliases intentionally left to PowerShell because overriding them is surprising
 $AllScopeAliases = @("echo", "cp", "where")
 
 $CommandMap = @{
@@ -43,9 +43,13 @@ $CommandMap = @{
     "which"     = "which.exe"
     "env"       = "env.exe"
     "sed"       = "sed.exe"
+    "chgrp"     = "chgrp.exe"
     "chmod"     = "chmod.exe"
     "date"      = "date.exe"
     "diff"      = "diff.exe"
+    "dir"       = "dir.exe"
+    "vdir"      = "vdir.exe"
+    "dircolors" = "dircolors.exe"
     "ln"        = "ln.exe"
     "ps"        = "ps.exe"
     "pwd"       = "pwd.exe"
@@ -70,6 +74,7 @@ $CommandMap = @{
     "dirname"   = "dirname.exe"
     "free"      = "free.exe"
     "column"    = "column.exe"
+    "col"       = "col.exe"
     "seq"       = "seq.exe"
     "stat"      = "stat.exe"
     # New commands added in v0.7.0 - Hash tools
@@ -88,6 +93,7 @@ $CommandMap = @{
     "nl"        = "nl.exe"
     "fold"      = "fold.exe"
     "fmt"       = "fmt.exe"
+    "more"      = "more.exe"
     # New commands added in v0.7.0 - Text conversion
     "expand"    = "expand.exe"
     "unexpand"  = "unexpand.exe"
@@ -170,6 +176,9 @@ $CommandMap = @{
     "tzset"     = "tzset.exe"
     "pinky"     = "pinky.exe"
     "mpicalc"   = "mpicalc.exe"
+    "strings"   = "strings.exe"
+    "stty"      = "stty.exe"
+    "hexdump"   = "hexdump.exe"
     # New commands added in v0.7.0 - Archive tools
     "cpio"      = "cpio.exe"
     # New commands added in v0.7.0 - System utilities
@@ -199,9 +208,21 @@ function Save-ConflictedAliases {
     }
 }
 
-function Remove-ConflictedAliases {
+function Set-WinuxAliases {
     foreach ($aliasName in $ConflictedAliases) {
-        Remove-Item -Path "Alias:\$aliasName" -Force -ErrorAction SilentlyContinue
+        if (-not $CommandMap.ContainsKey($aliasName)) { continue }
+
+        $commandPath = Join-Path $ScriptDir $CommandMap[$aliasName]
+        if (-not (Test-Path $commandPath)) { continue }
+
+        $alias = Get-Alias -Name $aliasName -ErrorAction SilentlyContinue
+        $options = if ($alias) {
+            [System.Management.Automation.ScopedItemOptions]$alias.Options
+        } else {
+            [System.Management.Automation.ScopedItemOptions]::None
+        }
+
+        Set-Alias -Name $aliasName -Value $commandPath -Scope Global -Option $options -Force
     }
 }
 
@@ -212,7 +233,8 @@ function Restore-ConflictedAliases {
         $saved = $global:Winux_SavedAliases[$aliasName]
         
         try {
-            Set-Alias -Name $aliasName -Value $saved.Definition -Scope Global -Force
+            $options = [System.Management.Automation.ScopedItemOptions]$saved.Options
+            Set-Alias -Name $aliasName -Value $saved.Definition -Scope Global -Option $options -Force
         }
         catch {
             # If restore fails, ignore it
@@ -224,7 +246,8 @@ function Restore-ConflictedAliases {
 
 foreach ($aliasName in $global:Winux_SavedAliases.Keys) {
     $saved = $global:Winux_SavedAliases[$aliasName]
-    Set-Alias -Name $aliasName -Value $saved.Definition -Scope Global -Force
+    $options = [System.Management.Automation.ScopedItemOptions]$saved.Options
+    Set-Alias -Name $aliasName -Value $saved.Definition -Scope Global -Option $options -Force
 }
 
 Remove-Variable Winux_SavedAliases -Scope Global -ErrorAction SilentlyContinue
@@ -269,7 +292,7 @@ function Invoke-Activate {
     Write-Host "Activating WinuxCmd..." -ForegroundColor Green
 
     Save-ConflictedAliases
-    Remove-ConflictedAliases
+    Set-WinuxAliases
 
     # Add WinuxCmd bin directory to PATH
     if ($env:PATH -notlike "$ScriptDir*") {
@@ -282,9 +305,9 @@ function Invoke-Activate {
     Write-Host "Directory: $ScriptDir" -ForegroundColor Gray
     Write-Host ""
 
-    # Show warning for AllScope aliases
+    # Show note for aliases intentionally left to PowerShell
     if ($AllScopeAliases.Count -gt 0) {
-        Write-Host "Note: The following commands have AllScope option and cannot be overridden:" -ForegroundColor Yellow
+        Write-Host "Note: The following command names are kept as PowerShell aliases:" -ForegroundColor Yellow
         Write-Host "  $($AllScopeAliases -join ', ')" -ForegroundColor Magenta
         Write-Host "  Use `.exe` extension to run WinuxCmd version, e.g.:" -ForegroundColor Cyan
         Write-Host "  echo.exe, cp.exe, where.exe" -ForegroundColor Green
